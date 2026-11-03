@@ -1,0 +1,122 @@
+import { useState } from 'react';
+import { RULES, fragmentName, type Card, type FragmentKind } from '../engine';
+import { CARD_BACK_ART, iconArt } from '../config/art';
+
+const KIND_ORDER: FragmentKind[] = ['fire', 'water', 'rock', 'beam', 'cross'];
+
+/** "Fire ×2, Beam ×1" counts for the pile hover cards. */
+function countKinds(cards: Card[]) {
+  return KIND_ORDER.map((kind) => ({ kind, n: cards.filter((c) => c.kind === kind).length })).filter((k) => k.n > 0);
+}
+
+/** [UI-PLACEMENT] Mana orb, bottom left (LAYOUT.manaOrb). Slay the Spire's energy orb, but for mana. */
+export function ManaOrb({ mana, maxMana, cost }: { mana: number; maxMana: number; cost?: number }) {
+  const short = cost !== undefined && cost > mana;
+  return (
+    <div className={`mana-orb ${short ? 'is-short' : ''}`} title={`Mana ${mana}/${maxMana}`}>
+      <div className="mana-orb-glow" />
+      <div className="mana-value">
+        {mana}
+        <span className="mana-max">/{maxMana}</span>
+      </div>
+      <div className="mana-label">Mana</div>
+    </div>
+  );
+}
+
+/** [UI-PLACEMENT] Meditate button, under the mana orb (LAYOUT.meditate). */
+export function MeditateButton({ disabled, full, onClick }: { disabled: boolean; full: boolean; onClick: () => void }) {
+  return (
+    <button className="hud-button meditate-button" disabled={disabled} onClick={onClick} title={full ? 'Your mana is already full' : `+${RULES.meditateMana} mana (1 action)`}>
+      <span className="button-main">Meditate</span>
+      <span className="button-sub">+{RULES.meditateMana} mana</span>
+    </button>
+  );
+}
+
+/**
+ * [UI-PLACEMENT] Draw pile (bottom-left, LAYOUT.drawPile) and discard pile (bottom-right, LAYOUT.discardPile).
+ * Hover shows what's in the pile. The draw pile's order stays hidden, only its contents are listed.
+ */
+export function Pile({ which, cards, erased }: { which: 'draw' | 'discard'; cards: Card[]; erased?: Card[] }) {
+  const [open, setOpen] = useState(false);
+  const counts = countKinds(cards);
+  return (
+    <div className={`pile pile-${which}`} onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)}>
+      <div className="pile-stack">
+        <img src={CARD_BACK_ART} alt="" draggable={false} />
+        {cards.length > 1 && <img src={CARD_BACK_ART} alt="" draggable={false} className="pile-under" />}
+      </div>
+      <div className="pile-count">{cards.length}</div>
+      <div className="pile-name">{which === 'draw' ? 'Draw' : 'Discard'}</div>
+      {open && (
+        <div className="pile-popup">
+          <div className="pile-popup-title">
+            {which === 'draw' ? 'Draw pile' : 'Discard pile'} · {cards.length} card{cards.length === 1 ? '' : 's'}
+          </div>
+          {counts.length === 0 && <div className="pile-empty">Empty</div>}
+          {counts.map(({ kind, n }) => (
+            <div key={kind} className="pile-row">
+              <img src={iconArt(kind)} alt="" />
+              {fragmentName(kind)} <b>×{n}</b>
+            </div>
+          ))}
+          {which === 'draw' && <div className="pile-note">When it runs out, the discard pile is shuffled back in.</div>}
+          {erased && erased.length > 0 && (
+            <div className="pile-note">
+              Erased for good: {countKinds(erased).map(({ kind, n }) => `${fragmentName(kind)} ×${n}`).join(', ')}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** [UI-PLACEMENT] End turn button with the action pips, above the discard pile (LAYOUT.endTurn). */
+export function EndTurnButton({ actionsLeft, disabled, onClick }: { actionsLeft: number; disabled: boolean; onClick: () => void }) {
+  return (
+    <button className="hud-button end-turn-button" disabled={disabled} onClick={onClick}>
+      <span className="button-main">End Turn</span>
+      <span className="action-pips" title={`${actionsLeft} of ${RULES.actionsPerTurn} actions left`}>
+        {Array.from({ length: RULES.actionsPerTurn }, (_, i) => (
+          <span key={i} className={i < actionsLeft ? 'pip on' : 'pip'} />
+        ))}
+        <span className="pips-label">actions</span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * [UI-PLACEMENT] Reroll button, above End turn (LAYOUT.reroll). First click enters reroll mode (pick cards in
+ * the hand); then it confirms the swap. The small Cancel button leaves reroll mode.
+ */
+export function RerollButton({ mode, marked, disabled, onStart, onConfirm, onCancel }: {
+  mode: boolean;
+  marked: number;
+  disabled: boolean;
+  onStart: () => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!mode) {
+    return (
+      <button className="hud-button reroll-button" disabled={disabled} onClick={onStart} title="Swap any cards in your hand for new ones (1 action)">
+        <span className="button-main">Reroll</span>
+        <span className="button-sub">swap cards</span>
+      </button>
+    );
+  }
+  return (
+    <div className="reroll-group">
+      <button className="hud-button reroll-button is-active" disabled={marked === 0} onClick={onConfirm}>
+        <span className="button-main">Confirm ({marked})</span>
+        <span className="button-sub">{marked === 0 ? 'pick cards in your hand' : '1 action'}</span>
+      </button>
+      <button className="reroll-cancel" onClick={onCancel}>
+        Cancel
+      </button>
+    </div>
+  );
+}

@@ -1,0 +1,244 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Billboard, Html, useTexture } from '@react-three/drei';
+import { Color, SRGBColorSpace, Vector3, type Group, type MeshBasicMaterial } from 'three';
+import type { Element, EnemyKind, Intent, Pos, RedactorMode, Statuses } from '../engine';
+import { ELEMENT_COLOR, PLACEHOLDER_COLORS, STATUS_ART, UNIT_SPRITE } from '../config/art';
+import { BOARD_GEOMETRY } from '../config/camera';
+import { TIMING } from '../config/timing';
+import { IntentChips, describeIntents } from '../hud/intents';
+import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
+import { tileHandlers, type TilePointer } from './Board';
+
+/** Everything the board needs to draw one unit (the player or an enemy). Built in GameScene.tsx. */
+export interface UnitView {
+  /** React key: stable for the unit's whole life in a room, so it glides between tiles instead of jumping. */
+  key: string;
+  isPlayer: boolean;
+  kind?: EnemyKind;
+  element?: Element;
+  name: string;
+  /** Short id for telling two of the same enemy apart ("a", "b"), or empty. */
+  tag: string;
+  pos: Pos;
+  hp: number;
+  maxHp: number;
+  status: Statuses;
+  art: string;
+  intents?: Intent[];
+  /** Plain-language behaviour for the hover card. */
+  behavior?: string;
+  // Special badges
+  marks?: number;
+  maxMarks?: number;
+  mode?: RedactorMode;
+  guarded?: boolean;
+  charge?: boolean;
+  carried?: number;
+  mana?: number;
+  maxMana?: number;
+}
+
+const FLOAT_ID = { n: 0 };
+interface FloatNum {
+  id: number;
+  text: string;
+  kind: 'dmg' | 'heal';
+}
+
+/**
+ * One unit: a coloured base disc and a standee picture that always faces the camera, like the sprites in
+ * Into the Breach. HTML plates float with it: HP and statuses under its feet, intents above its head.
+ * PLACEHOLDER picture: the paper token (config/art.ts).
+ */
+export function Unit({ unit, room, pointer, hovered, showIntents }: { unit: UnitView; room: RoomSize; pointer: TilePointer; hovered: boolean; showIntents: boolean }) {
+  const group = useRef<Group>(null);
+  const sprite = useRef<MeshBasicMaterial>(null);
+  const texture = useTexture(unit.art);
+  texture.colorSpace = SRGBColorSpace;
+
+  const target = useMemo(() => new Vector3(...tileToWorld(unit.pos, room)), [unit.pos, room]);
+  const firstFrame = useRef(true);
+  const hitAt = useRef(-1);
+  const [floats, setFloats] = useState<FloatNum[]>([]);
+
+  // Floating damage / heal numbers and a red flash when HP changes.
+  const prevHp = useRef(unit.hp);
+  const timers = useRef<number[]>([]);
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+  useEffect(() => {
+    const diff = unit.hp - prevHp.current;
+    prevHp.current = unit.hp;
+    if (diff === 0) return;
+    const f: FloatNum = { id: ++FLOAT_ID.n, text: diff < 0 ? `${diff}` : `+${diff}`, kind: diff < 0 ? 'dmg' : 'heal' };
+    if (diff < 0) hitAt.current = performance.now();
+    setFloats((fs) => [...fs, f]);
+    timers.current.push(window.setTimeout(() => setFloats((fs) => fs.filter((x) => x.id !== f.id)), TIMING.damageNumber));
+  }, [unit.hp]);
+
+  const white = useMemo(() => new Color('#ffffff'), []);
+  const red = useMemo(() => new Color('#ff5a4a'), []);
+
+  useFrame((_, dt) => {
+    const g = group.current;
+    if (!g) return;
+    if (firstFrame.current) {
+      g.position.copy(target);
+      firstFrame.current = false;
+    }
+    // Glide toward the tile with a little hop in the middle of the move.
+    const flat = new Vector3(g.position.x, 0, g.position.z);
+    const dist = flat.distanceTo(new Vector3(target.x, 0, target.z));
+    const a = 1 - Math.exp(-dt * TIMING.unitMoveRate);
+    g.position.x += (target.x - g.position.x) * a;
+    g.position.z += (target.z - g.position.z) * a;
+    g.position.y = dist > 0.01 ? 0.22 * Math.sin(Math.PI * Math.min(1, dist)) : 0;
+
+    // Hit flash: tint the picture red for a moment.
+    if (sprite.current) {
+      const since = (performance.now() - hitAt.current) / 280;
+      sprite.current.color.copy(white).lerp(red, since >= 0 && since < 1 ? 1 - since : 0);
+    }
+  });
+
+  const baseColor = unit.isPlayer
+    ? PLACEHOLDER_COLORS.unitBase.player
+    : unit.element
+      ? ELEMENT_COLOR[unit.element]
+      : PLACEHOLDER_COLORS.unitBase.enemy;
+  const S = UNIT_SPRITE;
+  const headY = TILE_TOP + S.footY + S.height + 0.1;
+  const handlers = tileHandlers(unit.pos, pointer);
+
+  return (
+    <group ref={group}>
+      {/* Base disc */}
+      <mesh position={[0, TILE_TOP + 0.02, 0]} raycast={() => null}>
+        <cylinderGeometry args={[0.38, 0.4, 0.04, 32]} />
+        <meshStandardMaterial color={baseColor} emissive={baseColor} emissiveIntensity={hovered ? 0.6 : 0.15} roughness={0.6} />
+      </mesh>
+
+      {/* Standee picture */}
+      <Billboard position={[0, TILE_TOP + S.footY + S.height / 2, 0]}>
+        <mesh {...handlers}>
+          <planeGeometry args={[S.width, S.height]} />
+          <meshBasicMaterial ref={sprite} map={texture} transparent alphaTest={0.4} toneMapped={false} />
+        </mesh>
+      </Billboard>
+
+      {/* Intents above the head */}
+      {showIntents && !unit.isPlayer && (
+        <Html position={[0, headY, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
+          <IntentChips intents={unit.intents} />
+        </Html>
+      )}
+
+      {/* HP plate under the feet */}
+      <Html position={[0, TILE_TOP, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
+        <UnitPlate unit={unit} />
+      </Html>
+
+      {/* Damage numbers */}
+      {floats.length > 0 && (
+        <Html position={[0, TILE_TOP + S.footY + S.height * 0.6, 0]} center zIndexRange={[40, 30]} style={{ pointerEvents: 'none' }}>
+          <div className="float-stack">
+            {floats.map((f) => (
+              <span key={f.id} className={`float-num float-${f.kind}`}>
+                {f.text}
+              </span>
+            ))}
+          </div>
+        </Html>
+      )}
+
+      {/* Hover card */}
+      {hovered && (
+        <Html position={[0.5, TILE_TOP + BOARD_GEOMETRY.unitHeight * 0.7, 0]} zIndexRange={[60, 50]} style={{ pointerEvents: 'none' }}>
+          <UnitCard unit={unit} />
+        </Html>
+      )}
+    </group>
+  );
+}
+
+function hpClass(hp: number, max: number) {
+  const f = max > 0 ? hp / max : 0;
+  return f > 0.6 ? 'hp-high' : f > 0.3 ? 'hp-mid' : 'hp-low';
+}
+
+function StatusBadges({ status }: { status: Statuses }) {
+  return (
+    <>
+      {status.burn > 0 && (
+        <span className="status-badge" title="Burn">
+          <img src={STATUS_ART.burn} alt="Burn" />
+          {status.burn}
+        </span>
+      )}
+      {status.root > 0 && (
+        <span className="status-badge" title="Root">
+          <img src={STATUS_ART.root} alt="Root" />
+        </span>
+      )}
+      {status.stun > 0 && (
+        <span className="status-badge" title="Stun">
+          <img src={STATUS_ART.stun} alt="Stun" />
+        </span>
+      )}
+    </>
+  );
+}
+
+/** HP bar + status badges + special badges, Slay the Spire style. */
+function UnitPlate({ unit }: { unit: UnitView }) {
+  const pct = Math.max(0, Math.min(100, (unit.hp / unit.maxHp) * 100));
+  return (
+    <div className={`unit-plate ${unit.isPlayer ? 'is-player' : ''}`}>
+      <div className="plate-row">
+        {unit.guarded && <span className="special-badge guarded" title="Immune while a Page Ward stands">⛨</span>}
+        {unit.mode === 'chaos' && <span className="special-badge chaos" title="Chaos mode">✸</span>}
+        {unit.charge && <span className="special-badge charge" title="Holds a charge: can mark a line">⚡</span>}
+        {!!unit.carried && <span className="special-badge carried" title="Fragments it stole">🂠{unit.carried}</span>}
+        <div className={`hp-bar ${hpClass(unit.hp, unit.maxHp)}`}>
+          <div className="hp-fill" style={{ width: `${pct}%` }} />
+          <span className="hp-text">
+            {unit.hp}/{unit.maxHp}
+          </span>
+        </div>
+        <StatusBadges status={unit.status} />
+      </div>
+      {unit.maxMarks !== undefined && (
+        <div className="mark-dots" title={`Marks: ${unit.marks ?? 0}/${unit.maxMarks}`}>
+          {Array.from({ length: unit.maxMarks }, (_, i) => (
+            <span key={i} className={i < (unit.marks ?? 0) ? 'on' : ''} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Hover card: name, HP, what it does, and its plan for next turn in words. */
+function UnitCard({ unit }: { unit: UnitView }) {
+  const s = unit.status;
+  const statuses = [s.burn > 0 && `Burn ${s.burn}`, s.root > 0 && 'Rooted', s.stun > 0 && 'Stunned'].filter(Boolean).join(' · ');
+  return (
+    <div className="unit-card">
+      <div className="unit-card-title">
+        {unit.name}
+        {unit.tag && <span className="unit-tag">{unit.tag}</span>}
+      </div>
+      <div className="unit-card-stats">
+        HP {unit.hp}/{unit.maxHp}
+        {unit.isPlayer && unit.mana !== undefined && ` · Mana ${unit.mana}/${unit.maxMana}`}
+        {statuses && ` · ${statuses}`}
+      </div>
+      {unit.behavior && <p className="unit-card-text">{unit.behavior}</p>}
+      {!unit.isPlayer && (
+        <p className="unit-card-plan">
+          <b>Next turn:</b> {describeIntents(unit.intents)}
+        </p>
+      )}
+    </div>
+  );
+}
