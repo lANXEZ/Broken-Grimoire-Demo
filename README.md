@@ -38,11 +38,12 @@ The .exe needs no installer and no internet. The run is saved automatically and 
 | Action | How |
 |---|---|
 | Move | Click a highlighted tile next to the wizard |
-| Craft a spell | Drag fragments from your hand onto the crafting table (or click a card to put it there) |
+| Craft a spell | Drag fragments from your hand onto the crafting table: they stay wherever you drop them (clicking a card drops it at a random spot). Drag a table card to move it |
 | Take a card back | Drag it off the table, or click it. Esc clears the whole table |
 | Cast | Cross and Unstable Fire: press **Cast** when it lights up. Beam: no button needed. While a castable Beam is on the table, point at the board to aim and left-click to fire (clicking a tile then casts instead of moving) |
 | Reroll | Press **Reroll**, click the cards to swap, then **Confirm** |
 | Meditate / End turn / Potion | Buttons on the HUD (potion is in the top bar) |
+| Peek behind a pillar | Move the mouse near it: obstacles fade near the mouse (and whenever a unit is behind them) |
 | Skip the enemy turn animation | Space |
 | Combat log | L, or the Log button |
 | Menu | Esc |
@@ -54,6 +55,7 @@ The .exe needs no installer and no internet. The run is saved automatically and 
 |---|---|
 | Where a HUD piece sits on screen | `src/config/layout.ts`. Every placement is tagged `[UI-PLACEMENT]` in the code, so search for that tag |
 | Camera angle, tilt, board size on screen | `src/config/camera.ts` (`elevationDeg` must match the artist's isometric angle, see the note there) |
+| How obstacles fade (unit behind them, mouse nearby) | `OBSTACLE_FADE` in `src/config/camera.ts`. New obstacle types go inside `<Obstacle>` (`src/scene/Obstacle.tsx`) to get the same behaviour |
 | Art (cards, units, room art) | `src/config/art.ts`. All placeholders are listed there |
 | Animation speeds | `src/config/timing.ts` |
 | Balance numbers, enemies, rooms | `src/engine/data.ts` |

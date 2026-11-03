@@ -1,11 +1,13 @@
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { Vector3 } from 'three';
 import { ENEMY_DEFS, RULES, wardsStanding, type GameState, type Intent, type Pos } from '../engine';
 import { PLAYER_ART, unitArt } from '../config/art';
 import { Board, type TilePointer } from './Board';
 import { CameraRig } from './CameraRig';
 import { TileOverlay, type BoardOverlays, type CastFlash } from './TileOverlay';
 import { Unit, type UnitView } from './Unit';
+import { TILE_TOP, tileToWorld } from './iso';
 
 interface Props {
   /** The state to draw (during the enemy turn, the snapshot of the step being shown). */
@@ -70,11 +72,16 @@ function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitVie
 export function GameScene({ state, intents, overlays, flash, hover, pointer, onRightClick }: Props) {
   const room = state.room;
   const units = useMemo(() => unitViews(state, intents), [state, intents]);
+  // For the obstacle fade (scene/Obstacle.tsx): where every unit stands, and whether the mouse is on the board.
+  const unitFeet = useMemo(() => units.map((u) => new Vector3(...tileToWorld(u.pos, room, TILE_TOP))), [units, room]);
+  const pointerOnBoard = useRef(false);
   const showIntents = state.phase === 'player';
 
   return (
     <div
       className="scene"
+      onPointerEnter={() => (pointerOnBoard.current = true)}
+      onPointerLeave={() => (pointerOnBoard.current = false)}
       onContextMenu={(e) => {
         e.preventDefault();
         onRightClick();
@@ -95,7 +102,7 @@ export function GameScene({ state, intents, overlays, flash, hover, pointer, onR
           shadow-camera-top={8}
           shadow-camera-bottom={-8}
         />
-        <Board room={room} pointer={pointer} />
+        <Board room={room} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
         <TileOverlay room={room} overlays={overlays} flash={flash} />
         <Suspense fallback={null}>
           {units.map((u) => (

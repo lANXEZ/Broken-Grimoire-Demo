@@ -1,7 +1,8 @@
 # Broken Grimoire: how everything works
 
 This is the complete rulebook **as the game implements it**: the demo kit PDF plus every change the team has agreed
-since. (The paper-playtest Board tracker mode has been dropped; the game is what the low-fi demo called Simulation mode.) If this file and the PDF disagree, this file is the current rule.
+since. If this file and the PDF disagree, this file is the current rule. (The low-fi demo's paper-playtest Board tracker
+mode has been dropped: the game is what the low-fi demo called Simulation mode.)
 
 - Every number here lives in `src/engine/data.ts` (`RULES`, `ENEMY_DEFS`, `ROOMS`), so balance changes are data edits.
 - Rules marked *(default)* were judgement calls made while building the app, not team decisions. They're easy to change.
@@ -19,8 +20,8 @@ since. (The paper-playtest Board tracker mode has been dropped; the game is what
 - **Player turn:** 3 actions. The turn ends when all 3 are spent, or earlier if the player ends it.
 - **Enemy turn:** every enemy takes its own turn, one after another, in order of **type number** (Rat 1 → Redactor 8),
   then **deploy order** within a type. Each enemy spends its actions one at a time.
-- **Labels:** units of the same type are lettered in deploy order (Brute `3a`, Brute `3b`). The board shows the name
-  ("Brute", with a small "a"/"b" when the room has more than one). The combat log keeps the number (`3a`).
+- **Labels:** units of the same type are lettered in deploy order (Brute `3a`, Brute `3b`). The hover card shows the
+  name ("Brute", with a small "a"/"b" when the room has more than one). The combat log keeps the number (`3a`).
 - **Tiles:** units never share a tile. Pillars block movement. An enemy that acts earlier claims a tile first, and
   later enemies path around occupied tiles.
 - **Ties:** when several shortest paths are equally good, one is picked at random. The random seed is saved with the
@@ -167,7 +168,7 @@ It has no normal attack. Each action, it checks these in order:
 
 | Situation | Behaviour |
 |---|---|
-| Wards stand, empty-handed, Redactor has fewer than 5 marks | Runs to you. When next to you, **steals** a fragment (1 action). Hand it the card and tuck it under its token. |
+| Wards stand, empty-handed, Redactor has fewer than 5 marks | Runs to you. When next to you, **steals** a random fragment from your hand (1 action) and carries it. |
 | Wards stand, carrying a fragment it hasn't delivered | Runs to the Redactor. On reaching any of the 8 tiles around it, the Redactor **gains 1 mark**. This is free and costs no action. The fragment stays on the Scrap. |
 | Wards stand, already delivered | Keeps away from you for good. It doesn't steal again. |
 | Wards stand, Redactor at 5/5 marks | Won't steal, and keeps away from you. If it arrives with a fragment when marks are full, it adds nothing. |
@@ -185,7 +186,7 @@ It's always last in the enemy turn. Its mode is set at the start of each of its 
 | **Spent** | All Wards are down and it has no marks | 3, for the rest of the fight. |
 
 - **Marks** only come from Page Scraps delivering stolen fragments, up to a **maximum of 5**. They're shown as
-  **5 dots above its token**, filled as marks are gained. The Redactor no longer shreds cards itself.
+  **5 dots under its HP bar**, filled as marks are gained. The Redactor no longer shreds cards itself.
 - **Each action:** if you're in any of the 8 tiles around it, it **explodes** for 3 damage. Only you take damage.
   Otherwise it takes one orthogonal step toward a tile next to you, diagonals included.
 - **Chaos cooldown:** in Chaos mode, the action after an explosion is a **cooldown** that does nothing. The cooldown
@@ -202,13 +203,13 @@ It's always last in the enemy turn. Its mode is set at the start of each of its 
 
 | Element | Meaning |
 |---|---|
-| **Pillar** (PIL) | Blocks movement, line of sight, Archer shots, the Warden's line and spells. |
+| **Pillar** | Blocks movement, line of sight, Archer shots, the Warden's line and spells. Pillars (and any other obstacle) turn see-through when a unit stands behind them or the mouse is near them. |
 | **Exit** | Walk onto it to move to the next room. A **locked** exit (Room 2) can't be entered until the Warden dies. |
-| **Marked line** (red hatching) | The Warden's line, which fires 5 dmg on its next turn. |
-| <a id="erasure-zone"></a>**Erasure zone** (black bars) | Left by the Redactor's **Chaos-mode** explosions: the 3×3 block around it, its own tile included. Several explosions in one turn add up. End your next turn inside it and you permanently lose one fragment from your hand. Then the zone fades. |
-| **Dashed purple ring** | The Redactor is protected by its Wards. |
-| **Thick black ring** | The Redactor is in Chaos mode. |
-| **Badges** | On the token's right: **B***n* = Burn ticks left, **R** = rooted, **S** = stunned. On its left: **⚡** = the Warden holds a charge, **F***n* = fragments a Scrap is holding. |
+| **Marked line** (pulsing red tiles) | The Warden's line, which fires 5 dmg on its next turn. |
+| <a id="erasure-zone"></a>**Erasure zone** (dark tiles) | Left by the Redactor's **Chaos-mode** explosions: the 3×3 block around it, its own tile included. Several explosions in one turn add up. End your next turn inside it and you permanently lose one fragment from your hand. Then the zone fades. |
+| **Purple ⛨ badge** | Next to the Redactor's HP bar: it is protected by its Wards. |
+| **Orange ✸ badge** | Next to the Redactor's HP bar: it is in Chaos mode. |
+| **Badges** | Beside the HP bar under each unit: the Burn icon with the ticks left, the Root icon, the Stun icon; **⚡** = the Warden holds a charge; **🂠***n* = fragments a Scrap is holding. |
 
 ## Rooms
 
@@ -238,7 +239,7 @@ The game plays the fragment cards following the kit (pp. 2–3, 5):
 | Starting deck | 11 fragments: Fire ×3, Water ×2, Rock ×2, Beam ×2, Cross ×2. |
 | Hand | 5 cards. At the start of each of your turns, draw back up to 5. |
 | Deck runs out | The discard pile is shuffled into a new deck. |
-| Cast | Pick 2–3 cards from your hand: exactly one element and one shape, either can be doubled. They go to the discard pile. Fire ×3 with no shape is Unstable Fire. |
+| Cast | Put 2–3 cards from your hand on the crafting table: exactly one element and one shape, either can be doubled. They go to the discard pile. Fire ×3 with no shape is Unstable Fire. |
 | Reroll | Pick the hand cards to swap: they go to the discard pile first, then you draw that many (reshuffling the discard pile in if the deck runs out). |
 | New room | Hand, deck and discard pile are shuffled together into one deck, then you draw 5. Erased cards stay erased. Cards held by Page Scraps you leave behind are lost. |
 | Page Scrap steal | Takes a **random** card from your hand. With an empty hand there's nothing to steal, and it waits. |
@@ -246,14 +247,14 @@ The game plays the fragment cards following the kit (pp. 2–3, 5):
 | Max Potion | Kept outside the deck. |
 | Losing | HP 0, or your hand, deck and discard pile together no longer hold an element and a shape (and fewer than three Fires). Cards under Page Scraps and erased cards don't count. |
 
-Card draws, steals and erasures use the same saved random seed as the enemies, so undo/redo and the intention
-preview stay exact.
+Card draws, steals and erasures use the same saved random seed as the enemies, so the intention preview stays
+exact (and dev-mode undo/redo replays the same results).
 
 ## Intentions (what enemies will do)
 
-Like *Slay the Spire*, every enemy shows small chips above its token that preview **its next turn**. The preview
+Like *Slay the Spire*, every enemy shows small chips above its head that preview **its next turn**. The preview
 assumes you end your turn right now, and it updates after every action you take. It's exact: when you end your
-turn, the enemies do exactly what was shown, unless your later actions change the situation. Hover a token for the
+turn, the enemies do exactly what was shown, unless your later actions change the situation. Hover a unit for the
 same plan in words.
 
 Repeated actions are merged into one chip, and damage values are written on the chip (`3×2` = two hits of 3).
