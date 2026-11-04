@@ -3,10 +3,9 @@
 The complete rulebook for the demo. It follows the team's packaged-demo design ([DESIGN.md](DESIGN.md), Nov 3, 2026),
 which replaced the paper-kit rules. If this file and the PDF disagree, this file is the current rule.
 
-> **Status (Nov 4, 2026):** the rules below were updated to the new design. **The game code still runs the previous
-> rules** (`src/engine/`): the new parts (Wind, Wall, merges, runes, holes, pushes, the run map, floor drops…) still
-> have to be built. [Changes from the previous rules](#changes-from-the-previous-rules) lists every difference, so it
-> doubles as the to-do list for the engine.
+> **Status (Nov 4, 2026):** the game code (`src/engine/`) now runs these rules, with every detail the design left
+> open settled in [Build decisions](#build-decisions-nov-4). Still missing: the branching **map screen** (a
+> teammate is building it); until then the run goes straight from stop to stop.
 
 - Items marked **(proposed)** still need a team decision. Rules marked *(default)* were judgement calls made while
   building the app; they're easy to change.
@@ -16,7 +15,7 @@ which replaced the paper-kit rules. If this file and the PDF disagree, this file
 [The wizard](#the-wizard-player) · [Spells](#spells) · [Merges](#element-merges) · [Statuses](#statuses) ·
 [Runes](#runes) · [The board](#the-board) · [Monsters](#monsters) · [Boss room](#boss-room) · [Rooms](#rooms) ·
 [Cards and drops](#cards-and-drops) · [Event and camp](#event-and-camp) ·
-[Changes](#changes-from-the-previous-rules)
+[Build decisions](#build-decisions-nov-4) · [Changes](#changes-from-the-previous-rules)
 
 ---
 
@@ -32,10 +31,11 @@ same fixed sequence:
 5. **Camp**
 6. **Boss · The Redactor** (8×8)
 
-- **Finishing a combat room:** kill every enemy. There is **no exit tile and no early exit**. When the last enemy
-  dies a big **CLEARED!** appears, turns stop counting, and you walk freely to pick up any drops on the floor.
-  **Continue** takes you to the map; if items are still on the floor it asks once: "You left 2 items behind. Leave
-  anyway?"
+- **Finishing a combat room:** kill every enemy. The room's **door** (as in the low-fi demo) stays locked until the
+  room is cleared, except in the Cistern, whose door is open the whole time (see [Rooms](#rooms)). When the last enemy dies a big **CLEARED!** appears, turns stop
+  counting, the door opens, and you walk freely to pick up any drops on the floor. **Continue** (or clicking the
+  open door) walks you to the door and through it, to the map; if items would be left on the floor it asks once
+  first: "You left 2 items behind. Leave anyway?"
 - **Between rooms:** HP carries over. Mana resets to 3. Hand, deck and discard pile are shuffled together into one
   deck and you draw 5. Erased cards stay erased.
 
@@ -339,13 +339,20 @@ Its mode is set at the start of each of its turns:
 
 ## Rooms
 
-| Room | Grid | You start | Pillars (2 HP) | Holes (proposed) | Enemies (deploy order) |
-|---|---|---|---|---|---|
-| 1 · The Cistern | 6×6 | a1 | d4, c3 | b4, e5 | Rat f4, Brute c5, Brute e2 |
-| 2 · The Scriptorium | 6×6 | a1 | b5, e5, b2, e2 | c2, d5 | Archer a6, Archer e6, Leech d2, Warden c4 |
-| 3 · The Redactor | 8×8 | d1 | b6, g6, b3, g3 | a5, h4 | Fire Ward c7, Water Ward f7, Earth Ward d4, Redactor e5 |
+| Room | Grid | You start | Door | Pillars (2 HP) | Holes (proposed) | Enemies (deploy order) |
+|---|---|---|---|---|---|---|
+| 1 · The Cistern | 6×6 | a1 | f6, always open | d4, c3 | b4, e5 | Rat f4, Brute c5, Brute e2 |
+| 2 · The Scriptorium | 6×6 | a1 | f6 | b5, e5, b2, e2 | c2, d5 | Archer a6, Archer e6, Leech d2, Warden c4 |
+| 3 · The Redactor | 8×8 | d1 | none | b6, g6, b3, g3 | a5, h4 | Fire Ward c7, Water Ward f7, Earth Ward d4, Redactor e5 |
 
-No room has an exit tile: a combat room ends when every enemy is dead (see [The run](#the-run)).
+**The door** is locked until every enemy in the room is dead (see [The run](#the-run)). While locked, the wizard
+can't step onto it, but monsters can walk over it; spells and shots pass over it like floor.
+
+**The Cistern's door is always open** (the teaching room, as in the low-fi demo): step onto it on your turn and the
+game asks whether to leave now. Leaving early is allowed, but every enemy still alive keeps what it would have
+dropped, and anything on the floor stays there. A push that would
+carry the wizard onto the locked door stops there like the room's wall (1 damage). The boss room has no door:
+killing the Redactor ends the demo.
 
 ## Cards and drops
 
@@ -386,15 +393,83 @@ written in the dungeon's own tongue. You'll have to work out what they mean your
 
 ---
 
+## Build decisions (Nov 4)
+
+Details the design didn't settle, decided while building the engine. Where a rule above says otherwise, this
+section wins.
+
+**Spells and the board**
+
+| Topic | Decision |
+|---|---|
+| Spells vs pillars | Only **damaging** spells chip a pillar (the pillar that stops a Beam or Cross arm, or one inside a Wall or Unstable Fire). Wind, Fog and Quicksand never do. |
+| Wall vs pillars | A pillar in a Wall's row is hit (and chipped), and in a doubled Wall it **shields the tile behind it**. |
+| Several units pushed | The **farthest from you moves first**, so a line of units slides together instead of bumping into each other. |
+| Pushes over hazards | Sliding into **Quicksand stops the push** there (the unit is stuck). Sliding over or onto **Magma burns**. |
+| Holes | Holes don't block spells, sight or shots; only walking. |
+| You and statuses | Only Backfire can Root or Stun you. A Stunned wizard can't cast; a Rooted one can't move. On your own turn the effect lasts for the rest of it and your next turn. |
+
+**Merges and hazards**
+
+| Topic | Decision |
+|---|---|
+| Element effects | A merge does **only** its hazard row: no Burn, Root, Stun or charge-cancel. |
+| Duration | The casting turn counts: cast on your turn 2, gone at the end of your turn 4. |
+| Fog check | Checked **every action**: a monster that wanders out of the fog acts normally for the rest of its turn. |
+| Fog on you | Standing in fog **hides you** from Archers and the Warden. |
+| Fog vs a marked line | A Warden line marked before the fog came **fires anyway**. |
+| Avoiding hazards | Monsters path around Magma and Quicksand **unless it's the only way**. |
+| Quicksand escape | Escape progress **carries over** between turns. While stuck you can still Meditate and Reroll. |
+| After CLEARED! | Hazards, statuses and Erasure Zones fade. |
+
+**Monsters**
+
+| Topic | Decision |
+|---|---|
+| Archer vs pillars | A pillar (or fog) in between **breaks the line**: the Archer walks to a clear one. |
+| Collisions vs immunity | Immunities apply: bumping a Page Ward, or the Redactor while Wards stand, hurts only the pushed unit. |
+| Wards vs Magma | Page Wards are **fully immune** to Magma, even its cast damage. |
+| Warden can't fire | A Warden lost in fog or stuck in quicksand when its line should fire loses the line. |
+
+**Runes**
+
+| Topic | Decision |
+|---|---|
+| The 3-card limit | A rune **takes one of the 3 slots**: rune + one element + one shape. No runes on merges, doubled spells or Unstable Fire. |
+| Invalid table | CAST stays lit with a rune on the table. If the fragments make no spell, the cast **fizzles**: mana and cards are spent, and the rune's own drawback (Volatile's 2 damage, Free's 2 HP) still happens. |
+| Cost shown | Always the spell's cost + 1, even for Free, so the button never gives a rune away. The preview never shows a rune's effect. |
+| Echo | The same tiles are hit a second time, right after the first (pushed units may have moved). |
+| Amplify, Volatile | Amplify gives Wind 2 damage. Volatile doubles 0 to 0 but still hurts you. |
+| Widen | Beam gains two side lanes; Cross gains the diagonals (a doubled Cross: the 5×5 without its corners); Wall becomes 5 wide. |
+| Backfire | The spell resolves normally **and** hits you too (damage and effect; a Wind push along the cast direction). |
+| Siphon | Heals 1 per enemy affected (not immune), up to max HP. |
+| Which rune you get | A random symbol you don't already hold this run. |
+| Event | Read aloud can't take you below 1 HP. Runes go into your deck. |
+
+**The run and the Grimoire**
+
+| Topic | Decision |
+|---|---|
+| Map | Not built yet (a teammate's work): the run goes Cistern → Event → Scriptorium → Camp → Boss directly. |
+| After CLEARED! | Click any tile and the wizard walks there (no actions); every tile passed picks up its drops. |
+| The door | Kept from the low-fi demo (team decision, Nov 4), not in the design: see [Rooms](#rooms). Continue walks you to it; clicking the open door does the same. The Cistern's door is always open, so you can leave it early (losing the survivors' drops); everywhere else there's no early exit. |
+| Grimoire pages | 22: Fire/Water/Earth/Wind × Beam/Cross/Wall (doubling doesn't matter), the 3 merges × 3 shapes, and Unstable Fire. |
+| Grimoire save | **Across runs**, saved on the computer like the rune mapping. A spell that fizzles writes nothing. |
+| Camp | Tearing out a page can't break your grimoire (that card is greyed out). Runes can be torn out. |
+| Unstable Fire | Always 7 damage; the spin wheel is gone. |
+
+> **Note for the team:** Erasure Zones fade at the end of your turn and Page Scraps act before the Redactor, so a
+> Scrap never actually sees a zone. "Outside Erasure Zones first" is built, but it can't come up with the current
+> timing.
+
 ## Changes from the previous rules
 
-What the Nov 3 design changed compared with the rules the game code currently runs. Each row is engine work still to
-do.
+What the Nov 3 design changed compared with the previous rules. All of it is built now (the map screen excepted).
 
 | Area | Before | Now |
 |---|---|---|
 | Run structure | 3 rooms in a row, each left through an exit tile | Map → Cistern → Event → Scriptorium → Camp → Boss |
-| Ending a room | Step onto the exit (Room 2's unlocks when the Warden dies); skipped enemies forfeit loot | Kill every enemy → CLEARED! → walk to pick up drops → Continue. No exit tiles |
+| Ending a room | Step onto the exit (Room 2's unlocks when the Warden dies); skipped enemies forfeit loot | Kill every enemy → CLEARED! (the door opens) → walk to pick up drops → Continue walks you out through the door. Only the Cistern's door is open from the start (early exit, survivors' drops lost) |
 | Elements | Fire, Water, Rock | Fire, Water, **Earth** (renamed Rock), **Wind** (new: 0 damage, push 1 / push 2 doubled) |
 | Shapes | Beam, Cross | Beam, Cross, **Wall** (new: 3-wide row, 3×2 doubled) |
 | Earth/Rock effect | Stun | Stun, and also cancels a charged attack |

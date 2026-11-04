@@ -1,9 +1,10 @@
-import { LOOT_FRAGMENT, cardsLabel, fragmentName, grimoireBroken, newLootCard } from './cards';
-import { ENEMY_DEFS, coordLabel } from './data';
-import { samePos } from './grid';
-import type { Enemy, GameState, LogSide, LootNotice } from './types';
-
-type LootNoticeCards = Pick<LootNotice, 'discardCards' | 'handCards'>;
+import { cardsLabel, grimoireBroken, newCard, rollDrop } from './cards';
+import { ENEMY_DEFS, RULES, coordLabel } from './data';
+import { addPos, enemyAt, hazardAt, inBounds, isHole, isLockedExit, pillarAt, samePos } from './grid';
+import { pick } from './rng';
+import { runeName } from './runes';
+import { HAZARD_INFO } from './spells';
+import type { Card, Element, Enemy, GameState, HazardKind, LogSide, LostReason, Pos, Statuses, UnitSize } from './types';
 
 export class RuleError extends Error {}
 
@@ -15,18 +16,34 @@ export function log(state: GameState, side: LogSide, text: string): void {
   state.log.push({ id: state.nextLogId++, roomIndex: state.roomIndex, turn: state.turn, side, text });
 }
 
-function lose(state: GameState, reason: 'hp' | 'grimoire', text: string): void {
+export const noStatus = (): Statuses => ({ burn: 0, root: 0, stun: 0, stuck: 0 });
+
+export function lose(state: GameState, reason: LostReason, text: string): void {
+  if (state.phase === 'lost' || state.phase === 'won') return;
   state.phase = 'lost';
   state.lostReason = reason;
   log(state, 'system', text);
 }
 
-/** Lose once the hand, deck and discard can no longer make a spell (kit p.2). */
+/** Lose once the hand, deck and discard can no longer make a spell. */
 export function checkGrimoire(state: GameState): void {
-  if (state.phase === 'lost' || state.phase === 'won') return;
   if (grimoireBroken(state.cards)) {
     lose(state, 'grimoire', 'Your grimoire is broken: your hand, deck and discard pile no longer hold an element and a shape. Game over.');
   }
+}
+
+/**
+ * Every enemy is dead: CLEARED! Turns stop counting, statuses, hazards and Erasure Zones fade, and the wizard
+ * walks freely to pick up drops before pressing Continue.
+ */
+export function checkCleared(state: GameState): void {
+  if ((state.phase !== 'player' && state.phase !== 'enemy') || state.enemies.length > 0) return;
+  state.phase = 'cleared';
+  state.player.status = noStatus();
+  state.room.hazards = [];
+  state.erasureZone = [];
+  const items = state.room.drops.length;
+  log(state, 'system', `CLEARED! Every enemy is down.${items ? ` ${items} item${items === 1 ? '' : 's'} on the floor.` : ''}`);
 }
 
 export function enemyName(e: Enemy): string {
@@ -35,31 +52,44 @@ export function enemyName(e: Enemy): string {
   return `${def.name}${element} ${e.id}`;
 }
 
+export function unitSize(e: Enemy): UnitSize {
+  return ENEMY_DEFS[e.kind].size;
+}
+
 export function wardsStanding(state: GameState): boolean {
   return state.enemies.some((e) => e.kind === 'ward');
 }
 
 /**
- * Why an attack has no effect on this enemy, or null if it can be hurt. `element` is the spell's element,
- * or null for anything that isn't a spell (an Archer's arrow), which never hurts a Page Ward.
+ * Why a hit has no effect on this enemy, or null if it can be hurt.
+ * `spell` lists the elements of the spell (and its hazard, for merges); null = not a spell (arrows, the
+ * Warden's line, collisions), which never hurts a Page Ward.
  */
-export function immunityReason(state: GameState, e: Enemy, element: string | null): string | null {
-  if (e.kind === 'ward' && element !== e.element) return `only ${e.element} spells hurt it`;
+export function immunityReason(state: GameState, e: Enemy, spell: { elements: Element[]; hazard?: HazardKind } | null): string | null {
+  if (e.kind === 'ward') {
+    if (!spell) return 'only spells hurt it';
+    if (spell.hazard === 'magma') return 'it floats above the magma';
+    if (!e.element || !spell.elements.includes(e.element)) return `only spells containing ${e.element} hurt it`;
+  }
   if (e.kind === 'redactor' && wardsStanding(state)) return 'protected while a Page Ward stands';
   return null;
 }
 
-export function damagePlayer(state: GameState, amount: number, source: string): void {
-  if (amount <= 0) return;
+// ---------------------------------------------------------------------------
+// Damage, death and drops
+// ---------------------------------------------------------------------------
+
+export function damagePlayer(state: GameState, amount: number, source: string, side: LogSide = 'enemy'): void {
+  if (amount <= 0 || state.phase === 'lost' || state.phase === 'won') return;
   const before = state.player.hp;
   state.player.hp = Math.max(0, before - amount);
-  log(state, 'enemy', `${source} hits YOU for ${amount} (HP ${before} → ${state.player.hp}).`);
+  log(state, side, `${source} hits YOU for ${amount} (HP ${before} → ${state.player.hp}).`);
   if (state.player.hp <= 0) lose(state, 'hp', 'The wizard has fallen. Game over.');
 }
 
-/** Deal damage to an enemy, handling death, drops and room-key effects. Returns true if it died. */
+/** Deal damage to an enemy, handling death and drops. Returns true if it died. */
 export function damageEnemy(state: GameState, e: Enemy, amount: number, source: string, side: LogSide = 'player'): boolean {
-  if (amount <= 0) return false;
+  if (amount <= 0 || !state.enemies.includes(e)) return false;
   const before = e.hp;
   e.hp = Math.max(0, e.hp - amount);
   log(state, side, `${source} hits ${enemyName(e)} for ${amount} (HP ${before} → ${e.hp}).`);
@@ -70,79 +100,201 @@ export function damageEnemy(state: GameState, e: Enemy, amount: number, source: 
   return false;
 }
 
-export function killEnemy(state: GameState, e: Enemy): void {
+function addDrop(state: GameState, e: Enemy, cards: Card[], toHand: boolean): void {
+  state.room.drops.push({ id: state.nextDropId++, pos: { ...e.pos }, cards, toHand, from: e.kind });
+}
+
+/** Give the wizard a rune symbol they don't hold yet this run (null if they have them all). */
+export function newRuneCard(state: GameState): Card | null {
+  const free = [0, 1, 2, 3, 4, 5, 6, 7].filter((n) => !state.runesFound.includes(n));
+  if (free.length === 0) return null;
+  const symbol = pick(state, free);
+  state.runesFound.push(symbol);
+  return newCard(state.cards, 'rune', { rune: symbol });
+}
+
+/**
+ * Remove a dead enemy. Normal monsters drop a random fragment, the Warden a rune, a Page Scrap the cards it
+ * carried; it all lies on the floor until the wizard walks over it. `inHole` = it fell in: its loot is lost.
+ */
+export function killEnemy(state: GameState, e: Enemy, inHole = false): void {
   state.enemies = state.enemies.filter((x) => x.id !== e.id);
-  const where = `${enemyName(e)} is defeated at ${coordLabel(e.pos)}`;
-  log(state, 'system', `${where}.`);
-
-  const notice = (discard: string[], extras: string[] = [], toHand: string[] = [], cards: Partial<LootNoticeCards> = {}) =>
-    state.pendingLoot.push({ enemyId: e.id, enemyKind: e.kind, enemyName: enemyName(e), discard, toHand, extras, ...cards });
-
-  switch (e.kind) {
-    case 'rat':
-    case 'archer':
-    case 'brute':
-    case 'leech': {
-      const card = ENEMY_DEFS[e.kind].drop!;
-      const loot = newLootCard(state.cards, LOOT_FRAGMENT[e.kind]!, e.kind);
-      state.cards.discard.push(loot);
-      log(state, 'system', `Loot: a ${fragmentName(loot.kind)} fragment goes into your discard pile.`);
-      notice([card], [], [], { discardCards: [loot] });
-      break;
+  if (inHole) {
+    log(state, 'system', `${enemyName(e)} falls into the hole at ${coordLabel(e.pos)}${ENEMY_DEFS[e.kind].drop ? '. Its loot is lost.' : '.'}`);
+  } else {
+    log(state, 'system', `${enemyName(e)} is defeated at ${coordLabel(e.pos)}.`);
+    switch (e.kind) {
+      case 'rat':
+      case 'archer':
+      case 'brute':
+      case 'leech': {
+        const kind = rollDrop(state, e.kind);
+        state.lastDrops = [...state.lastDrops, kind].slice(-2);
+        addDrop(state, e, [newCard(state.cards, kind, { loot: e.kind })], false);
+        log(state, 'system', `It drops a fragment on ${coordLabel(e.pos)}.`);
+        break;
+      }
+      case 'warden': {
+        const rune = newRuneCard(state);
+        if (rune) {
+          addDrop(state, e, [{ ...rune, loot: 'warden' }], false);
+          log(state, 'system', `It drops a rune (${runeName(rune.rune!)}) on ${coordLabel(e.pos)}.`);
+        }
+        break;
+      }
+      case 'scrap':
+        if (e.carried?.length) {
+          addDrop(state, e, e.carried, true);
+          log(state, 'system', `It drops what it stole (${cardsLabel(e.carried)}) on ${coordLabel(e.pos)}.`);
+        }
+        break;
+      case 'redactor':
+        state.phase = 'won';
+        log(state, 'system', 'The Redactor is destroyed. The grimoire is yours. You win the demo!');
+        break;
+      case 'ward':
+        if (!wardsStanding(state)) log(state, 'system', 'All Page Wards have fallen. The Redactor is no longer protected.');
+        break;
     }
-    case 'warden': {
-      state.player.potions += 1;
-      log(state, 'system', 'Loot: the Warden drops the Max Potion. You keep it for later.');
-      const extras = ['You keep the Max Potion with you, outside the deck. Drinking it costs 1 action and restores full HP.'];
-      if (state.room.exit?.locked) {
-        state.room.exit.locked = false;
-        log(state, 'system', 'The exit is now unlocked.');
-        extras.push('The exit is now unlocked.');
-      }
-      notice([], extras);
-      break;
-    }
-    case 'scrap':
-      if (e.carried?.length) {
-        const back = e.carried;
-        state.cards.hand.push(...back);
-        log(state, 'system', `The scrap drops what it stole: ${cardsLabel(back)} ${back.length === 1 ? 'goes' : 'go'} back into your hand.`);
-        notice([], [], [`${back.length === 1 ? 'The fragment' : `The ${back.length} fragments`} it stole`], { handCards: back });
-      }
-      break;
-    case 'redactor':
-      state.phase = 'won';
-      log(state, 'system', 'The Redactor is destroyed. The grimoire is yours. You win the demo!');
-      break;
-    case 'ward':
-      if (!wardsStanding(state)) {
-        log(state, 'system', 'All Page Wards have fallen. The Redactor is no longer protected.');
-      }
-      break;
   }
 }
 
-/** The player dismissed the loot popup: clear the queue. */
-export function acknowledgeLoot(state: GameState): GameState {
-  return { ...state, pendingLoot: [] };
+/** The wizard picks up everything lying on their tile. */
+export function pickUpDrops(state: GameState): void {
+  const here = state.room.drops.filter((d) => samePos(d.pos, state.player.pos));
+  if (here.length === 0) return;
+  state.room.drops = state.room.drops.filter((d) => !here.includes(d));
+  for (const d of here) {
+    if (d.toHand) state.cards.hand.push(...d.cards);
+    else state.cards.discard.push(...d.cards);
+    log(state, 'player', `Pick up ${cardsLabel(d.cards)}: ${d.toHand ? 'back into your hand' : 'into your discard pile'}.`);
+  }
 }
 
-/** Burn tick that happens right before a unit takes an action. Returns true if the unit died from it. */
-export function burnTickEnemy(state: GameState, e: Enemy): boolean {
-  if (e.status.burn <= 0) return false;
-  e.status.burn -= 1;
-  return damageEnemy(state, e, 1, 'Burn', 'enemy');
+/** A pillar takes damage; at 0 HP it crumbles into open floor. */
+export function damagePillar(state: GameState, pos: Pos, amount: number, source: string, side: LogSide): void {
+  const pillar = pillarAt(state, pos);
+  if (!pillar || amount <= 0) return;
+  pillar.hp = Math.max(0, pillar.hp - amount);
+  if (pillar.hp === 0) {
+    state.room.pillars = state.room.pillars.filter((p) => p !== pillar);
+    log(state, side, `${source} breaks the pillar at ${coordLabel(pos)}: it crumbles into open floor.`);
+  } else {
+    log(state, side, `${source} cracks the pillar at ${coordLabel(pos)} (${pillar.hp}/${RULES.pillarHp}).`);
+  }
 }
 
-export function burnTickPlayer(state: GameState): void {
-  if (state.player.status.burn <= 0) return;
-  state.player.status.burn -= 1;
-  const before = state.player.hp;
-  state.player.hp = Math.max(0, before - 1);
-  log(state, 'player', `Burn hurts YOU for 1 (HP ${before} → ${state.player.hp}).`);
-  if (state.player.hp <= 0) lose(state, 'hp', 'The wizard has fallen. Game over.');
+// ---------------------------------------------------------------------------
+// Units on the board: the wizard and the enemies, for pushes and hazards
+// ---------------------------------------------------------------------------
+
+/** The wizard ('player') or an enemy (by id). */
+export type UnitRef = 'player' | string;
+
+export function unitAlive(state: GameState, ref: UnitRef): boolean {
+  if (ref === 'player') return state.phase !== 'lost';
+  return state.enemies.some((e) => e.id === ref);
 }
 
-export function playerOnExit(state: GameState): boolean {
-  return !!state.room.exit && samePos(state.room.exit.pos, state.player.pos);
+function unitInfo(state: GameState, ref: UnitRef): { pos: Pos; status: Statuses; size: UnitSize; name: string; enemy?: Enemy } {
+  if (ref === 'player') return { pos: state.player.pos, status: state.player.status, size: 'normal', name: 'YOU' };
+  const e = state.enemies.find((x) => x.id === ref)!;
+  return { pos: e.pos, status: e.status, size: unitSize(e), name: enemyName(e), enemy: e };
+}
+
+function hurtUnit(state: GameState, ref: UnitRef, amount: number, source: string, side: LogSide): void {
+  if (ref === 'player') damagePlayer(state, amount, source, side);
+  else {
+    const e = state.enemies.find((x) => x.id === ref);
+    if (e && !immunityReason(state, e, null)) damageEnemy(state, e, amount, source, side);
+  }
+}
+
+/**
+ * A unit arrives on a tile (a step or a push). Magma burns it; Quicksand catches it; the wizard picks up drops.
+ * Floating units ignore hazards. Returns true if Quicksand caught it.
+ */
+export function enterTile(state: GameState, ref: UnitRef, side: LogSide): boolean {
+  const u = unitInfo(state, ref);
+  if (ref === 'player') pickUpDrops(state);
+  if (u.size === 'float') return false;
+  const h = hazardAt(state, u.pos);
+  if (h?.kind === 'magma') {
+    u.status.burn = RULES.burnTicks;
+    log(state, side, `${u.name} step${ref === 'player' ? '' : 's'} onto the magma and catch${ref === 'player' ? '' : 'es'} fire (Burn ${RULES.burnTicks}).`);
+  }
+  if (h?.kind === 'quicksand' && u.status.stuck === 0) {
+    u.status.stuck = RULES.quicksandEscape;
+    log(state, side, `${u.name} ${ref === 'player' ? 'sink' : 'sinks'} into the quicksand: ${RULES.quicksandEscape} actions to climb out.`);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Push a unit `dist` tiles along `dir`. It slides until something stops it:
+ * - the room's wall: it takes 1;
+ * - a pillar or a unit: it and what it hit each take 1 (immunities apply), and it stays put;
+ * - a hole: it falls in and dies (the wizard too: game over);
+ * - Quicksand: it's caught there. Magma burns it on the way.
+ * Floating and massive units can't be pushed.
+ */
+export function pushUnit(state: GameState, ref: UnitRef, dir: Pos, dist: number, side: LogSide): void {
+  const u = unitInfo(state, ref);
+  if (u.size !== 'normal' || dist <= 0) return;
+  const dmg = RULES.collisionDamage;
+  for (let i = 0; i < dist; i++) {
+    if (!unitAlive(state, ref)) return;
+    const from = unitInfo(state, ref).pos;
+    const to = addPos(from, dir);
+    if (!inBounds(state, to)) {
+      log(state, side, `${u.name} ${ref === 'player' ? 'are' : 'is'} pushed into the wall.`);
+      hurtUnit(state, ref, dmg, 'The collision', side);
+      return;
+    }
+    if (ref === 'player' && isLockedExit(state, to)) {
+      // The locked door stops the wizard like the room's wall.
+      log(state, side, 'YOU are pushed into the locked door.');
+      hurtUnit(state, ref, dmg, 'The collision', side);
+      return;
+    }
+    if (pillarAt(state, to)) {
+      log(state, side, `${u.name} ${ref === 'player' ? 'are' : 'is'} pushed into the pillar at ${coordLabel(to)}.`);
+      hurtUnit(state, ref, dmg, 'The collision', side);
+      damagePillar(state, to, dmg, 'The collision', side);
+      return;
+    }
+    const other: UnitRef | null = samePos(state.player.pos, to) ? 'player' : enemyAt(state, to)?.id ?? null;
+    if (other) {
+      log(state, side, `${u.name} ${ref === 'player' ? 'are' : 'is'} pushed into ${unitInfo(state, other).name}.`);
+      hurtUnit(state, ref, dmg, 'The collision', side);
+      hurtUnit(state, other, dmg, 'The collision', side);
+      return;
+    }
+    if (ref === 'player') state.player.pos = to;
+    else u.enemy!.pos = to;
+    log(state, side, `${u.name} ${ref === 'player' ? 'are' : 'is'} pushed ${coordLabel(from)} → ${coordLabel(to)}.`);
+    if (isHole(state, to)) {
+      if (ref === 'player') lose(state, 'hole', 'YOU fall into the hole. Game over.');
+      else killEnemy(state, u.enemy!, true);
+      return;
+    }
+    if (enterTile(state, ref, side)) return;
+  }
+}
+
+/** A Quicksand puddle is gone (escaped or expired): free anyone stuck on it. */
+export function removeHazardAt(state: GameState, pos: Pos): void {
+  const h = hazardAt(state, pos);
+  if (!h) return;
+  state.room.hazards = state.room.hazards.filter((x) => x !== h);
+  if (h.kind === 'quicksand') {
+    if (samePos(state.player.pos, pos)) state.player.status.stuck = 0;
+    const e = enemyAt(state, pos);
+    if (e) e.status.stuck = 0;
+  }
+}
+
+export function hazardName(kind: HazardKind): string {
+  return HAZARD_INFO[kind].name;
 }

@@ -1,4 +1,4 @@
-import { ROOMS, devEdit, devRemoveEnemy, enemyAt, loadRoom, type GameState, type Pos } from '../engine';
+import { ROOMS, devEdit, devRemoveEnemy, enemyAt, killEnemy, loadRoom, type GameState, type Pos } from '../engine';
 import type { GameApi } from '../game/useGame';
 
 /**
@@ -27,6 +27,13 @@ export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
         onClick={() => hovered && game.run((st) => devRemoveEnemy(st, hovered.id, true))}
       >
         Kill {hovered ? hovered.id : 'hovered'}
+      </button>
+      <button
+        disabled={s.phase !== 'player' || s.enemies.length === 0}
+        title="Kill every enemy (their drops land on the floor)"
+        onClick={() => cheat('killed every enemy', (d) => [...d.enemies].forEach((e) => killEnemy(d, e)))}
+      >
+        Clear room
       </button>
       <button
         disabled={s.roomIndex + 1 >= ROOMS.length || s.phase !== 'player'}

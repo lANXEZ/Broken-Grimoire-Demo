@@ -12,7 +12,12 @@ const deg = (d: number) => (d * Math.PI) / 180;
  * it so the whole board fits in the free screen area between the HUD pieces ([UI-PLACEMENT] `LAYOUT.board`).
  * Re-runs when the window or the room size changes.
  */
-export function CameraRig({ room }: { room: RoomSize }) {
+export function CameraRig({ room, extraPoints = [] }: {
+  room: RoomSize;
+  /** World points that must stay inside the board area too (e.g. the top of the door's EXIT sign). */
+  extraPoints?: [number, number, number][];
+}) {
+  const extraKey = extraPoints.map((p) => p.join(',')).join(';');
   const camera = useThree((s) => s.camera) as OrthographicCamera;
   const size = useThree((s) => s.size);
 
@@ -35,8 +40,9 @@ export function CameraRig({ room }: { room: RoomSize }) {
     // Units' intent chips are HTML and may poke into the top margin, so only the 3D parts count here.
     const top = Math.max(BOARD_GEOMETRY.pillarHeight, BOARD_GEOMETRY.unitHeight + 0.2);
     let minR = Infinity, maxR = -Infinity, minU = Infinity, maxU = -Infinity;
-    for (const x of [-hx, hx]) for (const z of [-hz, hz]) for (const y of [-BOARD_GEOMETRY.slabDepth, top]) {
-      const p = new Vector3(x, y, z);
+    const points: Vector3[] = extraPoints.map((p) => new Vector3(...p));
+    for (const x of [-hx, hx]) for (const z of [-hz, hz]) for (const y of [-BOARD_GEOMETRY.slabDepth, top]) points.push(new Vector3(x, y, z));
+    for (const p of points) {
       const r = p.dot(right);
       const u = p.dot(up);
       minR = Math.min(minR, r); maxR = Math.max(maxR, r);
@@ -67,7 +73,8 @@ export function CameraRig({ room }: { room: RoomSize }) {
     camera.far = 200;
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
-  }, [camera, size.width, size.height, room.width, room.height]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- extraKey stands in for extraPoints
+  }, [camera, size.width, size.height, room.width, room.height, extraKey]);
 
   return null;
 }

@@ -3,9 +3,10 @@ import type { ThreeEvent } from '@react-three/fiber';
 import type { Vector3 } from 'three';
 import { BOARD_GEOMETRY } from '../config/camera';
 import { PLACEHOLDER_COLORS } from '../config/art';
-import type { Pos, RoomRuntime } from '../engine';
+import { RULES, type Pos, type RoomRuntime } from '../engine';
 import { TILE_TOP, tileToWorld } from './iso';
 import { Obstacle } from './Obstacle';
+import { Door } from './Door';
 
 export interface TilePointer {
   onHover: (p: Pos | null, from?: Pos) => void;
@@ -31,15 +32,19 @@ export function tileHandlers(p: Pos, pointer: TilePointer) {
 }
 
 /**
- * PLACEHOLDER board: a floating stone slab with a checkerboard of raised tiles, pillars as stone blocks and an
- * exit tile. When the artist's isometric room art arrives (config/art.ts `ROOM_ART`), this is the only scene
+ * PLACEHOLDER board: a floating stone slab with a checkerboard of raised tiles, holes as dark pits, pillars as
+ * stone blocks and the door (barred red while locked, glowing gold once the room is cleared). When the artist's isometric room art arrives (config/art.ts `ROOM_ART`), this is the only scene
  * file that needs to change; tile positions, clicks and highlights stay the same.
  *
- * Everything that stands up off the floor (pillars, the locked exit's bars, and any future obstacle) is wrapped
- * in <Obstacle>, which fades it out when a unit is behind it or the mouse is near it.
+ * Everything that stands up off the floor (pillars, and any future obstacle) is wrapped in <Obstacle>, which
+ * fades it out when a unit is behind it or the mouse is near it. A pillar down to its last HP looks cracked.
  */
-export function Board({ room, pointer, unitFeet, pointerOnBoard }: {
+export function Board({ room, exitOpen, exitLabel, pointer, unitFeet, pointerOnBoard }: {
   room: RoomRuntime;
+  /** Where the door leads, for its EXIT sign. */
+  exitLabel: string;
+  /** The door is open (gold): the room is cleared, or its door is always open. Otherwise it's locked (barred). */
+  exitOpen: boolean;
   pointer: TilePointer;
   /** World positions of every unit's feet, for the obstacle fade. */
   unitFeet: Vector3[];
@@ -53,8 +58,9 @@ export function Board({ room, pointer, unitFeet, pointerOnBoard }: {
     return out;
   }, [room.width, room.height]);
 
-  const isPillar = (p: Pos) => room.pillars.some((q) => q.x === p.x && q.y === p.y);
+  const isHole = (p: Pos) => room.holes.some((q) => q.x === p.x && q.y === p.y);
   const exit = room.exit;
+  const isExit = (p: Pos) => !!exit && exit.x === p.x && exit.y === p.y;
   const tileSize = 1 - G.tileGap;
 
   return (
@@ -69,71 +75,75 @@ export function Board({ room, pointer, unitFeet, pointerOnBoard }: {
         <meshStandardMaterial color={PLACEHOLDER_COLORS.slabTop} roughness={0.95} />
       </mesh>
 
-      {/* Floor tiles. */}
-      {tiles.map((p) => {
-        const isExit = !!exit && exit.pos.x === p.x && exit.pos.y === p.y;
-        const color = isExit
-          ? exit!.locked
-            ? PLACEHOLDER_COLORS.exitLocked
-            : PLACEHOLDER_COLORS.exitOpen
-          : (p.x + p.y) % 2 === 0
-            ? PLACEHOLDER_COLORS.tileA
-            : PLACEHOLDER_COLORS.tileB;
-        return (
+      {/* Floor tiles; a hole is a dark pit sunk into the slab. */}
+      {tiles.map((p) =>
+        isHole(p) ? (
+          <group key={`${p.x},${p.y}`}>
+            <mesh position={tileToWorld(p, room, 0.004)} rotation={[-Math.PI / 2, 0, 0]} {...tileHandlers(p, pointer)}>
+              <planeGeometry args={[tileSize, tileSize]} />
+              <meshBasicMaterial color={PLACEHOLDER_COLORS.hole} />
+            </mesh>
+            <mesh position={tileToWorld(p, room, 0.003)} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+              <planeGeometry args={[tileSize + 0.08, tileSize + 0.08]} />
+              <meshStandardMaterial color={PLACEHOLDER_COLORS.holeRim} roughness={1} />
+            </mesh>
+          </group>
+        ) : (
           <mesh key={`${p.x},${p.y}`} position={tileToWorld(p, room, G.tileHeight / 2)} receiveShadow {...tileHandlers(p, pointer)}>
             <boxGeometry args={[tileSize, G.tileHeight, tileSize]} />
             <meshStandardMaterial
-              color={color}
+              color={isExit(p) ? (exitOpen ? PLACEHOLDER_COLORS.exitOpen : PLACEHOLDER_COLORS.exitLocked) : (p.x + p.y) % 2 === 0 ? PLACEHOLDER_COLORS.tileA : PLACEHOLDER_COLORS.tileB}
+              emissive={isExit(p) && exitOpen ? PLACEHOLDER_COLORS.exitOpen : '#000000'}
+              emissiveIntensity={isExit(p) && exitOpen ? 0.45 : 0}
               roughness={0.9}
-              emissive={isExit && !exit!.locked ? PLACEHOLDER_COLORS.exitOpen : '#000000'}
-              emissiveIntensity={isExit && !exit!.locked ? 0.35 : 0}
             />
           </mesh>
+        ),
+      )}
+
+      {/* The door: an archway, barred shut while locked, open with a portal, beam and EXIT sign once unlocked. */}
+      {exit && <Door pos={exit} room={room} open={exitOpen} label={exitLabel} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />}
+
+      {/* Pillars (2 HP; obstacles: they fade when they hide a unit or the mouse is near). */}
+      {room.pillars.map(({ pos: p, hp }) => {
+        const cracked = hp < RULES.pillarHp;
+        const height = cracked ? G.pillarHeight * 0.82 : G.pillarHeight;
+        return (
+          <Obstacle
+            key={`pillar-${p.x},${p.y}`}
+            position={tileToWorld(p, room, TILE_TOP)}
+            size={{ width: G.pillarSize + 0.12, depth: G.pillarSize + 0.12, height: height + 0.1 }}
+            unitFeet={unitFeet}
+            pointerOnBoard={pointerOnBoard}
+            handlers={tileHandlers(p, pointer)}
+          >
+            <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[G.pillarSize, height, G.pillarSize]} />
+              <meshStandardMaterial color={cracked ? PLACEHOLDER_COLORS.pillarCracked : PLACEHOLDER_COLORS.pillar} roughness={0.85} />
+            </mesh>
+            {cracked ? (
+              // A broken top and a dark crack down the front faces.
+              <>
+                <mesh position={[0.12, height + 0.04, -0.1]} rotation={[0.3, 0.4, 0.2]} castShadow>
+                  <boxGeometry args={[0.34, 0.12, 0.3]} />
+                  <meshStandardMaterial color={PLACEHOLDER_COLORS.pillarCap} roughness={0.8} />
+                </mesh>
+                {[-1, 1].map((side) => (
+                  <mesh key={side} position={side < 0 ? [-G.pillarSize / 2 - 0.002, height * 0.55, 0.05] : [0.05, height * 0.55, G.pillarSize / 2 + 0.002]} rotation={[0, side < 0 ? -Math.PI / 2 : 0, 0.35]}>
+                    <planeGeometry args={[0.05, height * 0.7]} />
+                    <meshBasicMaterial color="#1c1612" />
+                  </mesh>
+                ))}
+              </>
+            ) : (
+              <mesh position={[0, height + 0.05, 0]} castShadow>
+                <boxGeometry args={[G.pillarSize + 0.12, 0.1, G.pillarSize + 0.12]} />
+                <meshStandardMaterial color={PLACEHOLDER_COLORS.pillarCap} roughness={0.8} />
+              </mesh>
+            )}
+          </Obstacle>
         );
       })}
-
-      {/* Pillars (obstacles: they fade when they hide a unit or the mouse is near). */}
-      {room.pillars.map((p) => (
-        <Obstacle
-          key={`pillar-${p.x},${p.y}`}
-          position={tileToWorld(p, room, TILE_TOP)}
-          size={{ width: G.pillarSize + 0.12, depth: G.pillarSize + 0.12, height: G.pillarHeight + 0.1 }}
-          unitFeet={unitFeet}
-          pointerOnBoard={pointerOnBoard}
-          handlers={tileHandlers(p, pointer)}
-        >
-          <mesh position={[0, G.pillarHeight / 2, 0]} castShadow receiveShadow>
-            <boxGeometry args={[G.pillarSize, G.pillarHeight, G.pillarSize]} />
-            <meshStandardMaterial color={PLACEHOLDER_COLORS.pillar} roughness={0.85} />
-          </mesh>
-          <mesh position={[0, G.pillarHeight + 0.05, 0]} castShadow>
-            <boxGeometry args={[G.pillarSize + 0.12, 0.1, G.pillarSize + 0.12]} />
-            <meshStandardMaterial color={PLACEHOLDER_COLORS.pillarCap} roughness={0.8} />
-          </mesh>
-        </Obstacle>
-      ))}
-
-      {/* A locked exit gets three bars across it (an obstacle too). */}
-      {exit && exit.locked && !isPillar(exit.pos) && (
-        <Obstacle
-          position={tileToWorld(exit.pos, room, TILE_TOP)}
-          size={{ width: 0.72, depth: 0.1, height: 0.72 }}
-          unitFeet={unitFeet}
-          pointerOnBoard={pointerOnBoard}
-          handlers={tileHandlers(exit.pos, pointer)}
-        >
-          {[-0.28, 0, 0.28].map((dx) => (
-            <mesh key={dx} position={[dx, 0.35, 0]} castShadow>
-              <boxGeometry args={[0.07, 0.7, 0.07]} />
-              <meshStandardMaterial color="#3b2a24" metalness={0.4} roughness={0.5} />
-            </mesh>
-          ))}
-          <mesh position={[0, 0.68, 0]}>
-            <boxGeometry args={[0.72, 0.06, 0.08]} />
-            <meshStandardMaterial color="#3b2a24" metalness={0.4} roughness={0.5} />
-          </mesh>
-        </Obstacle>
-      )}
     </group>
   );
 }

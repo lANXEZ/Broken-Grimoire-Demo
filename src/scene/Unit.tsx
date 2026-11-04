@@ -185,6 +185,11 @@ function StatusBadges({ status }: { status: Statuses }) {
           <img src={STATUS_ART.stun} alt="Stun" />
         </span>
       )}
+      {status.stuck > 0 && (
+        <span className="status-badge stuck" title={`Stuck in quicksand: ${status.stuck} action${status.stuck === 1 ? '' : 's'} to climb out`}>
+          ⏚{status.stuck}
+        </span>
+      )}
     </>
   );
 }
@@ -221,7 +226,7 @@ function UnitPlate({ unit }: { unit: UnitView }) {
 /** Hover card: name, HP, what it does, and its plan for next turn in words. */
 function UnitCard({ unit }: { unit: UnitView }) {
   const s = unit.status;
-  const statuses = [s.burn > 0 && `Burn ${s.burn}`, s.root > 0 && 'Rooted', s.stun > 0 && 'Stunned'].filter(Boolean).join(' · ');
+  const statuses = [s.burn > 0 && `Burn ${s.burn}`, s.root > 0 && 'Rooted', s.stun > 0 && 'Stunned', s.stuck > 0 && `Stuck (${s.stuck})`].filter(Boolean).join(' · ');
   return (
     <div className="unit-card">
       <div className="unit-card-title">

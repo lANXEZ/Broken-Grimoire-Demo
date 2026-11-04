@@ -213,75 +213,6 @@ button {
   border-color: var(--gold);
 }
 
-.potion-slot {
-  position: relative;
-}
-.potion-button {
-  width: 2.8rem;
-  height: 2.8rem;
-  border-radius: 50%;
-  border: 0.12rem dashed #6b5136;
-  background: #0006;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  cursor: default;
-  position: relative;
-}
-.potion-button.has-potion {
-  border: 0.15rem solid var(--gold);
-  cursor: pointer;
-  box-shadow: 0 0 0.8rem #d9b76866;
-}
-.potion-button img {
-  width: 2.3rem;
-  height: 2.3rem;
-}
-.potion-empty {
-  width: 0.9rem;
-  height: 1.3rem;
-  border-radius: 0.3rem 0.3rem 0.5rem 0.5rem;
-  border: 0.12rem solid #6b5136;
-}
-.potion-count {
-  position: absolute;
-  right: -0.3rem;
-  bottom: -0.3rem;
-  background: var(--gold);
-  color: #000;
-  border-radius: 50%;
-  font-size: 0.75rem;
-  width: 1.1rem;
-  height: 1.1rem;
-  line-height: 1.1rem;
-}
-.potion-menu {
-  position: absolute;
-  top: 3.4rem;
-  left: -1rem;
-  width: 14rem;
-  padding: 0.8rem;
-  background: var(--panel);
-  border: 0.15rem solid var(--gold-dim);
-  border-radius: 0.6rem;
-  box-shadow: 0 0.4rem 1.2rem #000c;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
-  z-index: 5;
-}
-.potion-menu-title {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  color: var(--gold);
-}
-.potion-menu-text {
-  font-size: 0.85rem;
-  color: var(--ink-dim);
-  text-align: center;
-}
-
 /* ------------------------------------------------------------------ mana orb  [UI-PLACEMENT] LAYOUT.manaOrb */
 
 .mana-orb {
@@ -541,6 +472,9 @@ button {
   overflow: hidden;
   box-shadow: 0 0.35rem 0.9rem #000c;
   background: #e9dfc9;
+}
+.fragment-card.has-art {
+  position: relative;
 }
 .fragment-card img {
   display: block;
@@ -936,9 +870,11 @@ button {
   display: flex;
   gap: 0.2rem;
 }
-.toast-cards img {
+.toast-cards .toast-card {
   width: 2.6rem;
+  height: 3.65rem;
   border-radius: 0.2rem;
+  font-size: 0.45rem;
 }
 @keyframes toast-in {
   from {
@@ -1280,62 +1216,423 @@ button {
   }
 }
 
-.wheel-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.wheel-title {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 2.2rem;
-  color: #ff9a5a;
-  text-shadow: 0 0.2rem 0.5rem #000;
-}
-.wheel {
-  width: 22rem;
-  height: 23rem;
-}
-.wheel-seg.a {
-  fill: #b8402a;
-  stroke: #2a0f08;
-  stroke-width: 2;
-}
-.wheel-seg.b {
-  fill: #e0823a;
-  stroke: #2a0f08;
-  stroke-width: 2;
-}
-.wheel-num {
-  fill: #fff;
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 24px;
-  text-anchor: middle;
-}
-.wheel-pointer {
-  fill: var(--gold);
-  stroke: #000;
-  stroke-width: 2;
-}
-.wheel-result {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 2rem;
-  color: #ffe39a;
-  opacity: 0;
-  transition: opacity 0.2s;
-  text-shadow: 0 0.2rem 0.5rem #000;
-}
-.wheel-result.show {
-  opacity: 1;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ placeholder cards (no art yet) */
+
+/* Wind, Wall and runes have no kit art: a parchment card with the name in its colour (config/art.ts FRAGMENT_COLOR). */
+.fragment-card.is-drawn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  background: radial-gradient(circle at 50% 40%, #f3ead6, #d9c9a6);
+  border: 0.18em solid color-mix(in srgb, var(--frag-color) 70%, #3a2a1c);
+  box-sizing: border-box;
+  font-size: 1rem;
+  color: #2b1f16;
+}
+.drawn-glyph {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 3.2em;
+  line-height: 1;
+  color: color-mix(in srgb, var(--frag-color) 75%, #2b1f16);
+  text-shadow: 0 0.06em 0 #0002;
+}
+.drawn-name {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.05em;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--frag-color) 55%, #2b1f16);
+}
+.drawn-shape .drawn-name {
+  font-style: italic;
+}
+.drawn-rune {
+  background: radial-gradient(circle at 50% 40%, #e6e0ef, #b9b0c9);
+}
+.drawn-rune .drawn-glyph {
+  font-family: serif;
+  color: #3b3150;
+}
+.drawn-seal {
+  position: absolute;
+  right: 0.5em;
+  bottom: 0.5em;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 50%;
+  background: #9c2a22;
+  box-shadow: inset 0 0 0 0.15em #c2463b;
+}
+/* Cards on the crafting table are smaller: shrink the drawn text with them. */
+.table-card .fragment-card.is-drawn {
+  font-size: 0.6rem;
+}
+.kind-dot {
+  display: inline-block;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  margin-right: 0.1rem;
+  box-shadow: inset 0 0 0 0.12rem #0005;
+}
+
+/* ------------------------------------------------------------------ climb out  [UI-PLACEMENT] LAYOUT.craftingTable */
+
+/* Takes the crafting table's box while the wizard is stuck in quicksand. */
+.escape-panel {
+  position: absolute;
+  left: calc(50% + var(--table-offset-x));
+  bottom: var(--table-bottom);
+  width: var(--table-w);
+  height: var(--table-h);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  pointer-events: auto;
+}
+.escape-button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font: inherit;
+  color: #fff4dc;
+  background: repeating-radial-gradient(circle at 50% 120%, #b48a45 0 0.7rem, #a07a3a 0.7rem 1.4rem);
+  border: 0.22rem solid #e6c789;
+  border-radius: 1rem;
+  box-shadow: 0 0.6rem 1.6rem #000b, inset 0 0 2rem #0006;
+  cursor: pointer;
+  transition: transform 0.12s, filter 0.12s;
+  animation: escape-glow 1.6s ease-in-out infinite;
+}
+.escape-button:hover:not(:disabled) {
+  transform: translateY(-0.2rem);
+  filter: brightness(1.12);
+}
+.escape-button:disabled {
+  filter: grayscale(0.7) brightness(0.7);
+  cursor: default;
+  animation: none;
+}
+.escape-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 2.6rem;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0.2rem 0.5rem #000a;
+}
+.escape-sub {
+  font-size: 1rem;
+  max-width: 85%;
+}
+.escape-steps {
+  display: flex;
+  gap: 0.5rem;
+}
+.escape-steps .step {
+  width: 2.4rem;
+  height: 0.55rem;
+  border-radius: 0.3rem;
+  background: #0006;
+  box-shadow: inset 0 0 0 0.12rem #e6c78988;
+}
+.escape-steps .step.done {
+  background: #ffe2a0;
+}
+.escape-note {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  text-shadow: 0 0.1rem 0.3rem #000;
+}
+@keyframes escape-glow {
+  50% {
+    box-shadow: 0 0.6rem 1.6rem #000b, inset 0 0 2rem #0006, 0 0 1.4rem #e6c78966;
+  }
+}
+
+.status-badge.stuck {
+  color: #e6c789;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------ CLEARED!  [UI-PLACEMENT] LAYOUT.cleared */
+
+.cleared-panel {
+  position: absolute;
+  left: 50%;
+  bottom: var(--cleared-bottom);
+  width: var(--cleared-w);
+  transform: translateX(-50%);
+  padding: 1rem 1.4rem 1.2rem;
+  background: linear-gradient(#2c211acc, #18110dee);
+  border: 0.19rem solid var(--gold);
+  border-radius: 0.9rem;
+  box-shadow: 0 0.8rem 2rem #000c;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: auto;
+  animation: cleared-in 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.cleared-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0.2rem 0.8rem #000;
+}
+.cleared-sub {
+  color: var(--ink-dim);
+}
+.cleared-panel .hud-button {
+  min-width: 18rem;
+  padding: 0.6rem 1rem;
+}
+@keyframes cleared-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.85);
+  }
+}
+
+/* ------------------------------------------------------------------ event, camp, grimoire */
+
+.modal .flavor {
+  font-style: italic;
+  color: var(--ink-dim);
+  max-width: 30rem;
+}
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  margin-top: 0.4rem;
+}
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.7rem 1rem;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: #0005;
+  border: 0.12rem solid var(--gold-dim);
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+.choice:hover {
+  border-color: var(--gold);
+  background: #d9b7681a;
+}
+.choice b {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+}
+.choice span {
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+}
+.camp-modal {
+  max-width: 52rem;
+}
+.camp-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  padding: 0.3rem;
+}
+.camp-card {
+  width: 5.4rem;
+  height: 7.6rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.camp-card .fragment-card.is-drawn {
+  font-size: 0.55rem;
+}
+.camp-card:hover:not(:disabled) {
+  transform: translateY(-0.3rem);
+}
+.camp-card:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.grimoire-button {
+  font-size: 0.95rem;
+}
+.grimoire-modal {
+  max-width: 44rem;
+}
+.grimoire-group {
+  width: 100%;
+  text-align: left;
+}
+.grimoire-group-title {
+  font-family: 'Cinzel', serif;
+  color: var(--gold-dim);
+  margin: 0.4rem 0 0.3rem;
+}
+.grimoire-pages {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+}
+.grimoire-page {
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.35rem;
+  background: #0004;
+  border: 0.1rem dashed #5a4632;
+  color: #6f5d47;
+  font-size: 0.9rem;
+}
+.grimoire-page.is-known {
+  background: linear-gradient(#efe3c6, #d6c39b);
+  border: 0.1rem solid #8f7444;
+  color: #2b1f16;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------ picked-up items  [UI-PLACEMENT] LAYOUT.pickup */
+
+.pickup-reveal {
+  position: absolute;
+  left: 50%;
+  top: var(--pickup-top);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 300;
+  pointer-events: none;
+  animation:
+    pickup-in 0.28s cubic-bezier(0.2, 1.5, 0.4, 1) both,
+    pickup-fly var(--fly) cubic-bezier(0.5, 0, 0.8, 0.4) var(--hold) forwards;
+}
+.pickup-label {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: var(--gold);
+  text-shadow: 0 0.2rem 0.6rem #000;
+}
+.pickup-cards {
+  display: flex;
+  gap: 1rem;
+}
+.pickup-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+.pickup-card .fragment-card {
+  width: var(--pickup-card-w);
+  height: var(--pickup-card-h);
+  box-shadow: 0 0 1.6rem #ffe2a088, 0 0.6rem 1.4rem #000c;
+}
+.pickup-card .fragment-card.is-drawn {
+  font-size: 0.95rem;
+}
+.pickup-name {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-shadow: 0 0.15rem 0.4rem #000;
+}
+.pickup-where {
+  font-size: 0.95rem;
+  color: var(--ink-dim);
+  text-shadow: 0 0.1rem 0.3rem #000;
+}
+@keyframes pickup-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.6);
+  }
+}
+@keyframes pickup-fly {
+  to {
+    opacity: 0.2;
+    transform: translate(calc(-50% + var(--fly-x)), calc(-50% + var(--fly-y))) scale(0.25);
+  }
+}
+
+/* The discard pile glows when a picked-up card lands on it. */
+.pile-flash {
+  position: absolute;
+  inset: -0.4rem;
+  border-radius: 0.8rem;
+  pointer-events: none;
+  animation: pile-flash 0.7s ease-out forwards;
+}
+@keyframes pile-flash {
+  from {
+    box-shadow: 0 0 0 0.3rem #ffe2a0, 0 0 2rem #ffe2a0;
+  }
+  to {
+    box-shadow: 0 0 0 0 #ffe2a000, 0 0 0 #ffe2a000;
+  }
+}
+
+/* ------------------------------------------------------------------ the open door's EXIT sign (scene/Door.tsx) */
+
+.door-sign {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.2rem 0.7rem 0.3rem;
+  background: linear-gradient(#3a2a18ee, #1d140bee);
+  border: 0.14rem solid #ffe2a0;
+  border-radius: 0.45rem;
+  box-shadow: 0 0 1rem #ffe2a088, 0 0.3rem 0.8rem #000a;
+  white-space: nowrap;
+  animation: door-sign-pulse 1.6s ease-in-out infinite;
+}
+.door-sign-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ffe2a0;
+}
+.door-sign-to {
+  font-size: 0.75rem;
+  color: var(--ink-dim);
+}
+@keyframes door-sign-pulse {
+  50% {
+    box-shadow: 0 0 1.6rem #ffe2a0cc, 0 0.3rem 0.8rem #000a;
   }
 }

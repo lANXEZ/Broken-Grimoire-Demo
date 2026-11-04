@@ -1,14 +1,36 @@
 import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { fragmentName, type Card } from '../engine';
-import { cardArt } from '../config/art';
+import { RUNE_SYMBOLS, cardName, isShapeKind, type Card } from '../engine';
+import { FRAGMENT_COLOR, cardArt } from '../config/art';
 import { LAYOUT } from '../config/layout';
 import type { DragSource } from './useCardDrag';
 
-/** A fragment card face. PLACEHOLDER art: the printed kit cards (config/art.ts). */
+/**
+ * A fragment card face. PLACEHOLDER art: the printed kit cards (config/art.ts). Kinds the kit never had (Wind,
+ * Wall, runes) are drawn as plain cards: the name in its colour, or a rune's gibberish symbol.
+ */
 export function FragmentCard({ card, className = '', style }: { card: Card; className?: string; style?: CSSProperties }) {
+  const art = cardArt(card);
+  // If a picture fails to load (a missing or renamed file), fall back to the drawn placeholder card below.
+  const [failed, setFailed] = useState<string | null>(null);
+  if (art && failed !== art.src) {
+    return (
+      <div className={`fragment-card has-art ${card.loot ? 'is-loot' : ''} ${className}`} style={style}>
+        <img src={art.src} alt={`${cardName(card)} fragment`} draggable={false} onError={() => setFailed(art.src)} />
+        {art.seal && <div className="drawn-seal" />}
+      </div>
+    );
+  }
+  const rune = card.kind === 'rune' ? RUNE_SYMBOLS[card.rune ?? 0] : null;
+  const kind = rune ? 'rune' : isShapeKind(card.kind) ? 'shape' : 'element';
   return (
-    <div className={`fragment-card ${card.loot ? 'is-loot' : ''} ${className}`} style={style}>
-      <img src={cardArt(card)} alt={`${fragmentName(card.kind)} fragment`} draggable={false} />
+    <div
+      className={`fragment-card is-drawn drawn-${kind} ${card.loot ? 'is-loot' : ''} ${className}`}
+      style={{ ...style, ['--frag-color' as string]: FRAGMENT_COLOR[card.kind] }}
+      title={cardName(card)}
+    >
+      <div className="drawn-glyph">{rune ? rune.glyph : cardName(card).charAt(0)}</div>
+      <div className="drawn-name">{rune ? rune.name : cardName(card)}</div>
+      {card.loot && <div className="drawn-seal" />}
     </div>
   );
 }
