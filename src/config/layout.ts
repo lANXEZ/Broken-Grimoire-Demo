@@ -8,11 +8,11 @@
  * The layout follows Slay the Spire for now:
  *
  *   ┌─────────────────────────────────────────────────────────────┐
- *   │ HP · Potion            Room name                Turn · Menu │  topBar
+ *   │ HP · Grimoire          Room name                Turn · Menu │  topBar
  *   │                                                             │
  *   │                     ◇ isometric board ◇                     │  board
  *   │                                                             │
- *   │            [ crafting table ............ ]  [CAST]          │  craftingTable + castButton
+ *   │            [ crafting table ............ ]  [CAST]          │  craftingTable + castButton (or CLEARED! / Climb out)
  *   │ (mana orb)                                       [Reroll]   │  manaOrb / reroll
  *   │ [Meditate]                                       [End turn] │  meditate / endTurn
  *   │ [Draw]           ╭card╮╭card╮╭card╮╭card╮╭card╮  [Discard]  │  drawPile / hand / discardPile
@@ -22,7 +22,7 @@ export const LAYOUT = {
   /** The screen the numbers below are designed for. */
   design: { width: 1920, height: 1080 },
 
-  /** Top bar across the whole screen (HP, potion, room name, turn, menu). */
+  /** Top bar across the whole screen (HP, Grimoire, room name, turn, menu). */
   topBar: { height: 64 },
 
   /**
@@ -40,6 +40,7 @@ export const LAYOUT = {
    * Cards on it (`cardWidth`×`cardHeight`) stay wherever they are dropped, each with a random tilt of up to
    * `maxTiltDeg`. `overhang` is how much of a card (0–1) may stick out past the table's sides and bottom edge
    * (never over the strip at the top).
+   * While the wizard is stuck in quicksand, the "Climb out" button fills this same box instead.
    */
   craftingTable: { bottom: 220, width: 620, height: 222, offsetX: 0, stripHeight: 34, cardWidth: 92, cardHeight: 129, maxTiltDeg: 9, overhang: 0.25 },
 
@@ -51,6 +52,9 @@ export const LAYOUT = {
 
   /** Meditate button, under the mana orb. */
   meditate: { left: 52, bottom: 210, width: 168, height: 64 },
+
+  /** CLEARED! panel with the Continue button: takes the crafting table's place once a room is cleared. */
+  cleared: { bottom: 250, width: 560 },
 
   /** Draw pile, bottom-left corner. */
   drawPile: { left: 36, bottom: 30, size: 116 },
@@ -66,6 +70,12 @@ export const LAYOUT = {
 
   /** "Your turn" / "Enemy turn" banner and the enemy step caption. */
   banner: { top: 300, captionTop: 92 },
+
+  /**
+   * Picked-up items: shown big in the middle of the screen (`top` = the cards' centre line), then they fly into
+   * the discard pile (or the hand, for fragments a Page Scrap stole).
+   */
+  pickup: { top: 400, cardWidth: 150, cardHeight: 210 },
 
   /** Loot and error toasts, under the top bar on the right. */
   toasts: { top: 84, right: 24, width: 380 },
@@ -109,6 +119,8 @@ export function layoutCssVars(): Record<string, string> {
     '--meditate-bottom': px(L.meditate.bottom),
     '--meditate-w': px(L.meditate.width),
     '--meditate-h': px(L.meditate.height),
+    '--cleared-bottom': px(L.cleared.bottom),
+    '--cleared-w': px(L.cleared.width),
     '--draw-left': px(L.drawPile.left),
     '--draw-bottom': px(L.drawPile.bottom),
     '--draw-size': px(L.drawPile.size),
@@ -125,6 +137,9 @@ export function layoutCssVars(): Record<string, string> {
     '--reroll-h': px(L.reroll.height),
     '--banner-top': px(L.banner.top),
     '--caption-top': px(L.banner.captionTop),
+    '--pickup-top': px(L.pickup.top),
+    '--pickup-card-w': px(L.pickup.cardWidth),
+    '--pickup-card-h': px(L.pickup.cardHeight),
     '--toasts-top': px(L.toasts.top),
     '--toasts-right': px(L.toasts.right),
     '--toasts-w': px(L.toasts.width),

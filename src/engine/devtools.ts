@@ -1,7 +1,7 @@
 import { coordLabel } from './data';
-import { RuleError, cloneState, enemyName, killEnemy, log } from './core';
+import { RuleError, checkCleared, cloneState, enemyName, killEnemy, log } from './core';
 import { spawnEnemy } from './game';
-import { isPillar, isOccupied } from './grid';
+import { isHole, isPillar, isOccupied } from './grid';
 import type { Element, Enemy, EnemyKind, GameState, PlayerState, Pos } from './types';
 
 /**
@@ -12,6 +12,7 @@ export function devEdit(state: GameState, note: string, edit: (s: GameState) => 
   const s = cloneState(state);
   edit(s);
   log(s, 'dev', `Dev: ${note}`);
+  checkCleared(s);
   if (s.player.hp <= 0 && s.phase !== 'lost') {
     s.phase = 'lost';
     s.lostReason = 'hp';
@@ -39,7 +40,7 @@ export function devPatchPlayer(state: GameState, patch: Partial<PlayerState>, no
 }
 
 export function canPlaceAt(state: GameState, pos: Pos): boolean {
-  return !isPillar(state, pos) && !isOccupied(state, pos);
+  return !isPillar(state, pos) && !isHole(state, pos) && !isOccupied(state, pos);
 }
 
 export function devMoveEnemy(state: GameState, id: string, to: Pos): GameState {

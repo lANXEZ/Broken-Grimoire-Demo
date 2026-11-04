@@ -1,8 +1,7 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type { Mesh, MeshBasicMaterial } from 'three';
+import type { MeshBasicMaterial } from 'three';
 import type { Pos } from '../engine';
-import { TIMING } from '../config/timing';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 
 /** Everything the board can highlight. Built in App.tsx from the game state and what the player is doing. */
@@ -11,8 +10,10 @@ export interface BoardOverlays {
   move: Pos[];
   /** The spell's hit area (valid spell on the crafting table, or the beam direction being aimed). */
   spell: Pos[];
-  /** Beam directions not chosen yet, shown faintly. */
+  /** Beam/Wall directions not chosen yet (or a spell you can't afford yet), shown faintly. */
   spellFaint: Pos[];
+  /** Beam/Wall: the direction the mouse is aiming at right now. Glows brightest, with an outline on each tile. */
+  aim: Pos[];
   spellColor: string;
   /** Tiles involved in the enemy action being shown. */
   focus: Pos[];
@@ -25,19 +26,24 @@ export interface BoardOverlays {
   hoverColor: string;
 }
 
-export interface CastFlash {
-  id: number;
-  tiles: Pos[];
-  color: string;
-}
-
 const SIZE = 0.92;
+/** Outline drawn around each tile of the direction being aimed. */
+const AIM_FRAME = '#fff4d6';
 
 /** A flat coloured square lying on a tile. `layer` lifts it a hair so stacked highlights don't flicker. */
-function TileQuad({ p, room, color, opacity, layer = 0, pulse = false }: { p: Pos; room: RoomSize; color: string; opacity: number; layer?: number; pulse?: boolean }) {
+function TileQuad({ p, room, color, opacity, layer = 0, pulse = false, pulseDepth = 0.25 }: {
+  p: Pos;
+  room: RoomSize;
+  color: string;
+  opacity: number;
+  layer?: number;
+  pulse?: boolean;
+  /** How far the pulse dips (0 = steady, 0.25 = between 50% and 100% of `opacity`). */
+  pulseDepth?: number;
+}) {
   const mat = useRef<MeshBasicMaterial>(null);
   useFrame(({ clock }) => {
-    if (pulse && mat.current) mat.current.opacity = opacity * (0.75 + 0.25 * Math.sin(clock.elapsedTime * 5));
+    if (pulse && mat.current) mat.current.opacity = opacity * (1 - pulseDepth + pulseDepth * Math.sin(clock.elapsedTime * 5));
   });
   return (
     <mesh position={tileToWorld(p, room, TILE_TOP + 0.004 + layer * 0.002)} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
@@ -68,59 +74,22 @@ function TileFrame({ p, room, color, width = 0.06, layer = 5 }: { p: Pos; room: 
   );
 }
 
-/** A spell's area flashing once after the cast, then fading out. */
-function Flash({ flash, room }: { flash: CastFlash; room: RoomSize }) {
-  const refs = useRef<(Mesh | null)[]>([]);
-  const start = useRef<number | null>(null);
-  const [done, setDone] = useState(false);
-  useEffect(() => {
-    start.current = null;
-    setDone(false);
-  }, [flash.id]);
-  useFrame(({ clock }) => {
-    if (done) return;
-    if (start.current === null) start.current = clock.elapsedTime;
-    const t = (clock.elapsedTime - start.current) / (TIMING.castFlash / 1000);
-    if (t >= 1) {
-      setDone(true);
-      return;
-    }
-    for (const m of refs.current) {
-      if (!m) continue;
-      (m.material as MeshBasicMaterial).opacity = 0.95 * (1 - t);
-      m.position.y = TILE_TOP + 0.02 + t * 0.25;
-    }
-  });
-  if (done) return null;
-  return (
-    <>
-      {flash.tiles.map((p, i) => {
-        const [x, , z] = tileToWorld(p, room);
-        return (
-          <mesh key={`${flash.id}-${i}`} ref={(m) => { refs.current[i] = m; }} position={[x, TILE_TOP + 0.02, z]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
-            <planeGeometry args={[SIZE, SIZE]} />
-            <meshBasicMaterial color={flash.color} transparent opacity={0.95} depthWrite={false} />
-          </mesh>
-        );
-      })}
-    </>
-  );
-}
-
 const k = (p: Pos) => `${p.x},${p.y}`;
 
-export function TileOverlay({ room, overlays, flash }: { room: RoomSize; overlays: BoardOverlays; flash: CastFlash | null }) {
+export function TileOverlay({ room, overlays }: { room: RoomSize; overlays: BoardOverlays }) {
   const o = overlays;
   return (
     <group>
       {o.erasure.map((p) => <TileQuad key={`er-${k(p)}`} p={p} room={room} color="#050304" opacity={0.72} layer={0} />)}
       {o.marked.map((p) => <TileQuad key={`mk-${k(p)}`} p={p} room={room} color="#ff2a1f" opacity={0.75} layer={1} pulse />)}
       {o.move.map((p) => <TileQuad key={`mv-${k(p)}`} p={p} room={room} color="#8fd4ff" opacity={0.42} layer={2} />)}
-      {o.spellFaint.map((p) => <TileQuad key={`sf-${k(p)}`} p={p} room={room} color={o.spellColor} opacity={0.38} layer={3} />)}
+      {/* While aiming, the other directions dim right down so the aimed one stands out. */}
+      {o.spellFaint.map((p) => <TileQuad key={`sf-${k(p)}`} p={p} room={room} color={o.spellColor} opacity={o.aim.length ? 0.2 : 0.38} layer={3} />)}
       {o.spell.map((p) => <TileQuad key={`sp-${k(p)}`} p={p} room={room} color={o.spellColor} opacity={0.78} layer={4} pulse />)}
+      {o.aim.map((p) => <TileQuad key={`am-${k(p)}`} p={p} room={room} color={o.spellColor} opacity={1} layer={4} pulse pulseDepth={0.1} />)}
+      {o.aim.map((p) => <TileFrame key={`af-${k(p)}`} p={p} room={room} color={AIM_FRAME} width={0.05} layer={5} />)}
       {o.focus.map((p) => <TileFrame key={`fc-${k(p)}`} p={p} room={room} color="#ffd36b" width={0.07} layer={6} />)}
       {o.hover && <TileFrame p={o.hover} room={room} color={o.hoverColor} />}
-      {flash && <Flash key={flash.id} flash={flash} room={room} />}
     </group>
   );
 }

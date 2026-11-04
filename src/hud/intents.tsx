@@ -30,6 +30,8 @@ export const INTENT_INFO: Record<IntentKind, IntentInfo> = {
   explode: { color: '#ff7a4d', showsValue: true, describe: (n, v) => `Explodes for ${v}${times(n)}` },
   cooldown: { color: '#b3b9c6', describe: (n) => `Cools down${times(n)}` },
   spawn: { color: '#c9a2f0', describe: () => 'Summons a Page Scrap next to it' },
+  escape: { color: '#c9a25a', describe: (n) => `Struggles out of the quicksand${times(n)}` },
+  wander: { color: '#d9dde6', describe: (n) => `Wanders lost in the fog${times(n)}` },
   wait: { color: '#b3b9c6', describe: () => 'Does nothing' },
 };
 
@@ -147,6 +149,19 @@ export function IntentGlyph({ kind, color }: { kind: IntentKind; color: string }
         <g {...stroke}>
           <circle r={5} strokeWidth={1.5} />
           <path d="M0 -2.6 V2.6 M-2.6 0 H2.6" />
+        </g>
+      );
+    case 'escape':
+      return (
+        <g {...stroke}>
+          <path d="M-6 3 Q-3 1 0 3 Q3 5 6 3" strokeWidth={1.5} />
+          <path d="M0 1 V-5.5 M-2.6 -3 L0 -5.5 L2.6 -3" />
+        </g>
+      );
+    case 'wander':
+      return (
+        <g {...stroke}>
+          <path d="M-5 -3 H3 M-3 0 H5 M-5 3 H3" strokeWidth={1.5} />
         </g>
       );
     case 'wait':

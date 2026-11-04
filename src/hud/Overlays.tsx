@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
-import type { EnemyStep, GameState } from '../engine';
-import { cardArt } from '../config/art';
-import type { Card } from '../engine';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { cardName } from '../engine';
+import { TIMING } from '../config/timing';
+import type { Card, EnemyStep, GameState } from '../engine';
+import { FragmentCard } from './Hand';
 
 /** [UI-PLACEMENT] Big "Your turn" / "Enemy turn" banner across the middle (LAYOUT.banner.top). */
 export function TurnBanner({ banner }: { banner: { id: number; title: string; sub?: string; kind: 'player' | 'enemy' | 'room' } | null }) {
@@ -43,7 +44,7 @@ export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
           {t.cards && t.cards.length > 0 && (
             <div className="toast-cards">
               {t.cards.map((c) => (
-                <img key={c.id} src={cardArt(c)} alt="" />
+                <FragmentCard key={c.id} card={c} className="toast-card" />
               ))}
             </div>
           )}
@@ -57,6 +58,57 @@ export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Something the wizard just picked up off the floor. */
+export interface Pickup {
+  id: number;
+  cards: Card[];
+  /** true = back into the hand (a Page Scrap's stolen cards); false = into the discard pile. */
+  toHand: boolean;
+}
+
+/**
+ * [UI-PLACEMENT] Picking up a drop (LAYOUT.pickup): the cards pop up big in the middle of the screen with their
+ * names, hold for TIMING.pickupHold, then fly into the discard pile (or the hand) and vanish.
+ */
+export function PickupReveal({ pickup, onDone }: { pickup: Pickup; onDone: (id: number) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [fly, setFly] = useState<{ x: number; y: number } | null>(null);
+  const done = useRef(onDone);
+  done.current = onDone;
+
+  // Where to fly: the centre of the discard pile (or the hand), relative to where the cards are shown.
+  useLayoutEffect(() => {
+    const target = document.querySelector(pickup.toHand ? '.hand' : '.pile-discard .pile-stack')?.getBoundingClientRect();
+    const from = box.current?.getBoundingClientRect();
+    if (target && from) {
+      setFly({ x: target.left + target.width / 2 - (from.left + from.width / 2), y: target.top + target.height / 2 - (from.top + from.height / 2) });
+    }
+    const t = window.setTimeout(() => done.current(pickup.id), TIMING.pickupHold + TIMING.pickupFly);
+    return () => window.clearTimeout(t);
+  }, [pickup]);
+
+  const style = {
+    '--fly-x': `${fly?.x ?? 0}px`,
+    '--fly-y': `${fly?.y ?? 0}px`,
+    '--hold': `${TIMING.pickupHold}ms`,
+    '--fly': `${TIMING.pickupFly}ms`,
+  } as CSSProperties;
+  return (
+    <div ref={box} className="pickup-reveal" style={style}>
+      <div className="pickup-label">{pickup.toHand ? 'Recovered' : 'Picked up'}</div>
+      <div className="pickup-cards">
+        {pickup.cards.map((c) => (
+          <div key={c.id} className="pickup-card">
+            <FragmentCard card={c} />
+            <div className="pickup-name">{cardName(c)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="pickup-where">{pickup.toHand ? '→ back to your hand' : '→ discard pile'}</div>
     </div>
   );
 }

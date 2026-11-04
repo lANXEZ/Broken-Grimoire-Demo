@@ -1,6 +1,5 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import type { Card } from '../engine';
-import { ELEMENT_COLOR } from '../config/art';
 import type { CastPreview, TablePlacement } from '../game/casting';
 import { FragmentCard } from './Hand';
 import type { DragSource } from './useCardDrag';
@@ -28,14 +27,15 @@ export const TABLE_AREA_SELECTOR = '[data-table-area]';
  * Drag fragments onto the table and they stay where you drop them, slightly tilted, like cards tossed on a desk
  * (clicking a hand card drops it at a random spot). Drag a table card to move it around (it comes to the top),
  * drag it off the table or click it to take it back. The strip along the top says what the cards make. The Cast
- * button lights up only when the cards make a castable spell (2–3 fragments, enough mana, an action left).
- * Beams don't need the button: while a Beam is castable the board is already aiming, and clicking a direction
- * casts it. The button then just says so.
+ * button lights up only when the cards make a castable spell (2–3 cards, enough mana, an action left), or when
+ * a rune is on the table (so the button never gives a rune away).
+ * Beams and Walls don't need the button: while one is castable the board is already aiming, and clicking a
+ * direction casts it. The button then just says so.
  */
 export function CraftingTable({ cards, preview, dragOver, dragging, draggingId, locked, startDrag, onCast }: Props) {
   const ready = preview.status === 'ready';
   const aimOnBoard = ready && preview.needsAim;
-  const accent = preview.element ? ELEMENT_COLOR[preview.element] : undefined;
+  const accent = preview.color;
 
   return (
     <div

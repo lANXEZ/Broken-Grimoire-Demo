@@ -1,191 +1,364 @@
 import { describe, expect, it } from 'vitest';
 import {
-  previewIntents,
-  wardenSightLine,
-  acknowledgeLoot,
-  devRemoveEnemy,
+  ROOMS,
   actionsNextTurn,
-  wardenChargedNextTurn,
-  advanceRoom,
+  campChoice,
+  continueRun,
+  eventChoice,
+  freeStep,
+  freeWalkPath,
+  comboFromCards,
+  coordLabel,
   createGame,
+  devRemoveEnemy,
+  dropWeights,
   endPlayerTurn,
-  devPatchEnemy,
   parseCoord,
+  planCast,
   planEnemyTurn,
-  playerCast,
+  playerEscape,
   playerMeditate,
-  playerDrinkPotion,
   playerMove,
-  playerUnstableFire,
-  spawnEnemy,
+  previewIntents,
+  spellArea,
   spellCost,
   spellDamage,
-  spellTiles,
   turnOrder,
-  coordLabel,
-  type Element,
-  type EnemyKind,
+  wardenChargedNextTurn,
+  wardenSightLine,
+  type Card,
+  type FragmentKind,
   type GameState,
-  type SpellSpec,
+  type Spell,
 } from './index';
+import { at, board, cast, castErr, dummy, enemy, give, giveRune, hazard, hp, labels, runEnemyTurn, toEnemyTurn } from './testkit';
 
-interface Setup {
-  size?: number;
-  pillars?: string[];
-  player: string;
-  enemies?: { kind: EnemyKind; at: string; element?: Element }[];
-  exit?: { at: string; locked: boolean };
-  seed?: number;
-}
-
-/**
- * Build a custom board, bypassing the kit's room layouts. The hand holds the whole starting deck,
- * so any spell can be cast without the test having to pick cards.
- */
-function board(setup: Setup): GameState {
-  const s = createGame(setup.seed ?? 42);
-  s.cards.hand = [...s.cards.hand, ...s.cards.deck];
-  s.cards.deck = [];
-  const size = setup.size ?? 6;
-  s.room = {
-    id: 'test',
-    name: 'Test',
-    blurb: '',
-    width: size,
-    height: size,
-    pillars: (setup.pillars ?? []).map(parseCoord),
-    exit: setup.exit ? { pos: parseCoord(setup.exit.at), locked: setup.exit.locked } : null,
-  };
-  s.enemies = [];
-  s.typeCounters = {};
-  s.nextDeployId = 1;
-  s.player.pos = parseCoord(setup.player);
-  for (const e of setup.enemies ?? []) spawnEnemy(s, e.kind, parseCoord(e.at), e.element);
-  return s;
-}
-
-const at = (s: GameState, id: string) => coordLabel(s.enemies.find((e) => e.id === id)!.pos);
-const hp = (s: GameState, id: string) => s.enemies.find((e) => e.id === id)?.hp;
-const toEnemyTurn = (s: GameState) => endPlayerTurn(s);
-const runEnemyTurn = (s: GameState) => planEnemyTurn(toEnemyTurn(s)).final;
-
-const spec = (element: Element, elementCount: 1 | 2, shape: 'beam' | 'cross', shapeCount: 1 | 2): SpellSpec => ({
+const basic = (element: 'fire' | 'water' | 'earth' | 'wind', elementCount: 1 | 2, shape: 'beam' | 'cross' | 'wall', shapeCount: 1 | 2 = 1): Spell => ({
+  kind: 'basic',
   element,
   elementCount,
   shape,
   shapeCount,
 });
+const cards = (...kinds: FragmentKind[]): Card[] => kinds.map((kind, id) => ({ id, kind, ...(kind === 'rune' ? { rune: 0 } : {}) }));
 
 describe('spell math', () => {
-  it('costs fragments + 1 per doubled part', () => {
-    expect(spellCost(spec('fire', 1, 'beam', 1))).toBe(2);
-    expect(spellCost(spec('fire', 2, 'beam', 1))).toBe(4);
-    expect(spellCost(spec('water', 1, 'cross', 2))).toBe(4);
+  it('costs fragments + 1 per doubled part; merges 3, Unstable Fire 5', () => {
+    expect(spellCost(basic('fire', 1, 'beam'))).toBe(2);
+    expect(spellCost(basic('fire', 2, 'beam'))).toBe(4);
+    expect(spellCost(basic('water', 1, 'cross', 2))).toBe(4);
+    expect(spellCost({ kind: 'merge', elements: ['fire', 'earth'], shape: 'wall' })).toBe(3);
+    expect(spellCost({ kind: 'unstable' })).toBe(5);
   });
 
-  it('fire does 1 base damage, 3 doubled; water/rock do 2, 4 doubled', () => {
-    expect(spellDamage(spec('fire', 1, 'beam', 1))).toBe(1);
-    expect(spellDamage(spec('fire', 2, 'beam', 1))).toBe(3);
-    expect(spellDamage(spec('rock', 1, 'beam', 1))).toBe(2);
-    expect(spellDamage(spec('water', 2, 'cross', 1))).toBe(4);
+  it('damage: Fire 1/3, Water and Earth 2/4, Wind 0, Magma 2, Fog 0, Unstable Fire 7, and the rune boosts', () => {
+    expect(spellDamage(basic('fire', 1, 'beam'))).toBe(1);
+    expect(spellDamage(basic('fire', 2, 'beam'))).toBe(3);
+    expect(spellDamage(basic('earth', 1, 'beam'))).toBe(2);
+    expect(spellDamage(basic('water', 2, 'cross'))).toBe(4);
+    expect(spellDamage(basic('wind', 2, 'beam'))).toBe(0);
+    expect(spellDamage({ kind: 'merge', elements: ['fire', 'earth'], shape: 'beam' })).toBe(2);
+    expect(spellDamage({ kind: 'merge', elements: ['water', 'fire'], shape: 'beam' })).toBe(0);
+    expect(spellDamage({ kind: 'unstable' })).toBe(7);
+    expect(spellDamage(basic('wind', 1, 'beam'), 'amplify')).toBe(2);
+    expect(spellDamage(basic('water', 1, 'beam'), 'volatile')).toBe(4);
   });
 
-  it('beam stops at a pillar and doubled cross reaches 2 tiles', () => {
+  it('reads the crafting table', () => {
+    expect(comboFromCards(cards('fire', 'beam'))).toMatchObject({ kind: 'spell', spell: basic('fire', 1, 'beam') });
+    expect(comboFromCards(cards('wall', 'wind', 'wall'))).toMatchObject({ kind: 'spell', spell: basic('wind', 1, 'wall', 2) });
+    expect(comboFromCards(cards('fire', 'water', 'beam'))).toMatchObject({ kind: 'spell', spell: { kind: 'merge', shape: 'beam' } });
+    expect(comboFromCards(cards('fire', 'wind', 'beam'))).toMatchObject({ kind: 'invalid', reason: expect.stringMatching(/Wind/) });
+    expect(comboFromCards(cards('fire', 'fire', 'fire'))).toMatchObject({ kind: 'spell', spell: { kind: 'unstable' } });
+    expect(comboFromCards(cards('fire', 'fire', 'beam', 'beam'))).toMatchObject({ kind: 'invalid', castable: false });
+    expect(comboFromCards(cards('beam', 'cross'))).toMatchObject({ kind: 'invalid', castable: false });
+  });
+
+  it('a rune takes one of the 3 slots; with a rune, CAST stays lit even if the fragments make nothing', () => {
+    expect(comboFromCards(cards('fire', 'beam', 'rune'))).toMatchObject({ kind: 'spell', spell: basic('fire', 1, 'beam') });
+    expect(comboFromCards(cards('fire', 'water', 'rune'))).toMatchObject({ kind: 'invalid', castable: true });
+    expect(comboFromCards(cards('fire', 'rune'))).toMatchObject({ kind: 'invalid', castable: true });
+    expect(comboFromCards(cards('rune'))).toMatchObject({ kind: 'invalid', castable: false });
+    expect(comboFromCards(cards('fire', 'fire', 'beam', 'rune'))).toMatchObject({ kind: 'invalid', castable: false });
+    expect(comboFromCards(cards('fire', 'rune', 'rune'))).toMatchObject({ kind: 'invalid', castable: false });
+  });
+
+  it('the cost shown never gives a rune away', () => {
+    expect(planCast(cards('fire', 'beam', 'rune')).cost).toBe(3);
+    expect(planCast(cards('fire', 'water', 'rune')).cost).toBe(3);
+  });
+});
+
+describe('spell areas', () => {
+  it('a beam stops at a pillar, which counts as hit', () => {
     const s = board({ player: 'a1', pillars: ['a3'] });
-    expect(spellTiles(s, spec('fire', 1, 'beam', 2), 'up').map(coordLabel)).toEqual(['a2']);
-    expect(spellTiles(s, spec('fire', 1, 'beam', 2), 'right').map(coordLabel)).toEqual(['b1', 'c1', 'd1', 'e1']);
+    const up = spellArea(s, basic('fire', 1, 'beam', 2), 'up');
+    expect(labels(up.tiles.map((t) => t.pos))).toEqual(['a2']);
+    expect(labels(up.pillars)).toEqual(['a3']);
+    expect(labels(spellArea(s, basic('fire', 1, 'beam', 2), 'right').tiles.map((t) => t.pos))).toEqual(['b1', 'c1', 'd1', 'e1']);
+  });
+
+  it('a doubled cross reaches 2 tiles each way', () => {
+    const s = board({ player: 'c3' });
+    expect(spellArea(s, basic('fire', 1, 'cross', 2), null).tiles).toHaveLength(8);
+  });
+
+  it('a wall is a row of 3 in front of you; doubled it adds a row, and a pillar shields the tile behind it', () => {
+    const s = board({ player: 'c3' });
+    expect(labels(spellArea(s, basic('fire', 1, 'wall'), 'up').tiles.map((t) => t.pos))).toEqual(['b4', 'c4', 'd4']);
+    const p = board({ player: 'c3', pillars: ['c4'] });
+    const area = spellArea(p, basic('fire', 1, 'wall', 2), 'up');
+    expect(labels(area.tiles.map((t) => t.pos))).toEqual(['b4', 'b5', 'd4', 'd5']);
+    expect(labels(area.pillars)).toEqual(['c4']);
+  });
+
+  it('widen: beam gets side lanes, cross the diagonals, wall 5 wide', () => {
+    const s = board({ player: 'c1' });
+    expect(labels(spellArea(s, basic('fire', 1, 'beam'), 'up', 'widen').tiles.map((t) => t.pos))).toEqual(['b2', 'b3', 'c2', 'c3', 'd2', 'd3']);
     const c = board({ player: 'c3' });
-    expect(spellTiles(c, spec('fire', 1, 'cross', 2), null)).toHaveLength(8);
+    expect(spellArea(c, basic('fire', 1, 'cross'), null, 'widen').tiles).toHaveLength(8);
+    expect(spellArea(c, basic('fire', 1, 'wall'), 'up', 'widen').tiles).toHaveLength(5);
+  });
+
+  it('Unstable Fire hits the 3×3 around you; pillars there count as hit', () => {
+    const s = board({ player: 'b2', pillars: ['c3'] });
+    const area = spellArea(s, { kind: 'unstable' }, null);
+    expect(area.tiles).toHaveLength(7);
+    expect(labels(area.pillars)).toEqual(['c3']);
   });
 });
 
 describe('player turn', () => {
-  it('cast damages, applies status and spends mana', () => {
+  it('a cast damages, applies its status and spends mana and an action', () => {
     const s = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a3' }] });
-    const next = playerCast(s, spec('water', 1, 'beam', 1), 'up');
+    const next = cast(s, ['water', 'beam'], 'up');
     expect(hp(next, '3a')).toBe(4);
     expect(next.enemies[0].status.root).toBe(1);
-    expect(next.player.mana).toBe(1);
+    expect(next.player.mana).toBe(4);
     expect(next.actionsLeft).toBe(2);
   });
 
-  it('page wards only take their element; redactor is immune while wards stand', () => {
-    const s = board({
-      player: 'c3',
-      enemies: [
-        { kind: 'ward', at: 'c4', element: 'fire' },
-        { kind: 'redactor', at: 'd3' },
-      ],
-    });
-    s.player.mana = 6;
-    const rock = playerCast(s, spec('rock', 1, 'cross', 1), null);
-    expect(hp(rock, '6a')).toBe(4);
-    expect(hp(rock, '8a')).toBe(18);
-    const fire = playerCast(s, spec('fire', 1, 'cross', 1), null);
-    expect(hp(fire, '6a')).toBe(3);
+  it('page wards only feel spells containing their element (never Magma); the redactor is immune while wards stand', () => {
+    const s = board({ player: 'c3', enemies: [{ kind: 'ward', at: 'c4', element: 'fire' }, { kind: 'redactor', at: 'd3' }] });
+    const earth = cast(s, ['earth', 'cross']);
+    expect(hp(earth, '6a')).toBe(4);
+    expect(hp(earth, '8a')).toBe(18);
+    expect(hp(cast(s, ['fire', 'cross']), '6a')).toBe(3);
+    expect(hp(cast(s, ['fire', 'earth', 'cross']), '6a')).toBe(4);
   });
 
-  it('burn ticks before each player action and the turn auto-ends after 3 actions', () => {
-    let s = board({ player: 'a1' });
+  it('Burn ticks at the start of each of your turns, whether or not you act', () => {
+    const s = board({ player: 'a1', enemies: [dummy()] });
     s.player.status.burn = 3;
-    s = playerMeditate(s);
-    s = playerMeditate(s);
-    expect(s.player.hp).toBe(18);
-    s = playerMove(s, 'right');
-    expect(s.player.hp).toBe(17);
+    const next = runEnemyTurn(s);
+    expect(next.turn).toBe(2);
+    expect(next.player.hp).toBe(19);
+    expect(next.player.status.burn).toBe(2);
+  });
+
+  it('the turn ends by itself after 3 actions', () => {
+    let s = board({ player: 'a1', enemies: [dummy()] });
+    s = playerMeditate(playerMeditate(playerMeditate(s)));
     expect(s.phase).toBe('enemy');
   });
 
-  it('unstable fire hits the 3x3, burns the caster and is once per room', () => {
-    let s = board({ player: 'c3', enemies: [{ kind: 'brute', at: 'e5' }, { kind: 'rat', at: 'b2' }] });
-    s.player.mana = 6;
-    s = playerUnstableFire(s, 6);
+  it('Unstable Fire: 7 damage on the 3×3, Burn 3 on you, once per room', () => {
+    let s = board({ player: 'c3', enemies: [{ kind: 'rat', at: 'b2' }, { kind: 'brute', at: 'e5' }, { kind: 'brute', at: 'd4' }] });
+    s = cast(s, ['fire', 'fire', 'fire']);
     expect(s.enemies.map((e) => e.id)).toEqual(['3a']);
     expect(hp(s, '3a')).toBe(6);
     expect(s.player.mana).toBe(1);
     expect(s.player.status.burn).toBe(3);
-    expect(s.player.unstableUsed).toBe(true);
+    s.player.mana = 6;
+    give(s, 'fire', 'fire', 'fire');
+    expect(castErr(s, ['fire', 'fire', 'fire'])).toMatch(/already used/);
+  });
+
+  it('moves never go into a hole', () => {
+    const s = board({ player: 'a1', holes: ['a2'], enemies: [dummy()] });
+    expect(() => playerMove(s, 'up')).toThrow(/blocked/);
   });
 });
 
-describe('enemy turn', () => {
-  it('acts by type number, then deploy order', () => {
-    const s = board({
-      player: 'a1',
-      enemies: [
-        { kind: 'brute', at: 'f6' },
-        { kind: 'rat', at: 'f1' },
-        { kind: 'brute', at: 'e6' },
-      ],
-    });
-    expect(turnOrder(s).map((e) => e.id)).toEqual(['1a', '3a', '3b']);
+describe('wind, pushes and collisions', () => {
+  it('Wind pushes along a beam (2 tiles when doubled) and deals no damage', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }] });
+    const one = cast(s, ['wind', 'beam'], 'up');
+    expect(at(one, '1a')).toBe('a3');
+    expect(hp(one, '1a')).toBe(2);
+    expect(at(cast(s, ['wind', 'wind', 'beam'], 'up'), '1a')).toBe('a4');
   });
 
-  it('melee enemy walks in and attacks only once per turn', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a4' }] });
+  it('pushes the farthest unit first, so a line slides together', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }, { kind: 'rat', at: 'a3' }] });
+    const after = cast(s, ['wind', 'beam'], 'up');
+    expect([at(after, '1a'), at(after, '1b')]).toEqual(['a3', 'a4']);
+    expect([hp(after, '1a'), hp(after, '1b')]).toEqual([2, 2]);
+  });
+
+  it('a Cross pushes outward; hitting a unit hurts both by 1', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }, { kind: 'brute', at: 'a3' }] });
+    const after = cast(s, ['wind', 'cross']);
+    expect(at(after, '1a')).toBe('a2');
+    expect([hp(after, '1a'), hp(after, '3a')]).toEqual([1, 5]);
+  });
+
+  it('hitting a pillar hurts the unit and the pillar; Wind alone never chips pillars', () => {
+    const s = board({ player: 'a1', pillars: ['a3'], enemies: [{ kind: 'rat', at: 'a2' }] });
+    const after = cast(s, ['wind', 'beam'], 'up');
+    expect(hp(after, '1a')).toBe(1);
+    expect(after.room.pillars[0].hp).toBe(1);
+  });
+
+  it('hitting the room wall hurts only the pushed unit', () => {
+    const s = board({ player: 'a2', enemies: [{ kind: 'rat', at: 'a1' }] });
+    const after = cast(s, ['wind', 'beam'], 'down');
+    expect(at(after, '1a')).toBe('a1');
+    expect(hp(after, '1a')).toBe(1);
+  });
+
+  it('a unit pushed into a hole dies and its loot is lost', () => {
+    const s = board({ player: 'a1', holes: ['a3'], enemies: [{ kind: 'rat', at: 'a2' }, dummy()] });
+    const after = cast(s, ['wind', 'beam'], 'up');
+    expect(after.enemies.some((e) => e.kind === 'rat')).toBe(false);
+    expect(after.room.drops).toEqual([]);
+  });
+
+  it('massive and floating units can’t be pushed', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'a2' }, { kind: 'ward', at: 'b1', element: 'wind' }] });
+    const after = cast(s, ['wind', 'cross']);
+    expect([at(after, '5a'), at(after, '6a')]).toEqual(['a2', 'b1']);
+  });
+
+  it('Quicksand catches a sliding unit; Magma burns it on the way past', () => {
+    const q = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }] });
+    hazard(q, 'a3', 'quicksand');
+    const caught = cast(q, ['wind', 'wind', 'beam'], 'up');
+    expect(at(caught, '1a')).toBe('a3');
+    expect(enemy(caught, '1a').status.stuck).toBe(2);
+
+    const m = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }] });
+    hazard(m, 'a3', 'magma');
+    const burnt = cast(m, ['wind', 'wind', 'beam'], 'up');
+    expect(at(burnt, '1a')).toBe('a4');
+    expect(enemy(burnt, '1a').status.burn).toBe(3);
+  });
+
+  it('an Archer shot pushes you, and a push into a hole is game over', () => {
+    const s = board({ player: 'a2', holes: ['a1'], enemies: [{ kind: 'archer', at: 'a6' }] });
+    const after = runEnemyTurn(s);
+    expect(after.player.hp).toBe(18);
+    expect(after.phase).toBe('lost');
+    expect(after.lostReason).toBe('hole');
+  });
+});
+
+describe('pillars', () => {
+  it('have 2 HP: damaging spells chip the pillar that stops them, and a broken pillar becomes floor', () => {
+    let s = board({ player: 'a1', pillars: ['a2'], enemies: [dummy()] });
+    s = cast(s, ['fire', 'beam'], 'up');
+    expect(s.room.pillars[0].hp).toBe(1);
+    s = cast(s, ['earth', 'beam'], 'up');
+    expect(s.room.pillars).toEqual([]);
+  });
+});
+
+describe('merges and hazards', () => {
+  it('Fog: 0 damage, covers the shape and lasts through your 3rd turn (the casting turn counts)', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a3' }] });
+    const after = cast(s, ['fire', 'water', 'beam'], 'up');
+    expect(hp(after, '3a')).toBe(6);
+    expect(after.enemies[0].status.burn).toBe(0);
+    expect(after.room.hazards.map((h) => [coordLabel(h.pos), h.kind, h.until])).toEqual([
+      ['a2', 'fog', 3],
+      ['a3', 'fog', 3],
+    ]);
+    const late = { ...after, turn: 3 };
+    expect(endPlayerTurn(late).room.hazards).toEqual([]);
+    expect(endPlayerTurn({ ...after, turn: 2 }).room.hazards).toHaveLength(2);
+  });
+
+  it('Magma: 2 damage, no element statuses; stepping onto it later burns', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a2' }] });
+    const after = cast(s, ['fire', 'earth', 'beam'], 'up');
+    expect(hp(after, '3a')).toBe(4);
+    expect(after.enemies[0].status).toMatchObject({ burn: 0, stun: 0 });
+    expect(after.room.hazards.every((h) => h.kind === 'magma')).toBe(true);
+
+    const walk = board({ player: 'a1', enemies: [dummy()] });
+    hazard(walk, 'b1', 'magma');
+    expect(playerMove(walk, 'right').player.status.burn).toBe(3);
+  });
+
+  it('Quicksand: a monster caught in it spends 2 actions climbing out (the puddle goes), then acts', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }] });
+    const after = cast(s, ['earth', 'water', 'cross']);
+    expect(after.enemies[0].status.stuck).toBe(2);
+    const plan = planEnemyTurn(toEnemyTurn(after));
+    expect(plan.intents['1a'].map((i) => i.kind)).toEqual(['escape', 'escape', 'attack']);
+    expect(plan.final.room.hazards.map((h) => coordLabel(h.pos))).toEqual(['b1']);
+    expect(plan.final.player.hp).toBe(19);
+  });
+
+  it('a stuck wizard can’t move or cast until climbing out (2 actions)', () => {
+    let s = board({ player: 'a1', enemies: [dummy()] });
+    hazard(s, 'a1', 'quicksand');
+    s.player.status.stuck = 2;
+    expect(() => playerMove(s, 'up')).toThrow(/quicksand/);
+    expect(castErr(s, ['fire', 'beam'], 'up')).toMatch(/quicksand/);
+    s = playerEscape(playerEscape(s));
+    expect(s.player.status.stuck).toBe(0);
+    expect(s.room.hazards).toEqual([]);
+  });
+
+  it('Wind clears fog; Water cools magma', () => {
+    const s = board({ player: 'a1', enemies: [dummy()] });
+    hazard(s, 'a2', 'fog');
+    hazard(s, 'b1', 'magma');
+    expect(cast(s, ['wind', 'beam'], 'up').room.hazards.map((h) => h.kind)).toEqual(['magma']);
+    expect(cast(s, ['water', 'beam'], 'right').room.hazards.map((h) => h.kind)).toEqual(['fog']);
+  });
+
+  it('monsters walk around Magma and Quicksand when there is another way', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'c1' }] });
+    hazard(s, 'b1', 'magma');
     const after = runEnemyTurn(s);
     expect(at(after, '1a')).toBe('a2');
-    expect(after.player.hp).toBe(19);
-    expect(after.phase).toBe('player');
-    expect(after.turn).toBe(2);
+    expect(enemy(after, '1a').status.burn).toBe(0);
   });
 
-  it('units never share tiles: the lower unit takes the contested tile', () => {
-    // Only one open tile next to the player (b1); rat 1a gets it, 1b has to wait or reroute.
-    const s = board({
-      player: 'a1',
-      pillars: ['a2'],
-      enemies: [
-        { kind: 'rat', at: 'd1' },
-        { kind: 'rat', at: 'e1' },
-      ],
-    });
+  it('…but step on one when it is the only way', () => {
+    const s = board({ player: 'a1', pillars: ['a2'], enemies: [{ kind: 'rat', at: 'c1' }] });
+    hazard(s, 'b1', 'magma');
     const after = runEnemyTurn(s);
     expect(at(after, '1a')).toBe('b1');
-    expect(at(after, '1b')).not.toBe('b1');
-    expect(new Set(after.enemies.map((e) => coordLabel(e.pos))).size).toBe(2);
+    expect(enemy(after, '1a').status.burn).toBe(3);
+    expect(after.player.hp).toBe(19);
   });
 
+  it('a monster in fog wanders at random (checked every action)', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'd4' }] });
+    hazard(s, 'd4', 'fog');
+    const intents = previewIntents(s)['1a'];
+    expect(intents[0].kind).toBe('wander');
+    expect(intents.slice(1).every((i) => i.kind === 'move')).toBe(true);
+  });
+
+  it('standing in fog hides you from Archers; fog in between blocks the Warden’s sight', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'archer', at: 'a5' }] });
+    hazard(s, 'a1', 'fog');
+    const after = runEnemyTurn(s);
+    expect(after.player.hp).toBe(20);
+    expect(at(after, '2a')).toBe('a5');
+
+    const w = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'a6' }] });
+    expect(wardenSightLine(w, w.enemies[0])).not.toBeNull();
+    hazard(w, 'a3', 'fog');
+    expect(wardenSightLine(w, w.enemies[0])).toBeNull();
+  });
+});
+
+describe('statuses', () => {
   it('root stops movement for one turn, stun stops attacks for one turn', () => {
     let s = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a4' }] });
     s.enemies[0].status.root = 1;
@@ -201,162 +374,169 @@ describe('enemy turn', () => {
     expect(t.player.hp).toBe(17);
   });
 
-  it('burn ticks before enemy actions and wears off if the unit does nothing', () => {
+  it('Burn ticks at the start of an enemy’s turn even if it can’t act', () => {
     let s = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a5' }] });
     s.enemies[0].status.burn = 3;
-    s = runEnemyTurn(s); // moves twice: 2 ticks
-    expect(hp(s, '3a')).toBe(4);
-    expect(s.enemies[0].status.burn).toBe(1);
+    s.enemies[0].status.root = 1;
+    s = runEnemyTurn(s);
+    expect(hp(s, '3a')).toBe(5);
+    expect(s.enemies[0].status.burn).toBe(2);
+  });
+});
 
-    let w = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a5' }] });
-    w.enemies[0].status.burn = 3;
-    w.enemies[0].status.root = 1;
-    w = runEnemyTurn(w);
-    expect(hp(w, '3a')).toBe(6);
-    expect(w.enemies[0].status.burn).toBe(0);
+describe('enemy turn', () => {
+  it('acts by type number, then deploy order', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'f6' }, { kind: 'rat', at: 'f1' }, { kind: 'brute', at: 'e6' }] });
+    expect(turnOrder(s).map((e) => e.id)).toEqual(['1a', '3a', '3b']);
   });
 
-  it('archer backs off in the opposite direction when adjacent', () => {
-    const s = board({ player: 'c3', enemies: [{ kind: 'archer', at: 'c4' }] });
+  it('a melee enemy walks in and attacks only once per turn', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a4' }] });
     const after = runEnemyTurn(s);
-    expect(at(after, '2a')).toBe('c6');
-    expect(after.player.hp).toBe(20);
+    expect(at(after, '1a')).toBe('a2');
+    expect(after.player.hp).toBe(19);
+    expect(after.phase).toBe('player');
+    expect(after.turn).toBe(2);
   });
 
-  it('archer shoots diagonally in range, but not through pillars', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'archer', at: 'd4' }] });
-    expect(runEnemyTurn(s).player.hp).toBe(18);
-    const blocked = board({ player: 'a1', pillars: ['b2'], enemies: [{ kind: 'archer', at: 'd4' }] });
-    const after = runEnemyTurn(blocked);
-    expect(at(after, '2a')).not.toBe('d4');
-  });
-
-  it('friendly fire: the arrow hits the first monster in the way and stops there', () => {
-    // Archer a5, Brute a3, you a1: the Brute stands in the line of fire.
-    const s = board({ player: 'a1', enemies: [{ kind: 'archer', at: 'a5' }, { kind: 'brute', at: 'a3' }] });
-    s.enemies.find((e) => e.kind === 'brute')!.status.root = 1; // keep the Brute in the way
-    const plan = planEnemyTurn(toEnemyTurn(s));
-    expect(plan.final.player.hp).toBe(20);
-    expect(hp(plan.final, '3a')).toBe(4);
-    expect(plan.intents['2a']).toEqual([{ kind: 'shoot', value: 2, note: 'Brute 3a is in the way' }]);
-  });
-
-  it('friendly fire hits only the nearest monster in the line', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'archer', at: 'd4' }, { kind: 'rat', at: 'b2' }, { kind: 'rat', at: 'c3' }] });
-    s.enemies.filter((e) => e.kind === 'rat').forEach((r) => (r.status.root = 1));
+  it('units never share tiles', () => {
+    const s = board({ player: 'a1', pillars: ['a2'], enemies: [{ kind: 'rat', at: 'd1' }, { kind: 'rat', at: 'e1' }] });
     const after = runEnemyTurn(s);
-    expect(after.enemies.some((e) => e.id === '1b')).toBe(false); // 1b (c3) is nearest: takes the 2 dmg arrow and dies
-    expect(hp(after, '1a')).toBe(2); // 1a (b2) is behind it, untouched
-    expect(after.player.hp).toBe(20);
-  });
-
-  it('a monster killed by friendly fire drops its loot as usual', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'archer', at: 'a5' }, { kind: 'leech', at: 'a3' }] });
-    const leech = s.enemies.find((e) => e.kind === 'leech')!;
-    leech.hp = 2;
-    leech.status.root = 1;
-    const after = runEnemyTurn(s);
-    expect(after.enemies.some((e) => e.kind === 'leech')).toBe(false);
-    expect(after.pendingLoot.map((l) => l.discard)).toEqual([['Water fragment']]);
-  });
-
-  it('an immune unit in the way (a Page Ward) stops the arrow but takes nothing', () => {
-    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'archer', at: 'a5' }, { kind: 'ward', at: 'a3', element: 'fire' }] });
-    const after = runEnemyTurn(s);
-    expect(after.player.hp).toBe(20);
-    expect(hp(after, '6a')).toBe(4);
+    expect(at(after, '1a')).toBe('b1');
+    expect(new Set(after.enemies.map((e) => coordLabel(e.pos))).size).toBe(2);
   });
 
   it('leech drains mana, not HP', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'leech', at: 'a2' }] });
+    const s = board({ player: 'a1', mana: 3, enemies: [{ kind: 'leech', at: 'a2' }] });
     const after = runEnemyTurn(s);
     expect(after.player.mana).toBe(2);
     expect(after.player.hp).toBe(20);
   });
 });
 
-describe('warden', () => {
-  it('walks to a tile with a clear line to you, then holds still (no attack)', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'c4' }] });
+describe('archer', () => {
+  it('backs off in the opposite direction when adjacent', () => {
+    const after = runEnemyTurn(board({ player: 'c3', enemies: [{ kind: 'archer', at: 'c4' }] }));
+    expect(at(after, '2a')).toBe('c6');
+    expect(after.player.hp).toBe(20);
+  });
+
+  it('shoots any distance on the 8 lines: 2 damage and a push along the shot', () => {
+    const after = runEnemyTurn(board({ player: 'b2', enemies: [{ kind: 'archer', at: 'f6' }] }));
+    expect(after.player.hp).toBe(18);
+    expect(coordLabel(after.player.pos)).toBe('a1');
+  });
+
+  it('a pillar in between breaks the line, so it walks', () => {
+    const after = runEnemyTurn(board({ player: 'a1', pillars: ['b2'], enemies: [{ kind: 'archer', at: 'd4' }] }));
+    expect(at(after, '2a')).not.toBe('d4');
+  });
+
+  it('friendly fire: a monster in the way takes the arrow and the push', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'archer', at: 'a5' }, { kind: 'brute', at: 'a3' }] });
+    Object.assign(enemy(s, '3a').status, { root: 1, stun: 1 });
     const plan = planEnemyTurn(toEnemyTurn(s));
+    expect(plan.final.player.hp).toBe(20);
+    expect(hp(plan.final, '3a')).toBe(4);
+    expect(at(plan.final, '3a')).toBe('a2');
+    expect(plan.intents['2a']).toEqual([{ kind: 'shoot', value: 2, note: 'Brute 3a is in the way' }]);
+  });
+
+  it('a Page Ward in the way stops the arrow but takes nothing', () => {
+    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'archer', at: 'a5' }, { kind: 'ward', at: 'a3', element: 'fire' }] });
+    const after = runEnemyTurn(s);
+    expect(after.player.hp).toBe(20);
+    expect(hp(after, '6a')).toBe(4);
+  });
+});
+
+describe('warden', () => {
+  it('walks to a tile with a clear line to you, then holds still', () => {
+    const plan = planEnemyTurn(toEnemyTurn(board({ player: 'a1', enemies: [{ kind: 'warden', at: 'c4' }] })));
     const w = plan.final.enemies[0];
     expect(plan.final.player.hp).toBe(20);
-    expect(['c3', 'd4']).toContain(coordLabel(w.pos));
     expect(wardenSightLine(plan.final, w)).not.toBeNull();
     expect(plan.intents['5a'].map((i) => i.kind)).toEqual(['move', 'watch']);
   });
 
-  it('on a charged turn it moves into sight and marks with its second action', () => {
-    let s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'c4' }] });
-    s.enemies[0].turnCount = 1;
-    const plan = planEnemyTurn(toEnemyTurn(s));
-    expect(plan.intents['5a'].map((i) => i.kind)).toEqual(['move', 'mark']);
-    s = plan.final;
-    expect(s.enemies[0].markedLine?.some((t) => coordLabel(t) === 'a1')).toBe(true);
-    expect(s.player.hp).toBe(20);
-  });
-
-  it('marking the line ends its turn; the shot fires at the start of its next turn', () => {
+  it('marking ends its turn; the wave fires at the start of its next turn', () => {
     let s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'a6' }] });
     s.enemies[0].turnCount = 1;
     s = runEnemyTurn(s);
-    // Marked with its first action, then stopped: no shot, no flee with the second action.
     expect(s.player.hp).toBe(20);
-    expect(at(s, '5a')).toBe('a6');
     expect(s.enemies[0].markedLine?.map(coordLabel)).toEqual(['a5', 'a4', 'a3', 'a2', 'a1']);
-    expect(s.enemies[0].charge).toBe(false);
-
-    // Standing still on the line gets you hit first thing next turn.
     s = runEnemyTurn(s);
     expect(s.player.hp).toBe(15);
     expect(s.enemies[0].markedLine).toBeNull();
   });
 
-  it('a line marked with its last action fires first thing next turn (player can dodge)', () => {
-    let s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'a6' }] });
-    s.enemies[0].markedLine = ['a5', 'a4', 'a3', 'a2', 'a1'].map(parseCoord);
-    s.enemies[0].turnCount = 2; // next turn (3) has no charge
-    s = playerMove(s, 'right');
+  it('the wave hits every unit on the line, monsters included', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a3' }, { kind: 'warden', at: 'a6' }] });
+    enemy(s, '1a').status.root = 1;
+    enemy(s, '5a').turnCount = 2;
+    enemy(s, '5a').markedLine = ['a5', 'a4', 'a3', 'a2', 'a1'].map(parseCoord);
+    const after = runEnemyTurn(s);
+    expect(after.enemies.some((e) => e.kind === 'rat')).toBe(false);
+    expect(after.room.drops).toHaveLength(1);
+    expect(after.player.hp).toBe(15);
+  });
+
+  it('the pillar that ends the line takes 1 damage when it fires', () => {
+    let s = board({ player: 'a3', pillars: ['a1'], enemies: [{ kind: 'warden', at: 'a6' }] });
+    s.enemies[0].turnCount = 1;
     s = runEnemyTurn(s);
-    expect(s.player.hp).toBe(20);
-    expect(s.enemies[0].markedLine).toBeNull();
+    expect(s.enemies[0].markedPillar).toEqual(parseCoord('a1'));
+    s = runEnemyTurn(s);
+    expect(s.player.hp).toBe(15);
+    expect(s.room.pillars[0].hp).toBe(1);
+  });
+
+  it('Earth cancels a marked line right away', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'a3' }] });
+    s.enemies[0].markedLine = ['a2', 'a1'].map(parseCoord);
+    const after = cast(s, ['earth', 'beam'], 'up');
+    expect(after.enemies[0].markedLine).toBeNull();
+    expect(hp(after, '5a')).toBe(6);
   });
 
   it('loses its charge if no tile can see you', () => {
-    // Pillars around a1 block every line to the player, so there is nowhere to go.
     let s = board({ player: 'a1', pillars: ['a2', 'b1', 'b2'], enemies: [{ kind: 'warden', at: 'e4' }] });
     s.enemies[0].turnCount = 1;
     const plan = planEnemyTurn(toEnemyTurn(s));
     expect(plan.intents['5a'].map((i) => i.kind)).toEqual(['wait']);
     s = plan.final;
     expect(s.enemies[0].charge).toBe(false);
-    expect(s.enemies[0].markedLine).toBeNull();
     expect(at(s, '5a')).toBe('e4');
   });
 
-  it('the Max Potion restores full HP (after any burn tick)', () => {
-    let s = board({ player: 'a1' });
-    s.player.potions = 1;
-    s.player.hp = 3;
-    s.player.status.burn = 2;
-    s = playerDrinkPotion(s);
-    expect(s.player.hp).toBe(20);
-    expect(s.player.potions).toBe(0);
-    expect(s.actionsLeft).toBe(2);
+  it('drops a rune on the floor when it dies', () => {
+    let s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'a2' }] });
+    s = devRemoveEnemy(s, '5a', true);
+    expect(s.room.drops).toHaveLength(1);
+    expect(s.room.drops[0].cards[0].kind).toBe('rune');
+    expect(s.runesFound).toHaveLength(1);
+  });
+});
+
+describe('drops and CLEARED!', () => {
+  it('a kill leaves a fragment on the floor; walking onto it puts it in the discard pile', () => {
+    let s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }, { kind: 'brute', at: 'f6' }] });
+    s.enemies[0].hp = 1;
+    s = cast(s, ['fire', 'beam'], 'up');
+    expect(s.room.drops.map((d) => coordLabel(d.pos))).toEqual(['a2']);
+    expect(s.cards.discard).toHaveLength(2);
+    s = playerMove(s, 'up');
+    expect(s.room.drops).toEqual([]);
+    expect(s.cards.discard).toHaveLength(3);
+    expect(s.cards.discard[2].loot).toBe('rat');
   });
 
-  it('dying unlocks the exit and drops the potion; exit leads to the next room', () => {
-    let s = board({ player: 'e6', enemies: [{ kind: 'warden', at: 'a1' }], exit: { at: 'f6', locked: true } });
-    s = devPatchEnemy(s, '5a', { hp: 0 }, 'test kill');
-    expect(s.room.exit?.locked).toBe(false);
-    expect(s.player.potions).toBe(1);
-    s.player.mana = 0;
-    s = playerMove(s, 'right');
-    expect(s.phase).toBe('roomExit');
-    s = advanceRoom(s);
-    expect(s.room.name).toBe('The Scriptorium');
-    expect(s.player.mana).toBe(3);
-    expect(s.player.potions).toBe(1);
+  it('never drops the same card three times in a row; the theme card is twice as likely', () => {
+    const s = board({ player: 'a1' });
+    s.lastDrops = ['wall', 'wall'];
+    expect(dropWeights(s, 'rat').wall).toBe(0);
+    s.lastDrops = [];
+    expect(dropWeights(s, 'rat').fire).toBeCloseTo(dropWeights(s, 'leech').fire * 2);
   });
 });
 
@@ -369,14 +549,6 @@ describe('boss room', () => {
   };
   const scrapCount = (s: GameState) => s.enemies.filter((e) => e.kind === 'scrap').length;
 
-  it('summoning is the ward’s action, so Burn ticks right before it', () => {
-    const plan = planEnemyTurn(toEnemyTurn(wardRoom({ burn: 3 }, 2)));
-    expect(hp(plan.final, '6a')).toBe(3);
-    expect(plan.final.enemies[0].status.burn).toBe(2);
-    expect(scrapCount(plan.final)).toBe(1);
-    expect(plan.intents['6a']).toEqual([{ kind: 'spawn' }]);
-  });
-
   it('a ward the Burn tick kills summons nothing', () => {
     const s = wardRoom({ burn: 2 }, 2);
     s.enemies[0].hp = 1;
@@ -385,108 +557,52 @@ describe('boss room', () => {
     expect(scrapCount(after)).toBe(0);
   });
 
+  it('Burn ticks on a ward’s rest turn too', () => {
+    const after = runEnemyTurn(wardRoom({ burn: 3 }, 1));
+    expect(hp(after, '6a')).toBe(3);
+    expect(after.enemies[0].status.burn).toBe(2);
+  });
+
   it('stun doesn’t stop a summon (it isn’t an attack)', () => {
     expect(scrapCount(runEnemyTurn(wardRoom({ stun: 1 }, 2)))).toBe(1);
   });
 
-  it('on a rest turn the ward takes no action, so its Burn wears off', () => {
-    const after = runEnemyTurn(wardRoom({ burn: 3 }, 1));
-    expect(hp(after, '6a')).toBe(4);
-    expect(after.enemies[0].status.burn).toBe(0);
-    expect(scrapCount(after)).toBe(0);
-  });
-
-  it('wards spawn a scrap every other enemy turn (2, 4, ...); the redactor no longer shreds', () => {
-    let s = board({
-      size: 8,
-      player: 'a1',
-      enemies: [
-        { kind: 'ward', at: 'h8', element: 'fire' },
-        { kind: 'redactor', at: 'h1' },
-      ],
-    });
-    const scraps = () => s.enemies.filter((e) => e.kind === 'scrap').length;
-    s = runEnemyTurn(s); // enemy turn 1
-    expect(scraps()).toBe(0);
-    s = runEnemyTurn(s); // enemy turn 2
-    expect(scraps()).toBe(1);
-    s = runEnemyTurn(s); // enemy turn 3
-    expect(scraps()).toBe(1);
-    expect(s.enemies.find((e) => e.kind === 'redactor')!.marks).toBe(0);
-    expect(s.log.some((l) => l.text.includes('shreds'))).toBe(false);
-  });
-
   it('a scrap steals, carries the fragment to the redactor for a mark, then keeps away', () => {
-    const s = board({
-      size: 8,
-      player: 'a1',
-      enemies: [
-        { kind: 'ward', at: 'h8', element: 'fire' },
-        { kind: 'scrap', at: 'a2' },
-        { kind: 'redactor', at: 'c3' },
-      ],
-    });
+    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'ward', at: 'h8', element: 'fire' }, { kind: 'scrap', at: 'a2' }, { kind: 'redactor', at: 'c3' }] });
     const plan = planEnemyTurn(toEnemyTurn(s));
     const scrap = plan.final.enemies.find((e) => e.kind === 'scrap')!;
-    const boss = plan.final.enemies.find((e) => e.kind === 'redactor')!;
-    expect(scrap.stolen).toBe(1);
+    expect(scrap.carried).toHaveLength(1);
     expect(scrap.delivered).toBe(true);
-    expect(boss.marks).toBe(1);
-    const kinds = plan.intents['7a'].map((i) => i.kind);
-    expect(kinds.slice(0, 3)).toEqual(['steal', 'move', 'deliver']);
-    expect(kinds.slice(3).every((k) => k === 'retreat' || k === 'wait')).toBe(true);
-    expect(plan.final.log.some((l) => l.text.includes('steals your'))).toBe(true);
-  });
-
-  it('marks cap at 5: scraps stop stealing, and a late delivery adds nothing', () => {
-    const s = board({
-      size: 8,
-      player: 'a1',
-      enemies: [
-        { kind: 'ward', at: 'h8', element: 'fire' },
-        { kind: 'scrap', at: 'a2' },
-        { kind: 'scrap', at: 'f5' },
-        { kind: 'redactor', at: 'e5' },
-      ],
-    });
-    s.enemies.find((e) => e.kind === 'redactor')!.marks = 5;
-    s.enemies.find((e) => e.id === '7b')!.stolen = 1;
-    const after = runEnemyTurn(s);
-    expect(after.enemies.find((e) => e.id === '7a')!.stolen).toBe(0);
-    expect(after.enemies.find((e) => e.id === '7b')!.delivered).toBe(true);
-    expect(after.enemies.find((e) => e.kind === 'redactor')!.marks).toBe(5);
-  });
-
-  it('once the wards fall, scraps run at you and only block (no stealing)', () => {
-    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'scrap', at: 'a4' }, { kind: 'redactor', at: 'h8' }] });
-    const plan = planEnemyTurn(toEnemyTurn(s));
-    const scrap = plan.final.enemies.find((e) => e.kind === 'scrap')!;
-    expect(coordLabel(scrap.pos)).toBe('a2');
-    expect(scrap.stolen).toBe(0);
-    expect(plan.intents['7a'].map((i) => i.kind)).toEqual(['move', 'move', 'block']);
-  });
-
-  it('after the wards fall, scraps never steal or deliver, even with marks below 5', () => {
-    const s = board({
-      size: 8,
-      player: 'a1',
-      enemies: [
-        { kind: 'scrap', at: 'a2' }, // already next to you
-        { kind: 'scrap', at: 'd1' }, // still carrying an undelivered fragment
-        { kind: 'redactor', at: 'h8' },
-      ],
-    });
-    s.enemies.find((e) => e.kind === 'redactor')!.marks = 2;
-    s.enemies.find((e) => e.id === '7b')!.stolen = 1;
-    const plan = planEnemyTurn(toEnemyTurn(s));
-    const scrap = (id: string) => plan.final.enemies.find((e) => e.id === id)!;
-    expect(scrap('7a').stolen).toBe(0);
-    expect(plan.intents['7a']).toEqual([{ kind: 'block', note: 'blocks your path.' }]);
-    expect(coordLabel(scrap('7b').pos)).toBe('b1');
-    expect(scrap('7b').delivered).toBeFalsy();
-    expect(plan.intents['7b'].map((i) => i.kind)).toEqual(['move', 'move', 'block']);
-    // Marks only drop (Chaos spends one); scraps add none.
     expect(plan.final.enemies.find((e) => e.kind === 'redactor')!.marks).toBe(1);
+    expect(plan.intents['7a'].map((i) => i.kind).slice(0, 3)).toEqual(['steal', 'move', 'deliver']);
+  });
+
+  it('a dead scrap drops what it stole on the floor; picking it up puts it back in your hand', () => {
+    let s = board({ size: 8, player: 'a1', enemies: [{ kind: 'scrap', at: 'a2' }, { kind: 'rat', at: 'h8' }] });
+    const stolen = s.cards.hand.splice(0, 2);
+    s.enemies[0].carried = stolen;
+    s = devRemoveEnemy(s, '7a', true);
+    expect(s.room.drops[0]).toMatchObject({ toHand: true, cards: stolen });
+    s = playerMove(s, 'up');
+    expect(s.cards.hand.slice(-2)).toEqual(stolen);
+  });
+
+  it('once the wards fall, scraps block you, preferring tiles outside Erasure Zones', () => {
+    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'scrap', at: 'c1' }, { kind: 'redactor', at: 'h8' }] });
+    // Zones fade at the end of your turn, so set one up mid-enemy-turn (as if left earlier this turn).
+    const mid = toEnemyTurn(s);
+    mid.erasureZone = [parseCoord('b1')];
+    const plan = planEnemyTurn(mid);
+    expect(at(plan.final, '7a')).toBe('a2');
+    expect(plan.intents['7a'].map((i) => i.kind)).toEqual(['move', 'move', 'move', 'block']);
+  });
+
+  it('at most 2 explosions a turn, in every mode', () => {
+    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'redactor', at: 'b2' }] });
+    const plan = planEnemyTurn(toEnemyTurn(s));
+    expect(plan.final.enemies[0].mode).toBe('spent');
+    expect(plan.intents['8a'].map((i) => i.kind)).toEqual(['explode', 'explode']);
+    expect(plan.final.player.hp).toBe(14);
   });
 
   it('chaos mode: 4 actions, and the action after each explosion is a cooldown', () => {
@@ -495,110 +611,149 @@ describe('boss room', () => {
     const plan = planEnemyTurn(toEnemyTurn(s));
     expect(plan.intents['8a'].map((i) => i.kind)).toEqual(['explode', 'cooldown', 'explode', 'cooldown']);
     s = plan.final;
-    expect(s.enemies[0].mode).toBe('chaos');
     expect(s.enemies[0].marks).toBe(1);
-    expect(s.player.hp).toBe(20 - 6);
-    // The zone is the 3x3 block around the Redactor, including its own tile (b2).
-    expect(s.erasureZone.map(coordLabel).sort()).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'b3', 'c1', 'c2', 'c3']);
+    expect(s.player.hp).toBe(14);
+    expect(labels(s.erasureZone)).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'b3', 'c1', 'c2', 'c3']);
   });
 
-  it('the chaos cooldown resets each turn', () => {
-    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'redactor', at: 'c2' }] });
-    s.enemies[0].marks = 3;
-    let plan = planEnemyTurn(toEnemyTurn(s));
-    expect(plan.intents['8a'].map((i) => i.kind)).toEqual(['move', 'explode', 'cooldown', 'explode']);
-    plan = planEnemyTurn(toEnemyTurn(plan.final));
-    expect(plan.intents['8a'][0].kind).toBe('explode');
-    expect(plan.final.player.hp).toBe(20 - 12);
-  });
-
-  it('with no marks left the redactor has 3 actions', () => {
-    let s = board({ size: 8, player: 'a1', enemies: [{ kind: 'redactor', at: 'b2' }] });
-    s = runEnemyTurn(s);
-    expect(s.enemies[0].mode).toBe('spent');
-    expect(s.player.hp).toBe(20 - 9);
-    // Only Chaos explosions leave an Erasure zone.
+  it('guarded: 2 explosions and no Erasure Zone', () => {
+    const s = runEnemyTurn(board({ size: 8, player: 'a1', enemies: [{ kind: 'ward', at: 'h8', element: 'fire' }, { kind: 'redactor', at: 'b2' }] }));
+    expect(s.player.hp).toBe(14);
     expect(s.erasureZone).toEqual([]);
   });
 
-  it('guarded explosions leave no Erasure zone either', () => {
-    let s = board({ size: 8, player: 'a1', enemies: [{ kind: 'ward', at: 'h8', element: 'fire' }, { kind: 'redactor', at: 'b2' }] });
-    s = runEnemyTurn(s);
-    expect(s.enemies.find((e) => e.kind === 'redactor')!.mode).toBe('guarded');
-    expect(s.player.hp).toBe(20 - 6);
-    expect(s.erasureZone).toEqual([]);
-  });
-
-  it('the Erasure zone lasts through your next turn and costs a fragment only if you end it inside', () => {
-    let s = board({ size: 8, player: 'a1', enemies: [{ kind: 'redactor', at: 'b2' }] });
-    s.enemies[0].marks = 1;
-    s = runEnemyTurn(s);
-    expect(s.erasureZone).toHaveLength(9);
-    // Your turn: step out of the 3x3 block (a1 -> a2 -> a3 -> a4), then end the turn safely.
-    s = playerMove(playerMove(s, 'up'), 'up');
-    expect(s.erasureZone).toHaveLength(9);
-    s = playerMove(s, 'up');
-    expect(s.phase).toBe('enemy');
-    expect(s.erasureZone).toEqual([]);
-    expect(s.log.some((l) => l.text.includes('ended your turn inside the Erasure zone'))).toBe(false);
-  });
-
-  it('ending your turn in the Erasure zone costs a fragment, then the zone fades', () => {
+  it('ending your turn in the Erasure Zone costs a fragment, then the zone fades', () => {
     let s = board({ size: 8, player: 'a1', enemies: [{ kind: 'redactor', at: 'h8' }] });
     s.erasureZone = [parseCoord('a1')];
     s = endPlayerTurn(s);
     expect(s.erasureZone).toHaveLength(0);
-    expect(s.log.some((l) => l.text.includes('ended your turn inside the Erasure zone'))).toBe(true);
     expect(s.cards.erased).toHaveLength(1);
   });
 });
 
-describe('loot popup', () => {
-  it('records the drop when a spell kills an enemy, and clears on acknowledge', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }, { kind: 'archer', at: 'b1' }] });
-    s.enemies.forEach((e) => (e.hp = 1));
-    s.player.mana = 6;
-    const after = playerCast(s, spec('rock', 1, 'cross', 1), null);
-    expect(after.pendingLoot.map((l) => [l.enemyId, l.discard])).toEqual([
-      ['1a', ['Fire fragment']],
-      ['2a', ['Beam fragment']],
-    ]);
-    expect(acknowledgeLoot(after).pendingLoot).toEqual([]);
+describe('runes', () => {
+  const brute = () => board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a2' }] });
+
+  it('Echo casts the spell twice', () => {
+    const s = brute();
+    giveRune(s, 'echo');
+    const after = cast(s, ['fire', 'beam', 'rune'], 'up');
+    expect(hp(after, '3a')).toBe(4);
+    expect(after.player.mana).toBe(3);
   });
 
-  it('warden loot mentions the potion and the unlocked exit; wards drop nothing', () => {
-    let s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'c3' }, { kind: 'ward', at: 'e5', element: 'rock' }], exit: { at: 'f6', locked: true } });
-    s = devRemoveEnemy(s, '5a', true);
-    expect(s.pendingLoot).toHaveLength(1);
-    expect(s.pendingLoot[0].extras.join(' ')).toMatch(/Max Potion.*unlocked/);
-    s = devRemoveEnemy(acknowledgeLoot(s), '6a', true);
-    expect(s.pendingLoot).toEqual([]);
+  it('Amplify adds 2 damage, even to Wind', () => {
+    const s = brute();
+    giveRune(s, 'amplify');
+    const after = cast(s, ['wind', 'beam', 'rune'], 'up');
+    expect(hp(after, '3a')).toBe(4);
+    expect(at(after, '3a')).toBe('a3');
   });
 
-  it('a burn kill during the enemy turn shows up after the turn', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'd4' }] });
-    s.enemies[0].hp = 1;
-    s.enemies[0].status.burn = 2;
-    const after = runEnemyTurn(s);
-    expect(after.enemies).toHaveLength(0);
-    expect(after.pendingLoot[0].discard).toEqual(['Fire fragment']);
+  it('Siphon heals 1 per enemy hit', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a2' }, { kind: 'brute', at: 'b1' }] });
+    s.player.hp = 10;
+    giveRune(s, 'siphon');
+    expect(cast(s, ['fire', 'cross', 'rune']).player.hp).toBe(12);
   });
 
-  it('a scrap returns what it stole; removing without loot shows nothing', () => {
-    let s = board({ size: 8, player: 'a1', enemies: [{ kind: 'scrap', at: 'h8' }, { kind: 'rat', at: 'h1' }] });
+  it('Volatile doubles the damage and hurts you for 2', () => {
+    const s = brute();
+    giveRune(s, 'volatile');
+    const after = cast(s, ['water', 'beam', 'rune'], 'up');
+    expect(hp(after, '3a')).toBe(2);
+    expect(after.player.hp).toBe(18);
+  });
+
+  it('Free costs no mana but 2 HP', () => {
+    const s = brute();
+    giveRune(s, 'free');
+    const after = cast(s, ['fire', 'beam', 'rune'], 'up');
+    expect(after.player.mana).toBe(6);
+    expect(after.player.hp).toBe(18);
+  });
+
+  it('Backfire hits you too', () => {
+    const s = brute();
+    giveRune(s, 'backfire');
+    const after = cast(s, ['water', 'beam', 'rune'], 'up');
+    expect(hp(after, '3a')).toBe(4);
+    expect(after.player.hp).toBe(18);
+    expect(after.player.status.root).toBe(2);
+  });
+
+  it('Fizzle: nothing happens, mana and cards are spent', () => {
+    const s = brute();
+    giveRune(s, 'fizzle');
     const handBefore = s.cards.hand.length;
-    s.enemies[0].stolen = 2;
-    s.enemies[0].carried = s.cards.hand.splice(0, 2);
-    s = devRemoveEnemy(s, '7a', true);
-    expect(s.pendingLoot[0].toHand).toEqual(['The 2 fragments it stole']);
-    expect(s.cards.hand).toHaveLength(handBefore);
-    expect(s.pendingLoot[0].discard).toEqual([]);
-    s = devRemoveEnemy(acknowledgeLoot(s), '1a', false);
-    expect(s.pendingLoot).toEqual([]);
+    const after = cast(s, ['fire', 'beam', 'rune'], 'up');
+    expect(hp(after, '3a')).toBe(6);
+    expect(after.player.mana).toBe(3);
+    expect(after.cards.hand).toHaveLength(handBefore - 3);
+    expect(after.grimoire).not.toContain('fire-beam');
+  });
+
+  it('a rune on a table that makes no spell fizzles, but its own drawback still happens', () => {
+    const s = brute();
+    expect(castErr(s, ['fire', 'water'])).toMatch(/shape/);
+    giveRune(s, 'volatile');
+    const after = cast(s, ['fire', 'water', 'rune']);
+    expect(hp(after, '3a')).toBe(6);
+    expect(after.player.mana).toBe(3);
+    expect(after.player.hp).toBe(18);
   });
 });
 
-describe('turn previews (used by the hover card)', () => {
+describe('the grimoire', () => {
+  it('records each new combo once (doubling doesn’t matter) and keeps earlier runs’ pages', () => {
+    let s = board({ player: 'a1', enemies: [dummy()] });
+    s = cast(s, ['fire', 'beam'], 'up');
+    s = cast(s, ['fire', 'fire', 'beam'], 'up');
+    expect(s.grimoire).toEqual(['fire-beam']);
+    expect(createGame(1, { grimoire: ['magma-wall'] }).grimoire).toEqual(['magma-wall']);
+  });
+});
+
+describe('the run', () => {
+  it('CLEARED!: walk freely to pick things up, then Continue to the event', () => {
+    let s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }] });
+    s.enemies[0].hp = 1;
+    s = cast(s, ['fire', 'beam'], 'up');
+    expect(s.phase).toBe('cleared');
+    const discard = s.cards.discard.length;
+    s = freeStep(s, parseCoord('a2'));
+    expect(s.cards.discard).toHaveLength(discard + 1);
+    s = continueRun(s);
+    expect(s.phase).toBe('event');
+  });
+
+  it('the event: reading aloud gives 2 different runes for 3 HP, then the Scriptorium', () => {
+    const s = { ...board({ player: 'a1' }), phase: 'event' as const, stage: 1 };
+    const after = eventChoice(s, 'read');
+    expect(after.player.hp).toBe(17);
+    expect(after.room.name).toBe('The Scriptorium');
+    const runes = [...after.cards.hand, ...after.cards.deck].filter((c) => c.kind === 'rune');
+    expect(new Set(runes.map((c) => c.rune)).size).toBe(2);
+  });
+
+  it('the camp: rest heals to full, or tear out a page (never one that breaks the grimoire)', () => {
+    const s = { ...board({ player: 'a1', hand: ['fire', 'beam'] }), phase: 'camp' as const, stage: 3 };
+    s.cards.deck = [];
+    s.player.hp = 5;
+    const rested = campChoice(s, { kind: 'rest' });
+    expect(rested.player.hp).toBe(20);
+    expect(rested.room.name).toBe('The Redactor');
+    expect(() => campChoice(s, { kind: 'tear', cardId: s.cards.hand[0].id })).toThrow(/break/);
+  });
+
+  it('room data follows the design (holes, Earth ward)', () => {
+    expect(ROOMS.map((r) => r.holes)).toEqual([['b4', 'e5'], ['c2', 'd5'], ['a5', 'h4']]);
+    expect(ROOMS[2].enemies.find((e) => e.at === 'd4')?.element).toBe('earth');
+    expect(createGame(1).cards.deck.length + createGame(1).cards.hand.length).toBe(14);
+  });
+});
+
+describe('previews and determinism', () => {
   it('redactor next-turn actions follow wards and marks', () => {
     const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'ward', at: 'h8', element: 'fire' }, { kind: 'redactor', at: 'e5' }] });
     const boss = () => s.enemies.find((e) => e.kind === 'redactor')!;
@@ -606,47 +761,24 @@ describe('turn previews (used by the hover card)', () => {
     s.enemies = s.enemies.filter((e) => e.kind !== 'ward');
     boss().marks = 1;
     expect(actionsNextTurn(s, boss())).toBe(4);
-    boss().marks = 0;
-    expect(actionsNextTurn(s, boss())).toBe(3);
   });
 
-  it('warden charge preview matches the turn it actually charges', () => {
+  it('warden charge preview matches the turn it charges', () => {
     let s = board({ player: 'a1', pillars: ['b2'], enemies: [{ kind: 'warden', at: 'e3' }] });
     expect(wardenChargedNextTurn(s.enemies[0])).toBe(false);
     s = runEnemyTurn(s);
     expect(wardenChargedNextTurn(s.enemies[0])).toBe(true);
-    const plan = planEnemyTurn(endPlayerTurn(s));
-    expect(plan.steps.some((st) => st.entries.some((l) => l.text.includes('gains a telegraph charge')))).toBe(true);
   });
-});
 
-describe('intents', () => {
-  it('the preview matches what the enemies actually do', () => {
+  it('the intent preview matches what the enemies actually do', () => {
     const s = createGame(7);
     expect(previewIntents(s)).toEqual(planEnemyTurn(endPlayerTurn(s)).intents);
   });
 
   it('an archer that needs one step shows move, then shoot for 2', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'archer', at: 'b5' }] });
-    expect(previewIntents(s)['2a']).toEqual([{ kind: 'move' }, { kind: 'shoot', value: 2 }]);
+    expect(previewIntents(board({ player: 'a1', enemies: [{ kind: 'archer', at: 'b5' }] }))['2a']).toEqual([{ kind: 'move' }, { kind: 'shoot', value: 2 }]);
   });
 
-  it('is recalculated after the player acts', () => {
-    let s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'd1' }] });
-    expect(previewIntents(s)['1a'].map((i) => i.kind)).toEqual(['move', 'move', 'attack']);
-    s = playerMove(s, 'up');
-    expect(previewIntents(s)['1a'].map((i) => i.kind)).toEqual(['move', 'move', 'move']);
-  });
-
-  it('wards show a spawn intent only on spawn turns', () => {
-    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'ward', at: 'h8', element: 'fire' }] });
-    expect(previewIntents(s)['6a']).toBeUndefined();
-    s.turn = 2;
-    expect(previewIntents(s)['6a']).toEqual([{ kind: 'spawn' }]);
-  });
-});
-
-describe('determinism', () => {
   it('same state gives the same enemy turn (safe for undo/redo)', () => {
     const s = toEnemyTurn(createGame(7));
     const a = planEnemyTurn(s).final;
@@ -654,11 +786,76 @@ describe('determinism', () => {
     expect(a.enemies).toEqual(b.enemies);
     expect(a.rng).toBe(b.rng);
   });
+});
 
-  it('plays a full room-1 enemy turn from the kit layout', () => {
-    const s = toEnemyTurn(createGame(1));
-    const plan = planEnemyTurn(s);
-    expect(plan.steps.length).toBeGreaterThan(0);
-    expect(plan.final.phase).toBe('player');
+describe('spell effects (castFx)', () => {
+  it('reports the real area: runes included, and which enemies can be touched', async () => {
+    const { castFx } = await import('./index');
+    const { idsFor } = await import('./testkit');
+    const s = board({ player: 'c1', enemies: [{ kind: 'brute', at: 'b2' }, { kind: 'ward', at: 'c2', element: 'fire' }] });
+    giveRune(s, 'widen');
+    const fx = castFx(s, idsFor(s, ['water', 'beam', 'rune']), 'up')!;
+    expect(fx.kind).toBe('spell');
+    expect(fx.area!.tiles).toHaveLength(6); // Widen's side lanes are part of the effect
+    expect(fx.hits.map((h) => `${h.id}:${h.immune}`).sort()).toEqual(['3a:false', '6a:true']);
+  });
+
+  it('Backfire includes your own tile; Echo plays twice; a rune on a bad table only fizzles', async () => {
+    const { castFx } = await import('./index');
+    const { idsFor } = await import('./testkit');
+    const s = board({ player: 'a1', enemies: [dummy()] });
+    giveRune(s, 'backfire');
+    expect(castFx(s, idsFor(s, ['fire', 'beam', 'rune']), 'up')!.area!.self).not.toBeNull();
+    const e = board({ player: 'a1', enemies: [dummy()] });
+    giveRune(e, 'echo');
+    expect(castFx(e, idsFor(e, ['fire', 'beam', 'rune']), 'up')!.passes).toBe(2);
+    const f = board({ player: 'a1', enemies: [dummy()] });
+    giveRune(f, 'echo');
+    expect(castFx(f, idsFor(f, ['fire', 'water', 'rune']), null)).toMatchObject({ kind: 'fizzle', area: null });
+    expect(castFx(f, idsFor(f, ['fire', 'water']), null)).toBeNull();
+  });
+});
+
+describe('the door', () => {
+  it('is locked until the room is cleared: the wizard can’t step on it, monsters can', () => {
+    const s = board({ player: 'e6', exit: 'f6', enemies: [{ kind: 'rat', at: 'a1' }] });
+    expect(() => playerMove(s, 'right')).toThrow(/locked/);
+    const r = board({ player: 'a1', exit: 'a3', enemies: [{ kind: 'rat', at: 'a4' }] });
+    expect(at(runEnemyTurn(r), '1a')).toBe('a2'); // walked over the door to reach you
+  });
+
+  it('a push into the locked door stops the wizard like the wall', () => {
+    const s = board({ player: 'a2', exit: 'a1', enemies: [{ kind: 'archer', at: 'a6' }] });
+    const after = runEnemyTurn(s);
+    expect(coordLabel(after.player.pos)).toBe('a2');
+    expect(after.player.hp).toBe(17);
+  });
+
+  it('once cleared it opens, and Continue needs you standing on it', () => {
+    let s = board({ player: 'e5', exit: 'f6', enemies: [{ kind: 'rat', at: 'e4' }] });
+    s.enemies[0].hp = 1;
+    s = cast(s, ['fire', 'beam'], 'down');
+    expect(s.phase).toBe('cleared');
+    expect(() => continueRun(s)).toThrow(/door/);
+    const path = freeWalkPath(s, parseCoord('f6'))!;
+    for (const p of path) s = freeStep(s, p);
+    expect(continueRun(s).phase).toBe('event');
+  });
+
+  it('every room but the boss room has a door; the Cistern’s is open from the start', () => {
+    expect(ROOMS.map((r) => r.exit)).toEqual(['f6', 'f6', null]);
+    expect(ROOMS.map((r) => !!r.exitAlwaysOpen)).toEqual([true, false, false]);
+    expect(createGame(1).room.exitAlwaysOpen).toBe(true);
+  });
+
+  it('through an always-open door you may leave mid-fight; the survivors’ drops are lost', () => {
+    let s = board({ player: 'e6', exit: 'f6', exitAlwaysOpen: true, enemies: [{ kind: 'rat', at: 'a1' }] });
+    s = playerMove(s, 'right');
+    const after = continueRun(s);
+    expect(after.phase).toBe('event');
+    expect(after.log.some((l) => /Left behind alive: Rat 1a/.test(l.text))).toBe(true);
+    // A locked door never lets you out early.
+    const locked = board({ player: 'f5', exit: 'f6', enemies: [{ kind: 'rat', at: 'a1' }] });
+    expect(() => continueRun(locked)).toThrow(/cleared/);
   });
 });

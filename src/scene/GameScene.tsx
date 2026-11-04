@@ -1,12 +1,15 @@
 import { Suspense, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Vector3 } from 'three';
-import { ENEMY_DEFS, RULES, wardsStanding, type GameState, type Intent, type Pos } from '../engine';
+import { ENEMY_DEFS, RULES, exitOpen, stageName, wardsStanding, type GameState, type Intent, type Pos } from '../engine';
 import { PLAYER_ART, unitArt } from '../config/art';
 import { Board, type TilePointer } from './Board';
 import { CameraRig } from './CameraRig';
-import { TileOverlay, type BoardOverlays, type CastFlash } from './TileOverlay';
+import { TileOverlay, type BoardOverlays } from './TileOverlay';
+import { CameraShake, SpellFxLayer, type FxEvent } from './SpellFx';
 import { Unit, type UnitView } from './Unit';
+import { Drops, Hazards } from './Hazards';
+import { DOOR_TOP } from './Door';
 import { TILE_TOP, tileToWorld } from './iso';
 
 interface Props {
@@ -14,7 +17,8 @@ interface Props {
   state: GameState;
   intents: Record<string, Intent[]>;
   overlays: BoardOverlays;
-  flash: CastFlash | null;
+  /** Spell effects playing right now (scene/SpellFx.tsx). */
+  fx: FxEvent[];
   hover: Pos | null;
   pointer: TilePointer;
   onRightClick: () => void;
@@ -35,7 +39,7 @@ function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitVie
       art: PLAYER_ART,
       mana: p.mana,
       maxMana: p.maxMana,
-      behavior: 'You. Move, craft spells from your fragments, meditate for mana. 3 actions per turn.',
+      behavior: 'You. Move, craft spells from your fragments, meditate for mana, reroll your hand. 3 actions per turn.',
     },
   ];
   const guarded = wardsStanding(state);
@@ -62,20 +66,21 @@ function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitVie
       mode: e.mode,
       guarded: e.kind === 'redactor' && guarded,
       charge: e.kind === 'warden' ? !!e.charge : undefined,
-      carried: e.kind === 'scrap' ? e.carried?.length ?? e.stolen ?? 0 : undefined,
+      carried: e.kind === 'scrap' ? e.carried?.length ?? 0 : undefined,
     });
   }
   return views;
 }
 
 /** The 3D board: camera, lights, tiles, highlights and units. The HUD is drawn on top of it in HTML. */
-export function GameScene({ state, intents, overlays, flash, hover, pointer, onRightClick }: Props) {
+export function GameScene({ state, intents, overlays, fx, hover, pointer, onRightClick }: Props) {
   const room = state.room;
   const units = useMemo(() => unitViews(state, intents), [state, intents]);
   // For the obstacle fade (scene/Obstacle.tsx): where every unit stands, and whether the mouse is on the board.
   const unitFeet = useMemo(() => units.map((u) => new Vector3(...tileToWorld(u.pos, room, TILE_TOP))), [units, room]);
   const pointerOnBoard = useRef(false);
   const showIntents = state.phase === 'player';
+  // (After CLEARED! there are no enemies left, so no intents either.)
 
   return (
     <div
@@ -88,7 +93,8 @@ export function GameScene({ state, intents, overlays, flash, hover, pointer, onR
       }}
     >
       <Canvas orthographic shadows dpr={[1, 2]} gl={{ antialias: true, alpha: true }} camera={{ zoom: 60, position: [-20, 20, 20], near: 0.1, far: 200 }}>
-        <CameraRig room={room} />
+        <CameraRig room={room} extraPoints={room.exit ? [tileToWorld(room.exit, room, DOOR_TOP)] : []} />
+        <CameraShake />
         <hemisphereLight args={['#fff1d6', '#2a1f18', 0.9]} />
         <directionalLight
           position={[-6, 12, 4]}
@@ -102,8 +108,10 @@ export function GameScene({ state, intents, overlays, flash, hover, pointer, onR
           shadow-camera-top={8}
           shadow-camera-bottom={-8}
         />
-        <Board room={room} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
-        <TileOverlay room={room} overlays={overlays} flash={flash} />
+        <Board room={room} exitOpen={exitOpen(state)} exitLabel={stageName(state.stage + 1)} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
+        <Hazards hazards={room.hazards} room={room} />
+        <TileOverlay room={room} overlays={overlays} />
+        <Drops drops={room.drops} room={room} />
         <Suspense fallback={null}>
           {units.map((u) => (
             <Unit
@@ -116,6 +124,7 @@ export function GameScene({ state, intents, overlays, flash, hover, pointer, onR
             />
           ))}
         </Suspense>
+        <SpellFxLayer events={fx} room={room} />
       </Canvas>
     </div>
   );

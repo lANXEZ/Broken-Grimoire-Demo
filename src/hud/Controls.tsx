@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { RULES, fragmentName, type Card, type FragmentKind } from '../engine';
-import { CARD_BACK_ART, iconArt } from '../config/art';
+import { CARD_BACK_ART, FRAGMENT_COLOR, iconArt } from '../config/art';
 
-const KIND_ORDER: FragmentKind[] = ['fire', 'water', 'rock', 'beam', 'cross'];
+const KIND_ORDER: FragmentKind[] = ['fire', 'water', 'earth', 'wind', 'beam', 'cross', 'wall', 'rune'];
+
+/** A fragment's small icon, or a coloured dot until it has art. */
+function KindIcon({ kind }: { kind: FragmentKind }) {
+  const src = iconArt(kind);
+  return src ? <img src={src} alt="" /> : <span className="kind-dot" style={{ background: FRAGMENT_COLOR[kind] }} />;
+}
 
 /** "Fire ×2, Beam ×1" counts for the pile hover cards. */
 function countKinds(cards: Card[]) {
@@ -24,6 +30,29 @@ export function ManaOrb({ mana, maxMana, cost }: { mana: number; maxMana: number
   );
 }
 
+/**
+ * [UI-PLACEMENT] Climb out of quicksand. While you're stuck you can't cast, so this big button takes the crafting
+ * table's place (same spot and size: LAYOUT.craftingTable). Meditate and Reroll still work.
+ */
+export function EscapeButton({ stuck, disabled, onClick }: { stuck: number; disabled: boolean; onClick: () => void }) {
+  return (
+    <div className="escape-panel">
+      <button className="escape-button" disabled={disabled} onClick={onClick} title="1 action. Progress carries over to your next turn.">
+        <span className="escape-title">Climb out</span>
+        <span className="escape-sub">
+          You&apos;re stuck in the quicksand: {stuck} more action{stuck === 1 ? '' : 's'} to climb out (1 action per click).
+        </span>
+        <span className="escape-steps">
+          {Array.from({ length: RULES.quicksandEscape }, (_, i) => (
+            <span key={i} className={i < RULES.quicksandEscape - stuck ? 'step done' : 'step'} />
+          ))}
+        </span>
+      </button>
+      <div className="escape-note">No casting until you&apos;re out. You can still Meditate and Reroll.</div>
+    </div>
+  );
+}
+
 /** [UI-PLACEMENT] Meditate button, under the mana orb (LAYOUT.meditate). */
 export function MeditateButton({ disabled, full, onClick }: { disabled: boolean; full: boolean; onClick: () => void }) {
   return (
@@ -38,11 +67,13 @@ export function MeditateButton({ disabled, full, onClick }: { disabled: boolean;
  * [UI-PLACEMENT] Draw pile (bottom-left, LAYOUT.drawPile) and discard pile (bottom-right, LAYOUT.discardPile).
  * Hover shows what's in the pile. The draw pile's order stays hidden, only its contents are listed.
  */
-export function Pile({ which, cards, erased }: { which: 'draw' | 'discard'; cards: Card[]; erased?: Card[] }) {
+export function Pile({ which, cards, erased, flash = 0 }: { which: 'draw' | 'discard'; cards: Card[]; erased?: Card[]; flash?: number }) {
   const [open, setOpen] = useState(false);
   const counts = countKinds(cards);
   return (
     <div className={`pile pile-${which}`} onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)}>
+      {/* `flash` changes when a picked-up card lands here: the key restarts the glow animation. */}
+      {flash > 0 && <div key={flash} className="pile-flash" />}
       <div className="pile-stack">
         <img src={CARD_BACK_ART} alt="" draggable={false} />
         {cards.length > 1 && <img src={CARD_BACK_ART} alt="" draggable={false} className="pile-under" />}
@@ -57,8 +88,8 @@ export function Pile({ which, cards, erased }: { which: 'draw' | 'discard'; card
           {counts.length === 0 && <div className="pile-empty">Empty</div>}
           {counts.map(({ kind, n }) => (
             <div key={kind} className="pile-row">
-              <img src={iconArt(kind)} alt="" />
-              {fragmentName(kind)} <b>×{n}</b>
+              <KindIcon kind={kind} />
+              {kind === 'rune' ? 'Runes' : fragmentName(kind)} <b>×{n}</b>
             </div>
           ))}
           {which === 'draw' && <div className="pile-note">When it runs out, the discard pile is shuffled back in.</div>}

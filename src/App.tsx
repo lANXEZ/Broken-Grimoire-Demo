@@ -1,50 +1,52 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  acknowledgeLoot,
-  advanceRoom,
+  ENEMY_DEFS,
+  GRIMOIRE_PAGES,
+  castFx,
+  onOpenExit,
+  campChoice,
+  continueRun,
   devRemoveEnemy,
   endPlayerTurn,
   enemyAt,
+  eventChoice,
+  freeStep,
+  freeWalkPath,
   moveTarget,
   playerCast,
-  playerDrinkPotion,
+  playerEscape,
   playerMeditate,
   playerMove,
   playerReroll,
-  playerUnstableFire,
   previewIntents,
-  spellTiles,
-  unstableTiles,
   type Dir,
+  type GameState,
   type Pos,
-  type SpellSpec,
 } from './engine';
-import { ELEMENT_COLOR } from './config/art';
 import { DEV_MODE } from './config/dev';
 import { LAYOUT, layoutCssVars, uiScale } from './config/layout';
 import { TIMING } from './config/timing';
-import { DIRS, aimDirection, cleanTable, placeOnTable, previewCast, removeFromTable, tableCards, type CastPlan, type Table } from './game/casting';
+import { DIRS, aimDirection, cleanTable, placeOnTable, previewCast, removeFromTable, tableCards, type Table } from './game/casting';
 import { useEnemyTurn } from './game/useEnemyTurn';
 import { useGame } from './game/useGame';
 import { GameScene } from './scene/GameScene';
-import type { BoardOverlays, CastFlash } from './scene/TileOverlay';
-import { EndTurnButton, ManaOrb, MeditateButton, Pile, RerollButton } from './hud/Controls';
+import type { BoardOverlays } from './scene/TileOverlay';
+import { fxDuration, type FxEvent } from './scene/SpellFx';
+import { EndTurnButton, EscapeButton, ManaOrb, MeditateButton, Pile, RerollButton } from './hud/Controls';
 import { DevBar } from './hud/DevBar';
-import { GameOverDialog, MenuDialog, RoomExitDialog, SpinWheel } from './hud/Dialogs';
+import { CampDialog, ClearedPanel, EventDialog, GameOverDialog, GrimoireBook, LeaveEarlyDialog, MenuDialog } from './hud/Dialogs';
 import { FragmentCard, Hand } from './hud/Hand';
-import { EnemyCaption, LogDrawer, Toasts, TurnBanner, type Toast } from './hud/Overlays';
+import { EnemyCaption, LogDrawer, PickupReveal, Toasts, TurnBanner, type Pickup, type Toast } from './hud/Overlays';
 import { CraftingTable, TABLE_AREA_SELECTOR } from './hud/CraftingTable';
 import { TopBar } from './hud/TopBar';
 import { useCardDrag, type DragSource } from './hud/useCardDrag';
 
 /** What the player is in the middle of, on top of the game state. */
 type UiMode =
-  /** Normal play. While a castable Beam is on the crafting table, the board is aiming it (see `aiming`). */
+  /** Normal play. While a castable Beam or Wall is on the crafting table, the board is aiming it (see `aiming`). */
   | { kind: 'idle' }
   /** Picking hand cards to reroll. */
-  | { kind: 'reroll'; marked: number[] }
-  /** Unstable Fire's spin wheel is turning. */
-  | { kind: 'spin'; plan: Extract<CastPlan, { kind: 'unstable' }> };
+  | { kind: 'reroll'; marked: number[] };
 
 const samePos = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 let nextId = 1;
@@ -76,8 +78,18 @@ export function App() {
   const [rawTable, setTable] = useState<Table>([]);
   const [mode, setMode] = useState<UiMode>({ kind: 'idle' });
   const [hover, setHover] = useState<Pos | null>(null);
-  const [flash, setFlash] = useState<CastFlash | null>(null);
+  const [fx, setFx] = useState<FxEvent[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [bookOpen, setBookOpen] = useState(false);
+  /**
+   * After CLEARED!: the tiles still to walk through (one free step every TIMING.freeWalkStep). `leave` = this is
+   * the walk to the door: when it ends, the wizard goes on to the next stop.
+   */
+  const [walk, setWalk] = useState<{ path: Pos[]; leave: boolean }>({ path: [], leave: false });
+  /** "You left n items behind. Leave anyway?" is showing. */
+  const [leaveAsk, setLeaveAsk] = useState(false);
+  /** Mid-fight in an always-open door: the "Leave now?" prompt is showing. */
+  const [earlyAsk, setEarlyAsk] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [banner, setBanner] = useState<{ id: number; title: string; sub?: string; kind: 'player' | 'enemy' | 'room' } | null>(null);
@@ -90,7 +102,8 @@ export function App() {
   }, [table, rawTable]);
 
   const finished = state.phase === 'won' || state.phase === 'lost';
-  const dialogOpen = menuOpen || mode.kind === 'spin' || state.phase === 'roomExit' || finished;
+  const betweenRooms = state.phase === 'event' || state.phase === 'camp';
+  const dialogOpen = menuOpen || bookOpen || betweenRooms || finished || earlyAsk;
   const canAct = state.phase === 'player' && !enemyTurn.playing && !dialogOpen && state.actionsLeft > 0;
 
   const onTable = useMemo(() => tableCards(hand, table), [hand, table]);
@@ -101,11 +114,16 @@ export function App() {
   const preview = useMemo(() => previewCast(state, onTable), [state, onTable]);
   const intents = useMemo(() => (state.phase === 'player' ? previewIntents(state) : {}), [state]);
 
-  // Leave reroll mode when the turn ends; clear the table when the room changes.
+  // Leave reroll mode when the turn ends; clear the table when the run moves on.
   useEffect(() => {
-    if (state.phase !== 'player') setMode((m) => (m.kind === 'spin' ? m : { kind: 'idle' }));
+    if (state.phase !== 'player') setMode({ kind: 'idle' });
   }, [state.phase]);
-  useEffect(() => setTable([]), [state.roomIndex]);
+  useEffect(() => setTable([]), [state.stage]);
+  // Stuck in quicksand: no casting, so the crafting table makes way for the Climb out button (cards go back to the hand).
+  const stuck = state.phase === 'player' && state.player.status.stuck > 0;
+  useEffect(() => {
+    if (stuck) setTable([]);
+  }, [stuck]);
 
   // ------------------------------------------------------------ toasts, banners
 
@@ -122,19 +140,91 @@ export function App() {
     game.clearError();
   }, [game.error, game, pushToast]);
 
-  // Loot goes straight into the deck; tell the player with a toast instead of a popup.
+  // A new Grimoire page: tell the player with a toast.
+  const knownPages = useRef(state.grimoire);
   useEffect(() => {
-    if (state.pendingLoot.length === 0 || finished) return;
-    for (const n of state.pendingLoot) {
-      const lines = [
-        ...(n.discardCards?.length ? [`${n.discard.join(', ')} → your discard pile`] : []),
-        ...(n.handCards?.length ? [`${n.toHand.join(', ')} → back to your hand`] : []),
-        ...n.extras,
-      ];
-      if (lines.length) pushToast({ kind: 'loot', title: `${n.enemyName} dropped loot`, lines, cards: [...(n.discardCards ?? []), ...(n.handCards ?? [])] });
+    const fresh = state.grimoire.filter((id) => !knownPages.current.includes(id));
+    knownPages.current = state.grimoire;
+    for (const id of fresh) {
+      const page = GRIMOIRE_PAGES.find((g) => g.id === id);
+      if (page) pushToast({ kind: 'loot', title: 'A new page in the Grimoire', lines: [page.title] });
     }
-    game.amend(acknowledgeLoot);
-  }, [state.pendingLoot, finished, game, pushToast]);
+  }, [state.grimoire, pushToast]);
+
+  // Picked-up drops: a drop that vanishes while you're still in the same room was picked up (drops never leave
+  // the floor any other way). Show it, then fly it into the discard pile, which flashes as it lands.
+  const [pickups, setPickups] = useState<Pickup[]>([]);
+  const [discardFlash, setDiscardFlash] = useState(0);
+  const lastDrops = useRef({ stage: state.stage, drops: state.room.drops });
+  useEffect(() => {
+    const prev = lastDrops.current;
+    lastDrops.current = { stage: state.stage, drops: state.room.drops };
+    if (prev.stage !== state.stage || prev.drops === state.room.drops) return;
+    const gone = prev.drops.filter((d) => !state.room.drops.some((x) => x.id === d.id));
+    if (gone.length === 0) return;
+    setPickups((ps) => [...ps, ...gone.map((d) => ({ id: nextId++, cards: d.cards, toHand: d.toHand }))]);
+    // No cleanup: the drop list is a new array after every action, and a cleanup would cancel the flash.
+    if (gone.some((d) => !d.toHand)) window.setTimeout(() => setDiscardFlash((n) => n + 1), TIMING.pickupHold + TIMING.pickupFly - 80);
+  }, [state.room.drops, state.stage]);
+
+  // After CLEARED!: walk the path one free step at a time (each step picks up anything lying there). At the end of
+  // the walk to the door, go through it.
+  useEffect(() => {
+    if (state.phase !== 'cleared') {
+      if (walk.path.length || walk.leave) setWalk({ path: [], leave: false });
+      return;
+    }
+    if (walk.path.length === 0) {
+      if (walk.leave) {
+        setWalk({ path: [], leave: false });
+        game.run(continueRun);
+      }
+      return;
+    }
+    const t = window.setTimeout(() => {
+      const [next, ...rest] = walk.path;
+      setWalk(game.run((s) => freeStep(s, next)) ? { ...walk, path: rest } : { path: [], leave: false });
+    }, TIMING.freeWalkStep);
+    return () => window.clearTimeout(t);
+  }, [walk, state.phase, game]);
+  useEffect(() => setLeaveAsk(false), [state.stage]);
+
+  // The Cistern's door is open the whole fight: stepping into it on your turn asks whether to leave now. Choosing
+  // "Stay" isn't asked again until you step off the door and back on (click your own tile to be asked again).
+  const onDoor = state.phase !== 'cleared' && onOpenExit(state);
+  const inOpenDoor = onDoor && state.phase === 'player';
+  const stayed = useRef(false);
+  useEffect(() => {
+    if (!onDoor) stayed.current = false;
+  }, [onDoor]);
+  useEffect(() => {
+    if (inOpenDoor && !enemyTurn.playing && !stayed.current) setEarlyAsk(true);
+    if (!inOpenDoor) setEarlyAsk(false);
+  }, [inOpenDoor, enemyTurn.playing]);
+
+  // Leaving a cleared room: Continue (or clicking the open door) walks the wizard to the door, then on.
+  const exit = state.room.exit;
+  const doorPath = state.phase === 'cleared' && exit ? freeWalkPath(state, exit) : null;
+  const itemsLeft = state.room.drops
+    .filter((d) => !samePos(d.pos, state.player.pos) && !(doorPath ?? []).some((p) => samePos(p, d.pos)))
+    .reduce((n, d) => n + d.cards.length, 0);
+  const startLeaving = () => {
+    setLeaveAsk(false);
+    if (!exit) {
+      game.run(continueRun);
+      return;
+    }
+    if (!doorPath) {
+      pushToast({ kind: 'error', title: 'There’s no way to the door.', lines: [] });
+      return;
+    }
+    setWalk({ path: doorPath, leave: true });
+  };
+  const requestLeave = () => {
+    if (walk.leave) return;
+    if (itemsLeft > 0) setLeaveAsk(true);
+    else startLeaving();
+  };
 
   // "Your turn" / "Enemy turn" / room name banner.
   const bannerKey = `${state.roomIndex}-${state.turn}-${state.phase}`;
@@ -159,45 +249,73 @@ export function App() {
     setMode({ kind: 'idle' });
   };
 
-  const castSpell = (spec: SpellSpec, cardIds: number[], dir: Dir | null) => {
-    const tiles = spellTiles(state, spec, dir);
-    if (game.run((s) => playerCast(s, spec, dir, cardIds))) {
-      setFlash({ id: nextId++, tiles, color: ELEMENT_COLOR[spec.element] });
-      resetCasting();
+  /**
+   * Cast what's on the table (in `dir` for Beam and Wall), then play its effect (scene/SpellFx.tsx). The effect
+   * is worked out from the state before the cast (the real area, runes included) and the state after (pillars it
+   * broke, pushed units that hit something).
+   */
+  const castTable = (dir: Dir | null) => {
+    const ids = preview.cardIds;
+    const before = state;
+    const cast = castFx(before, ids, dir);
+    let after: GameState | null = null;
+    if (!game.run((s) => (after = playerCast(s, ids, dir)))) return;
+    resetCasting();
+    if (!cast || !after) return;
+    const done = after as GameState;
+    const broken = (cast.area?.pillars ?? []).filter((p) => !done.room.pillars.some((q) => samePos(q.pos, p)));
+    // A pushed unit that ended short of where the push would take it hit something (wall, pillar or unit).
+    const bumps: FxEvent['bumps'] = [];
+    if (cast.push > 0 && cast.area) {
+      for (const h of cast.hits) {
+        const tile = cast.area.tiles.find((t) => samePos(t.pos, h.pos));
+        const e = done.enemies.find((x) => x.id === h.id);
+        if (h.immune || !tile?.push || !e || ENEMY_DEFS[e.kind].size !== 'normal') continue;
+        const goal = { x: h.pos.x + tile.push.x * cast.push, y: h.pos.y + tile.push.y * cast.push };
+        if (!samePos(e.pos, goal) && !done.room.hazards.some((z) => z.kind === 'quicksand' && samePos(z.pos, e.pos))) bumps.push({ at: e.pos, dir: tile.push });
+      }
     }
+    const event: FxEvent = { id: nextId++, fx: cast, broken, bumps };
+    setFx((list) => [...list, event]);
+    window.setTimeout(() => setFx((list) => list.filter((x) => x.id !== event.id)), fxDuration(cast));
   };
 
   const onCast = () => {
-    if (!canAct || preview.status !== 'ready' || !preview.plan) return;
-    const plan = preview.plan;
-    if (plan.kind === 'unstable') setMode({ kind: 'spin', plan });
-    else if (preview.needsAim) pushToast({ kind: 'info', title: 'Click a tile on the board', lines: ['The Beam fires in that direction.'] });
-    else castSpell(plan.spec, plan.cardIds, null);
+    if (!canAct || preview.status !== 'ready') return;
+    if (preview.needsAim) pushToast({ kind: 'info', title: 'Click a tile on the board', lines: ['The spell fires in that direction.'] });
+    else castTable(null);
   };
 
-  const onSpinDone = (damage: number) => {
-    const tiles = unstableTiles(state);
-    if (game.run((s) => playerUnstableFire(s, damage))) {
-      setFlash({ id: nextId++, tiles, color: ELEMENT_COLOR.fire });
-      setTable([]);
-    }
-    setMode({ kind: 'idle' });
-  };
-
-  // Beam aiming: as soon as a castable Beam is on the table, the board aims it. The direction follows the
+  // Aiming: as soon as a castable Beam or Wall is on the table, the board aims it. The direction follows the
   // pointer (on a diagonal it keeps the last direction) and a left-click casts it. No Cast click needed.
-  const aimPlan = canAct && mode.kind === 'idle' && preview.status === 'ready' && preview.needsAim && preview.plan?.kind === 'spell' ? preview.plan : null;
-  const aiming = !!aimPlan;
+  const aiming = canAct && mode.kind === 'idle' && preview.status === 'ready' && preview.needsAim;
   const lastAim = useRef<Dir | null>(null);
   const aimDir = aiming ? aimDirection(state.player.pos, hover, lastAim.current) : null;
   lastAim.current = aimDir;
 
   const onTileClick = (p: Pos) => {
+    if (state.phase === 'cleared' && !dialogOpen) {
+      // Room cleared: walk there for free (the path is played one step at a time). The open door means "leave".
+      if (walk.leave) return;
+      if (exit && samePos(p, exit)) {
+        requestLeave();
+        return;
+      }
+      setLeaveAsk(false);
+      const path = freeWalkPath(state, p);
+      if (path?.length) setWalk({ path, leave: false });
+      return;
+    }
     if (!canAct) return;
-    if (aimPlan) {
+    // Clicking your own tile while standing in the open door asks again whether to leave.
+    if (inOpenDoor && samePos(p, state.player.pos) && !aiming) {
+      setEarlyAsk(true);
+      return;
+    }
+    if (aiming) {
       // While aiming, a click on the board casts instead of moving. Clicking your own tile does nothing.
       const dir = aimDirection(state.player.pos, p, aimDir);
-      if (dir) castSpell(aimPlan.spec, aimPlan.cardIds, dir);
+      if (dir) castTable(dir);
       return;
     }
     if (mode.kind !== 'idle') return;
@@ -307,7 +425,8 @@ export function App() {
       } else if (e.key === 'Escape') {
         if (mode.kind === 'reroll') setMode({ kind: 'idle' });
         else if (!menuOpen && table.length > 0) setTable([]);
-        else if (!finished && state.phase !== 'roomExit') setMenuOpen((o) => !o);
+        else if (bookOpen) setBookOpen(false);
+        else if (!finished && !betweenRooms) setMenuOpen((o) => !o);
       } else if (e.key === ' ' && enemyTurn.playing) {
         e.preventDefault();
         enemyTurn.skip();
@@ -320,16 +439,17 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [game, hover, state, mode, menuOpen, table, finished, enemyTurn]);
+  }, [game, hover, state, mode, menuOpen, bookOpen, betweenRooms, table, finished, enemyTurn]);
 
   // ------------------------------------------------------------ board highlights
 
   const overlays: BoardOverlays = useMemo(() => {
-    const color = preview.element ? ELEMENT_COLOR[preview.element] : '#ffffff';
+    const color = preview.color ?? '#ffffff';
     const o: BoardOverlays = {
       move: [],
       spell: [],
       spellFaint: [],
+      aim: [],
       spellColor: color,
       focus: enemyTurn.step?.focus ?? [],
       marked: shown.enemies.flatMap((e) => e.markedLine ?? []),
@@ -337,12 +457,18 @@ export function App() {
       hover,
       hoverColor: '#fff6e0',
     };
+    if (state.phase === 'cleared' && !dialogOpen) {
+      // Gold where a click walks somewhere.
+      if (hover && freeWalkPath(state, hover)?.length) o.hoverColor = '#ffd36b';
+      return o;
+    }
     if (state.phase !== 'player' || enemyTurn.playing || dialogOpen) return o;
     const moves = DIRS.map((d) => moveTarget(state, d)).filter((p): p is Pos => !!p);
 
     if (aiming) {
-      const beams = preview.beamTiles!;
-      o.spell = aimDir ? beams[aimDir] : [];
+      const beams = preview.aimTiles!;
+      // The aimed direction glows (bright, outlined); the other three stay faint.
+      o.aim = aimDir ? beams[aimDir] : [];
       o.spellFaint = DIRS.filter((d) => d !== aimDir).flatMap((d) => beams[d]);
       o.hoverColor = aimDir ? color : '#9a9087';
       return o;
@@ -350,7 +476,7 @@ export function App() {
     // A valid spell on the table lights up its area right away (faint if you can't afford it yet).
     const spellValid = preview.status === 'ready' || (preview.status === 'blocked' && !!preview.title);
     if (spellValid && mode.kind === 'idle') {
-      if (preview.needsAim) o.spellFaint = DIRS.flatMap((d) => preview.beamTiles![d]);
+      if (preview.needsAim) o.spellFaint = DIRS.flatMap((d) => preview.aimTiles![d]);
       else if (preview.status === 'ready') o.spell = preview.tiles;
       else o.spellFaint = preview.tiles;
     } else if (canAct && mode.kind === 'idle') {
@@ -365,16 +491,16 @@ export function App() {
   const busy = !canAct || mode.kind !== 'idle';
   return (
     <div className={`game-root ${aiming ? 'is-aiming' : ''}`} style={{ ...layoutCssVars(), ['--u' as string]: `${u}px` }}>
-      <GameScene state={shown} intents={intents} overlays={overlays} flash={flash} hover={hover} pointer={pointer} onRightClick={cancel} />
+      <GameScene state={shown} intents={intents} overlays={overlays} fx={fx} hover={hover} pointer={pointer} onRightClick={cancel} />
 
       <div className="hud">
-        <TopBar state={shown} canDrink={canAct && mode.kind === 'idle'} onDrink={() => game.run(playerDrinkPotion)} onToggleLog={() => setLogOpen((o) => !o)} onMenu={() => setMenuOpen(true)} />
+        <TopBar state={shown} onGrimoire={() => setBookOpen(true)} onToggleLog={() => setLogOpen((o) => !o)} onMenu={() => setMenuOpen(true)} />
         {DEV_MODE && <DevBar game={game} hover={hover} />}
 
         <ManaOrb mana={shown.player.mana} maxMana={shown.player.maxMana} cost={preview.status === 'ready' || preview.status === 'blocked' ? preview.cost : undefined} />
         <MeditateButton disabled={busy} full={state.player.mana >= state.player.maxMana} onClick={() => game.run(playerMeditate)} />
         <Pile which="draw" cards={state.cards.deck} erased={state.cards.erased} />
-        <Pile which="discard" cards={state.cards.discard} />
+        <Pile which="discard" cards={state.cards.discard} flash={discardFlash} />
 
         <RerollButton
           mode={mode.kind === 'reroll'}
@@ -393,7 +519,19 @@ export function App() {
           }}
         />
 
-        {mode.kind !== 'reroll' && (
+        {state.phase === 'cleared' && (
+          <ClearedPanel
+            state={state}
+            itemsLeft={itemsLeft}
+            asking={leaveAsk}
+            leaving={walk.leave}
+            onContinue={requestLeave}
+            onConfirm={startLeaving}
+            onStay={() => setLeaveAsk(false)}
+          />
+        )}
+        {stuck && mode.kind !== 'reroll' && <EscapeButton stuck={state.player.status.stuck} disabled={busy} onClick={() => game.run(playerEscape)} />}
+        {mode.kind !== 'reroll' && state.phase !== 'cleared' && !stuck && (
           <CraftingTable
             cards={tablePlaced}
             preview={preview}
@@ -418,14 +556,30 @@ export function App() {
 
         {enemyTurn.playing && <EnemyCaption step={enemyTurn.step} onSkip={enemyTurn.skip} />}
         <TurnBanner banner={banner} />
+        {pickups.length > 0 && <PickupReveal key={pickups[0].id} pickup={pickups[0]} onDone={(id) => setPickups((ps) => ps.filter((p) => p.id !== id))} />}
         <Toasts toasts={toasts} onDismiss={(id) => setToasts((ts) => ts.filter((t) => t.id !== id))} />
         {logOpen && <LogDrawer state={shown} onClose={() => setLogOpen(false)} />}
       </div>
 
       {drag && draggedCard && <FragmentCard card={draggedCard} className="drag-ghost" style={{ left: drag.x, top: drag.y }} />}
 
-      {mode.kind === 'spin' && <SpinWheel onDone={onSpinDone} />}
-      {state.phase === 'roomExit' && <RoomExitDialog state={state} onContinue={() => game.run(advanceRoom)} />}
+      {state.phase === 'event' && <EventDialog state={state} onChoose={(c) => game.run((s) => eventChoice(s, c))} />}
+      {state.phase === 'camp' && <CampDialog state={state} onChoose={(c) => game.run((s) => campChoice(s, c))} />}
+      {bookOpen && <GrimoireBook pages={state.grimoire} onClose={() => setBookOpen(false)} />}
+      {earlyAsk && inOpenDoor && (
+        <LeaveEarlyDialog
+          state={state}
+          onLeave={() => {
+            setEarlyAsk(false);
+            resetCasting();
+            game.run(continueRun);
+          }}
+          onStay={() => {
+            stayed.current = true;
+            setEarlyAsk(false);
+          }}
+        />
+      )}
       {finished && (
         <GameOverDialog
           state={state}

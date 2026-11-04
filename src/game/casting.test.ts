@@ -26,17 +26,16 @@ describe('crafting table', () => {
 
   it('a valid Cross is ready, needs no aim, and previews its tiles', () => {
     const s = open();
-    const cards = [card('rock'), card('cross')];
+    const cards = [card('earth'), card('cross')];
     s.cards.hand = cards;
     const p = previewCast(s, cards);
     expect(p.status).toBe('ready');
     expect(p.needsAim).toBe(false);
     expect(p.cost).toBe(2);
     expect(p.tiles).toHaveLength(4);
-    expect(p.plan).toMatchObject({ kind: 'spell' });
   });
 
-  it('a Beam needs aiming and previews all four directions', () => {
+  it('a Beam or a Wall needs aiming and previews all four directions', () => {
     const s = open();
     const cards = [card('water'), card('beam'), card('beam')];
     s.cards.hand = cards;
@@ -44,7 +43,10 @@ describe('crafting table', () => {
     expect(p.status).toBe('ready');
     expect(p.needsAim).toBe(true);
     expect(p.cost).toBe(4);
-    expect(p.beamTiles!.up).toHaveLength(3); // c4, c5, c6: the board edge stops a 4-tile beam
+    expect(p.aimTiles!.up).toHaveLength(3); // c4, c5, c6: the board edge stops a 4-tile beam
+    const wall = [card('wind'), card('wall')];
+    s.cards.hand = wall;
+    expect(previewCast(s, wall).aimTiles!.up).toHaveLength(3);
   });
 
   it('the Cast button stays dark without enough mana', () => {
@@ -54,7 +56,6 @@ describe('crafting table', () => {
     const p = previewCast(s, cards);
     expect(p.status).toBe('blocked');
     expect(p.message).toMatch(/mana/);
-    expect(p.plan).toBeUndefined();
   });
 
   it('three Fires make Unstable Fire', () => {
@@ -63,7 +64,7 @@ describe('crafting table', () => {
     s.cards.hand = cards;
     const p = previewCast(s, cards);
     expect(p.title).toBe('Unstable Fire');
-    expect(p.plan).toMatchObject({ kind: 'unstable' });
+    expect(p.status).toBe('ready');
     expect(p.tiles).toHaveLength(8);
   });
 
@@ -74,7 +75,29 @@ describe('crafting table', () => {
     const p = previewCast(s, cards);
     expect(p.status).toBe('invalid');
     expect(p.message).toMatch(/Too many/);
-    expect(p.plan).toBeUndefined();
+  });
+
+  it('two elements + a shape preview a merge in the hazard colour', () => {
+    const s = open();
+    const cards = [card('fire'), card('earth'), card('cross')];
+    s.cards.hand = cards;
+    const p = previewCast(s, cards);
+    expect(p.title).toBe('Magma Cross');
+    expect(p.message).toMatch(/Magma/);
+    expect(p.cost).toBe(3);
+  });
+
+  it('a rune keeps Cast lit even on a table that makes nothing, and never changes the preview', () => {
+    const s = open();
+    const rune: Card = { id: nextId++, kind: 'rune', rune: s.runeMap.indexOf('widen') };
+    const odd = [card('fire'), card('water'), rune];
+    s.cards.hand = odd;
+    expect(previewCast(s, odd).status).toBe('ready');
+    const beam = [card('fire'), card('beam'), rune];
+    s.cards.hand = beam;
+    const p = previewCast(s, beam);
+    expect(p.cost).toBe(3);
+    expect(p.aimTiles!.up).toHaveLength(2); // Widen isn't shown
   });
 
   it('the table forgets cards that left the hand and keeps the pile order', () => {

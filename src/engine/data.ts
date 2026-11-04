@@ -1,7 +1,8 @@
-import type { Element, EnemyKind, Pos } from './types';
+import type { Element, EnemyKind, FragmentKind, Pos, UnitSize } from './types';
 
 /**
- * Tunable numbers. Playtest balance changes should only need edits here.
+ * Tunable numbers. Playtest balance changes should only need edits here. The rules they implement are in
+ * GAME_RULES.md.
  */
 export const RULES = {
   playerMaxHp: 20,
@@ -14,31 +15,62 @@ export const RULES = {
   burnTicks: 3,
   rootTurns: 1,
   stunTurns: 1,
+  /** Quicksand: actions it takes to climb out. Progress carries over between turns. */
+  quicksandEscape: 2,
 
-  elementDamage: { fire: 1, water: 2, rock: 2 } as Record<Element, number>,
-  doubledElementBonus: 2,
+  elementDamage: { fire: 1, water: 2, earth: 2, wind: 0 } as Record<Element, number>,
+  doubledElementDamage: { fire: 3, water: 4, earth: 4, wind: 0 } as Record<Element, number>,
+  windPush: 1,
+  doubledWindPush: 2,
   beamLength: 2,
   doubledBeamLength: 4,
   crossReach: 1,
   doubledCrossReach: 2,
+  wallWidth: 3,
+
+  /** Merges: two different elements + one shape. */
+  mergeCost: 3,
+  magmaDamage: 2,
+  /** Hazards last this many player turns, the casting turn included. */
+  hazardTurns: 3,
 
   unstableCost: 5,
   unstableBurn: 3,
-  unstableDamageOptions: [6, 7],
+  unstableDamage: 7,
 
-  archerRange: 4,
+  pillarHp: 2,
+  collisionDamage: 1,
+
+  runeCost: 1,
+  runeAmplify: 2,
+  runeVolatileSelfDamage: 2,
+  runeFreeHpCost: 2,
+  runeSiphonHeal: 1,
+
   archerBackoffSteps: 2,
+  archerPush: 1,
 
   wardenShotDamage: 5,
-  /** Warden gains a telegraph charge on its turns 2, 4, 6, ... */
+  /** Warden gains a charge on its turns 2, 4, 6, ... */
   wardenChargeEvery: 2,
-  /** Page Wards spawn a Page Scrap after enemy turns 2, 4, 6, ... */
+  /** Page Wards summon a Page Scrap on enemy turns 2, 4, 6, ... */
   wardSpawnEvery: 2,
 
   redactorExplodeDamage: 3,
   redactorActions: { guarded: 2, chaos: 4, spent: 3 },
+  /** Explosions per turn, in every mode. */
+  redactorMaxExplosions: 2,
   /** Marks the Redactor can hold. Page Scraps stop stealing once it's full. */
   redactorMaxMarks: 5,
+
+  /** Random drops: weight = target share ÷ current share, clamped; ×theme bonus for the monster's theme card. */
+  dropWeightMin: 0.5,
+  dropWeightMax: 3,
+  dropThemeBonus: 2,
+
+  eventReadRunes: 2,
+  eventReadHpCost: 3,
+  eventCopyRunes: 1,
 } as const;
 
 export type AttackKind = 'melee' | 'ranged' | 'drain' | 'telegraph' | 'none' | 'steal' | 'explode';
@@ -51,12 +83,16 @@ export interface EnemyDef {
   actions: number;
   attack: AttackKind;
   damage: number;
+  size: UnitSize;
+  /** The fragment it's twice as likely to drop (random drops only). */
+  theme: FragmentKind | null;
   attackText: string;
   notes: string;
   /** What the enemy AI actually does on its turn, in plain words. */
   behavior: string;
   /** Short name shown on the board token. */
   shortName: string;
+  /** What it leaves on the floor when it dies, in words. */
   drop: string | null;
 }
 
@@ -70,10 +106,12 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     actions: 3,
     attack: 'melee',
     damage: 1,
+    size: 'normal',
+    theme: 'fire',
     attackText: '1 dmg to one adjacent tile.',
     notes: 'Moves in packs. Punishes single-target spells.',
     behavior: 'Takes the shortest path to you, then bites once when next to you. Stops for the turn after biting.',
-    drop: 'Fire fragment',
+    drop: 'A random fragment (Fire more likely)',
   },
   archer: {
     kind: 'archer',
@@ -84,11 +122,13 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     actions: 2,
     attack: 'ranged',
     damage: 2,
-    attackText: '2 dmg, range 4, straight or diagonal line. Blocked by pillars; the first monster in the way takes the arrow instead.',
-    notes: 'If you are adjacent when its turn starts, it spends both actions backing off away from you. Friendly fire: monsters in the line of fire take the arrow.',
+    size: 'normal',
+    theme: 'beam',
+    attackText: '2 dmg + push 1, any of the 8 directions, no range limit. Pillars and fog block it; the first unit in the way takes the arrow.',
+    notes: 'If you are adjacent when its turn starts, it spends both actions backing off. Friendly fire: monsters in the line of fire take the arrow.',
     behavior:
-      'Walks until it has a straight or diagonal shot within 4 tiles (pillars block, monsters don’t), then shoots once. A monster standing between it and you takes the 2 dmg instead and the arrow stops there. If you start its turn next to it, it spends both actions backing away from you instead.',
-    drop: 'Beam fragment',
+      'Walks until it has a straight or diagonal line to you with no pillar or fog in between, then shoots once: 2 dmg and a push of 1 tile along the shot. A monster between it and you takes the arrow instead. If you start its turn next to it, it spends both actions backing away instead.',
+    drop: 'A random fragment (Beam more likely)',
   },
   brute: {
     kind: 'brute',
@@ -99,10 +139,12 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     actions: 2,
     attack: 'melee',
     damage: 3,
+    size: 'normal',
+    theme: 'wall',
     attackText: '3 dmg to one adjacent tile.',
     notes: 'Slow but tough. A tempo check, not a puzzle.',
     behavior: 'Takes the shortest path to you, then hits once when next to you. Stops for the turn after hitting.',
-    drop: 'Rock fragment',
+    drop: 'A random fragment (Wall more likely)',
   },
   leech: {
     kind: 'leech',
@@ -113,10 +155,12 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     actions: 2,
     attack: 'drain',
     damage: 1,
+    size: 'normal',
+    theme: 'water',
     attackText: 'Drains 1 mana (not HP) from one adjacent tile.',
     notes: 'Pressures your meditation, not your HP.',
     behavior: 'Takes the shortest path to you, then drains 1 mana once when next to you. Never touches your HP.',
-    drop: 'Water fragment',
+    drop: 'A random fragment (Water more likely)',
   },
   warden: {
     kind: 'warden',
@@ -127,11 +171,13 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     actions: 2,
     attack: 'telegraph',
     damage: RULES.wardenShotDamage,
-    attackText: 'No normal attack. A telegraphed 5 dmg line on charged turns.',
-    notes: 'Crowned: holds the room key. Hunts for a clear line to you.',
+    size: 'massive',
+    theme: null,
+    attackText: 'No normal attack. A marked 5 dmg line on charged turns that hits every unit on it.',
+    notes: 'Massive: can’t be pushed. Hunts for a clear line to you.',
     behavior:
-      'Walks the shortest path to a tile where it can see you (straight or diagonal, pillars block), then holds still. On its 2nd, 4th, 6th… turn, once it sees you it marks a line to the board edge and its turn ends. The first action of its next turn fires 5 dmg down that line. An unused charge is lost at the end of that turn.',
-    drop: 'Max Potion (+ unlocks the exit)',
+      'Walks the shortest path to a tile where it can see you (straight or diagonal; pillars and fog block), then holds still. On its 2nd, 4th, 6th… turn, once it sees you it marks a line through you to the wall or the first pillar, and its turn ends. The first action of its next turn fires 5 dmg at every unit on that line. Stun cancels the line. An unused charge is lost.',
+    drop: '1 rune',
   },
   ward: {
     kind: 'ward',
@@ -143,9 +189,12 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     actions: 1,
     attack: 'none',
     damage: 0,
+    size: 'float',
+    theme: null,
     attackText: 'None. Does not attack.',
-    notes: 'Immune to spells without its attuned element. Its 1 action, every other enemy turn, summons a Page Scrap.',
-    behavior: 'Never moves or attacks. On every other enemy turn (2nd, 4th, 6th…) it spends its 1 action summoning a Page Scrap on a free tile next to it (Burn ticks before it, like any action); in between it rests. While any Ward stands, the Redactor is immune.',
+    notes: 'Floats: ignores holes, pushes and hazards. Only spells containing its element hurt it (never Magma).',
+    behavior:
+      'Never moves or attacks. On every other enemy turn (2nd, 4th, 6th…) it summons a Page Scrap on a free tile next to it. While any Ward stands, the Redactor is immune.',
     drop: null,
   },
   scrap: {
@@ -157,11 +206,13 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     actions: 4,
     attack: 'steal',
     damage: 0,
+    size: 'normal',
+    theme: null,
     attackText: 'Touch (1 action): steals a fragment from your hand.',
     notes: 'Feeds the Redactor marks while the Wards stand. Blocks you once they fall.',
     behavior:
       'While Wards stand: runs to you and steals a fragment, carries it to the Redactor (any of the 8 tiles around it) to give it 1 mark, then keeps away from you for good. It stops stealing once the Redactor has 5 marks. After all Wards fall, every Scrap runs at you to block your path, without stealing.',
-    drop: 'Returns any stolen fragments to your hand',
+    drop: 'The fragments it stole (back to your hand)',
   },
   redactor: {
     kind: 'redactor',
@@ -172,11 +223,13 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     actions: RULES.redactorActions.guarded,
     attack: 'explode',
     damage: RULES.redactorExplodeDamage,
-    attackText: 'Explodes for 3 dmg on all 8 tiles around it.',
+    size: 'massive',
+    theme: null,
+    attackText: 'Explodes for 3 dmg on all 8 tiles around it (at most 2 explosions a turn).',
     notes:
-      'Immune while any Page Ward stands (2 actions). Gains marks (max 5) from Page Scraps that bring it a stolen fragment. After all Wards fall: spends 1 mark per turn for Chaos mode (4 actions, each explosion followed by a cooldown action); when out of marks, 3 actions.',
+      'Massive and tall: can’t be pushed, and its head stays above the fog. Immune while any Page Ward stands (2 actions). Gains marks (max 5) from Page Scraps that bring it a stolen fragment. After all Wards fall: spends 1 mark per turn for Chaos mode (4 actions, each explosion followed by a cooldown); when out of marks, 3 actions.',
     behavior:
-      'Walks toward you and explodes whenever you are in the 8 tiles around it. In Chaos mode the action after an explosion is a cooldown, and each explosion leaves an Erasure zone on the 9 tiles around it (its own tile included): end your next turn there and you lose a fragment for good.',
+      'Walks toward you and explodes whenever you are in the 8 tiles around it, at most twice a turn. In Chaos mode the action after an explosion is a cooldown, and each explosion leaves an Erasure Zone on the 9 tiles around it (its own tile included): end your next turn there and you lose a fragment for good.',
     drop: null,
   },
 };
@@ -188,22 +241,28 @@ export interface RoomDef {
   width: number;
   height: number;
   pillars: string[];
+  holes: string[];
+  /** The door out (none in the boss room: killing the Redactor ends the demo). */
+  exit: string | null;
+  /** The door is open from the start (you may leave early) instead of locked until the room is cleared. */
+  exitAlwaysOpen?: boolean;
   start: string;
-  exit: { at: string; locked: boolean } | null;
   enemies: { kind: EnemyKind; at: string; element?: Element }[];
 }
 
-/** Room layouts transcribed from the demo kit boards (pp. 11–13). Enemies are listed in deploy order. */
+/** Room layouts (GAME_RULES.md, Rooms). Enemies are listed in deploy order. Hole positions are proposed. */
 export const ROOMS: RoomDef[] = [
   {
     id: 'cistern',
     name: 'The Cistern',
-    blurb: 'Teaching room. The exit is open the whole time, but every enemy you skip is a fragment you don’t get. Target: clear it in 3–4 turns.',
+    blurb: 'Teaching room. The door is open the whole time, but every enemy you skip is a fragment you don’t get.',
     width: 6,
     height: 6,
     pillars: ['d4', 'c3'],
+    holes: ['b4', 'e5'],
+    exit: 'f6',
+    exitAlwaysOpen: true,
     start: 'a1',
-    exit: { at: 'f6', locked: false },
     enemies: [
       { kind: 'rat', at: 'f4' },
       { kind: 'brute', at: 'c5' },
@@ -213,12 +272,13 @@ export const ROOMS: RoomDef[] = [
   {
     id: 'scriptorium',
     name: 'The Scriptorium',
-    blurb: 'The exit is locked until the crowned Warden dies.',
+    blurb: 'The Warden watches every line. Break its sight with pillars or fog.',
     width: 6,
     height: 6,
     pillars: ['b5', 'e5', 'b2', 'e2'],
+    holes: ['c2', 'd5'],
+    exit: 'f6',
     start: 'a1',
-    exit: { at: 'f6', locked: true },
     enemies: [
       { kind: 'archer', at: 'a6' },
       { kind: 'archer', at: 'e6' },
@@ -229,20 +289,41 @@ export const ROOMS: RoomDef[] = [
   {
     id: 'redactor',
     name: 'The Redactor',
-    blurb: 'Defeat the boss to finish the demo. While any Page Ward stands the boss takes no damage, and each Ward only takes damage from its own element.',
+    blurb: 'Defeat the boss to finish the demo. While any Page Ward stands the boss takes no damage, and each Ward only takes damage from spells containing its element.',
     width: 8,
     height: 8,
     pillars: ['b6', 'g6', 'b3', 'g3'],
-    start: 'd1',
+    holes: ['a5', 'h4'],
     exit: null,
+    start: 'd1',
     enemies: [
       { kind: 'ward', at: 'c7', element: 'fire' },
       { kind: 'ward', at: 'f7', element: 'water' },
-      { kind: 'ward', at: 'd4', element: 'rock' },
+      { kind: 'ward', at: 'd4', element: 'earth' },
       { kind: 'redactor', at: 'e5' },
     ],
   },
 ];
+
+/** One stop on the run. The map screen (a teammate's work) will draw these as a branching graph. */
+export type Stage = { kind: 'room'; room: number } | { kind: 'event' } | { kind: 'camp' };
+
+/** The fixed run: Cistern → Whispering Lectern → Scriptorium → Camp → the Redactor. */
+export const RUN: Stage[] = [
+  { kind: 'room', room: 0 },
+  { kind: 'event' },
+  { kind: 'room', room: 1 },
+  { kind: 'camp' },
+  { kind: 'room', room: 2 },
+];
+
+/** What a stop on the run is called ("The Scriptorium", "The Whispering Lectern", "Camp"); "the end" past the last. */
+export function stageName(stage: number): string {
+  const st = RUN[stage];
+  if (!st) return 'the end';
+  if (st.kind === 'room') return ROOMS[st.room].name;
+  return st.kind === 'event' ? 'The Whispering Lectern' : 'Camp';
+}
 
 /** "c5" -> {x: 2, y: 4} */
 export function parseCoord(coord: string): Pos {
