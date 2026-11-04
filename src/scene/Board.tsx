@@ -102,7 +102,7 @@ export function Board({ room, exitOpen, exitLabel, pointer, unitFeet, pointerOnB
       )}
 
       {/* The door: an archway, barred shut while locked, open with a portal, beam and EXIT sign once unlocked. */}
-      {exit && <Door pos={exit} room={room} open={exitOpen} label={exitLabel} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />}
+      {exit && <Door pos={exit} room={room} open={exitOpen} label={exitLabel} big={!!room.bigDoor} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />}
 
       {/* Pillars (2 HP; obstacles: they fade when they hide a unit or the mouse is near). */}
       {room.pillars.map(({ pos: p, hp }) => {

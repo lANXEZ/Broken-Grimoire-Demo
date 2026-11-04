@@ -24,13 +24,23 @@ which replaced the paper-kit rules. If this file and the PDF disagree, this file
 The map is drawn like Slay the Spire's branching graph (6 layers deep, start included), but every path leads to the
 same fixed sequence:
 
-1. **Start**
+1. **Start** — in the build: the title screen, then **room 0** (see below)
 2. **Room 1 · The Cistern** (6×6, teaching room)
 3. **Event · The Whispering Lectern** (fixed, never random)
 4. **Room 2 · The Scriptorium** (6×6, the Warden)
 5. **Camp**
 6. **Boss · The Redactor** (8×8)
 
+- **Title screen and room 0 (team decision, Nov 5):** the game opens on a title screen (a night forest under the
+  moon, the game's name, Start on the right; with a saved run, Continue or New game). A new run opens its eyes (a
+  first-person blink) in **room 0, The Waking Room**: 3×4, a campfire (b2) with a rock to sit on (a2), a corner
+  where the ceiling has collapsed (a3–a4: moonlight, dust and falling gravel; walkable) and a big dungeon door
+  (c4). The wizard thinks: *"Dream of outside again… How long have I been stuck here…"* There are no enemies;
+  actions and mana never run out and the hand refills after every cast, so it's the place to try spells (casts there
+  count for the Grimoire and the "Hmmm..." note; Reroll works too). **The campfire reacts to spells** that reach its
+  tile: Water, Earth, Fog and Quicksand put it out; Fire, Unstable Fire and Magma light it again; Wind does nothing.
+  The moonlight comes down through the hole in a "|_\\" shape (straight on the left, fanning out to the right). Click a tile to walk there; walking through the door
+  starts the run in the Cistern. Room 0 isn't one of the numbered stops.
 - **Finishing a combat room:** kill every enemy. The room's **door** (as in the low-fi demo) stays locked until the
   room is cleared, except in the Cistern, whose door is open the whole time (see [Rooms](#rooms)). When the last enemy dies a big **CLEARED!** appears, turns stop
   counting, the door opens, and you walk freely to pick up any drops on the floor. **Continue** (or clicking the
@@ -141,8 +151,8 @@ direction, and cast. Used fragments go to the discard pile.
 | Fire | **1** | 3 | Burn |
 | Water | 2 | 4 | Root |
 | Earth | 2 | 4 | Stun; also cancels a charged attack |
-| Wind | 0 | 0 | Push 1 tile away from you (Beam and Wall: along the cast direction; Cross: outward) |
-| Wind ×2 | 0 | — | Push 2 tiles |
+| Wind | 0 | 0 | Push **2 tiles** away from you (Beam and Wall: along the cast direction; Cross: outward) |
+| Wind ×2 | 0 | — | Push **until it hits something** (a unit, a pillar, the room's wall or the locked door): the usual collision, 1 damage. A hole on the way still swallows it; Quicksand still catches it |
 
 | Shape | Area | Doubled |
 |---|---|---|
@@ -169,6 +179,25 @@ The first time you cast a new element + shape combo, it's written into the recon
 drawn as torn pages of a chant: element words highlighted in the element's colour, shape words in light purple. A
 completed grimoire becomes a readable book. Runes are never recorded.
 
+### "Hmmm..." (the spell note)
+
+A quality-of-life note on the left of the screen, drawn as one of the wizard's foggy thoughts (team decision, Nov 4;
+not in the design). Unlike the Grimoire it records **exact card combinations**, with what they cost and do:
+
+- **Recording:** the first time a combination is cast successfully, it's added. Fire + Beam and Fire ×2 + Beam are
+  separate lines. Combinations with a rune are recorded too (rune and all), even when the rune turns out to be
+  Fizzle. A table that makes no spell (a rune "unknown working") is never recorded. The note is **kept across runs**
+  on the computer, like the Grimoire.
+- **Two sections:** *I could make…* = lines whose cards are all in your hand (crafting table included), shown
+  normally; *If only I had…* = the rest, ghosted. Cheapest first. A line you can make but can't pay for shows its cost
+  in red.
+- **Filtering:** with cards on the crafting table, only lines that contain all of them are shown, and those cards
+  light up in each line.
+- **Hover / click** (your turn only): hovering a line you can make pulls its cards up out of the hand; clicking it
+  puts the missing cards on the crafting table, ready to cast.
+- **Each line shows** its cards, mana cost and effect (e.g. *2 · 1 dmg · Burn*). A line with a rune shows **"?"** for
+  both cost and effect, so nothing gives the rune away; the player's own note on that rune is shown above it.
+
 ## Element merges
 
 A merge is **two different elements + one shape**: 3 fragments, 3 mana, no doubling inside a merge. **Wind can't be
@@ -178,7 +207,7 @@ One hazard per tile; a new one replaces the old.
 | Merge | Hazard | Effect |
 |---|---|---|
 | Fire + Water | **Fog** | 0 damage. Blocks line of sight (Archers and the Warden can't shoot or see through it). A monster inside spends all its actions moving randomly and doesn't attack. A Wind spell clears the fog tiles it hits. Doesn't affect you. |
-| Fire + Earth | **Magma** | Units hit by the cast take 2 damage. A unit that steps onto magma later gains Burn. Monsters avoid it when pathing. Water on a magma tile turns it back to floor. |
+| Fire + Earth | **Magma** | Units hit by the cast take 2 damage **and gain Burn** (house rule, see [Build decisions](#build-decisions-nov-4)). A unit that steps onto magma later gains Burn too. Monsters avoid it when pathing. Water on a magma tile turns it back to floor. |
 | Earth + Water | **Quicksand** | 0 damage. A unit on it can't move, attack or cast until it spends 2 actions to escape; escaping removes the puddle. Monsters avoid stepping in (cast it on them or push them in). If nobody escapes, it vanishes after the 3 turns. |
 
 ## Statuses
@@ -195,6 +224,22 @@ One hazard per tile; a new one replaces the old.
 
 Runes are fragments written in the dungeon's native gibberish. You learn what one does only by casting it, and you
 keep your own notes; the game never records them.
+
+**How a rune cast looks (team decision, Nov 4):** it plays in two parts so the player can see what the rune
+did. First the spell itself, exactly as if the rune weren't there. Then the rune's symbol glows purple on the 3×3
+floor around the wizard, and the rune's own part plays in purple, with its damage and healing in purple numbers
+(Echo replays the spell, Amplify strikes each target, Widen hits the extra tiles, Siphon draws wisps back to you,
+Volatile blasts the targets again and lashes back, Free returns the mana and takes the HP, Backfire hits your tile,
+Fizzle: no spell part, just the glow and purple smoke). A rune on a table that makes no spell only puffs grey
+smoke: no glow, since the cards failed, not the rune. The result is the same as before; only the showing changed.
+Space or a click skips to the end.
+
+**Rune notes (team decision, Nov 4):** the player's own notes live in the game. Every rune card wears a foggy thought
+bubble, *"Hmm, what is it?"*, with a pencil: click it to write what you think the rune does (Enter saves, Esc
+cancels). A note belongs to the rune's **symbol**, so every card with that symbol shares it, in every run on that
+computer (the meanings are fixed per computer too). Notes can be edited on any rune card in the hand, on the crafting
+table, or in the **Deck** view (top bar, or D), which lists every card you own. The game never fills a note in
+itself, and never says whether a note is right.
 
 - **Fixed but random:** on first launch the game randomly assigns the 8 meanings to the 8 symbols and saves that
   mapping. It then stays the same for every run on that computer, so notes keep working.
@@ -381,15 +426,26 @@ roll is written out in [DESIGN.md](DESIGN.md#cards-and-drops).
 
 ## Event and camp
 
-**Event · The Whispering Lectern** (fixed). A lectern of torn pages in the dungeon's gibberish: "These pages are
-written in the dungeon's own tongue. You'll have to work out what they mean yourself… better keep notes." Choose one
-(proposed):
+**Event · The Whispering Lectern** (team decision, Nov 4; replaces the design's read / copy / leave). A small room
+of its own: **5×5**, empty but for a **lectern** in the middle (c3), which blocks its tile. The wizard comes in at
+a1 and walks up to it by themselves (to c2); the **door (e5) stays locked until the wizard reaches the lectern**. It
+whispers in a familiar voice, in a language you don't understand: rune words drift up off its open book.
 
-1. **Read the pages aloud:** take 2 runes, lose 3 HP.
-2. **Copy one page carefully:** take 1 rune.
-3. **Leave it.**
+1. **Take a rune fragment** or **Leave it.** Leaving ends the event.
+2. If you took one, the lectern speaks plain words: *"…Still lost, would you? Though I am so thirsty… let me
+   taste your blood."* **Give it some blood:** lose **2 HP** (this **can kill**) and take a second rune; it answers
+   *"Hmm… my favorite."* Or **Walk away** with the one rune.
 
-**Camp.** Choose one: **Rest** (heal to full, 20 HP) or **Tear out a page** (remove one fragment from your deck).
+Runes taken are shown, then go into your deck (2 at most, each a symbol you don't have yet). When the event ends, the
+wizard walks out through the door by themselves. The player never moves the wizard in this room (clicks on the board
+do nothing), and combat controls are hidden.
+
+**Camp** (team decision, Nov 4: a room like the lectern's). 5×5, with a **campfire** in the middle (c3) and **logs to
+sit on** around it (b3, d3, c4); the fire and the logs block their tiles. The wizard comes in at a1 and walks up to the
+fire by themselves (to c2); the **door (e5) stays locked until the wizard reaches the fire**. Choose one: **Rest**
+(heal to full, 20 HP) or **Tear out a page** (remove one fragment from your deck for good; never one that would break
+your grimoire). Then the wizard walks out through the door by themselves. As in the lectern's room, the player never
+moves the wizard here and combat controls are hidden.
 
 ---
 
@@ -457,6 +513,10 @@ section wins.
 | Grimoire save | **Across runs**, saved on the computer like the rune mapping. A spell that fizzles writes nothing. |
 | Camp | Tearing out a page can't break your grimoire (that card is greyed out). Runes can be torn out. |
 | Unstable Fire | Always 7 damage; the spin wheel is gone. |
+| The lectern's and the camp's rooms | Team decision (Nov 4), not in the design: see [Event and camp](#event-and-camp). Layouts (and the lectern's lines) are `LECTERN_ROOM` and `CAMP_ROOM` in `src/engine/data.ts`. |
+| Hmmm... and rune notes | Team decisions (Nov 4), not in the design: see ["Hmmm..."](#hmmm-the-spell-note) and [Runes](#runes). The Grimoire is unchanged (pages per element + shape). |
+| Stronger Wind | **Team decision (Nov 4), not in the design** (which had push 1 / push 2): Wind pushes 2 tiles, and doubled Wind pushes until the target hits something, taking the usual 1 collision damage. |
+| Magma burns on landing | **Team decision (Nov 4), not in the design:** units the Magma cast hits gain Burn 3 right away (after its 2 damage, if they survive), not only units that step onto it later. Page Wards stay fully immune. On screen, every unit that catches fire shows a flame burst and a *Burn 3* pop-up, and each Burn tick shows its damage with the Burn icon. |
 
 > **Note for the team:** Erasure Zones fade at the end of your turn and Page Scraps act before the Redactor, so a
 > Scrap never actually sees a zone. "Outside Erasure Zones first" is built, but it can't come up with the current
@@ -470,7 +530,7 @@ What the Nov 3 design changed compared with the previous rules. All of it is bui
 |---|---|---|
 | Run structure | 3 rooms in a row, each left through an exit tile | Map → Cistern → Event → Scriptorium → Camp → Boss |
 | Ending a room | Step onto the exit (Room 2's unlocks when the Warden dies); skipped enemies forfeit loot | Kill every enemy → CLEARED! (the door opens) → walk to pick up drops → Continue walks you out through the door. Only the Cistern's door is open from the start (early exit, survivors' drops lost) |
-| Elements | Fire, Water, Rock | Fire, Water, **Earth** (renamed Rock), **Wind** (new: 0 damage, push 1 / push 2 doubled) |
+| Elements | Fire, Water, Rock | Fire, Water, **Earth** (renamed Rock), **Wind** (new: 0 damage, push 2 / doubled: until it hits something) |
 | Shapes | Beam, Cross | Beam, Cross, **Wall** (new: 3-wide row, 3×2 doubled) |
 | Earth/Rock effect | Stun | Stun, and also cancels a charged attack |
 | Merges | Not allowed (one element only) | Two different elements + one shape: Fog, Magma or Quicksand hazards for 3 turns |

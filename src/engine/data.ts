@@ -20,8 +20,9 @@ export const RULES = {
 
   elementDamage: { fire: 1, water: 2, earth: 2, wind: 0 } as Record<Element, number>,
   doubledElementDamage: { fire: 3, water: 4, earth: 4, wind: 0 } as Record<Element, number>,
-  windPush: 1,
-  doubledWindPush: 2,
+  /** Wind pushes 2 tiles; doubled Wind pushes until the target hits something (team decision, Nov 4). */
+  windPush: 2,
+  doubledWindPush: Infinity,
   beamLength: 2,
   doubledBeamLength: 4,
   crossReach: 1,
@@ -68,9 +69,69 @@ export const RULES = {
   dropWeightMax: 3,
   dropThemeBonus: 2,
 
-  eventReadRunes: 2,
-  eventReadHpCost: 3,
-  eventCopyRunes: 1,
+  /** The Whispering Lectern: the HP its second rune costs (it can kill). */
+  eventBloodCost: 2,
+} as const;
+
+/**
+ * The Whispering Lectern's room (team decision, Nov 4): 5x5 and empty but for the lectern in the middle. The wizard
+ * comes in at `start`, walks up to `read` (in front of the lectern), and leaves by `exit`, which stays locked until
+ * the wizard has reached the lectern. `lines` is what it says in plain words.
+ */
+export const LECTERN_ROOM = {
+  id: 'lectern',
+  name: 'The Whispering Lectern',
+  blurb: 'A lectern whispers in a familiar voice, in a language you don’t understand.',
+  width: 5,
+  height: 5,
+  start: 'a1',
+  feature: 'c3',
+  read: 'c2',
+  exit: 'e5',
+  seats: [] as string[],
+  lines: {
+    blood: '…Still lost, would you? Though I am so thirsty… let me taste your blood.',
+    fed: 'Hmm… my favorite.',
+  },
+} as const;
+
+/**
+ * Room 0, the prologue (team decision, Nov 5): where a new run wakes up. 3x4, a campfire with a rock to sit on, a
+ * corner where the ceiling has collapsed (moonlight, dust and gravel come down: walkable), and the big dungeon door.
+ * No enemies; actions and mana never run out and the hand refills after every cast, so it's the place to try spells.
+ * Going through the door starts the run (the Cistern). It isn't one of the run's numbered stops.
+ */
+export const PROLOGUE_ROOM = {
+  id: 'prologue',
+  name: 'The Waking Room',
+  blurb: 'Where you wake, again. A dying fire, a rock to sit on, and the moon through a hole in the ceiling.',
+  width: 3,
+  height: 4,
+  start: 'a1',
+  feature: 'b2',
+  read: 'b1',
+  seats: ['a2'],
+  moonlight: ['a3', 'a4'],
+  exit: 'c4',
+  /** What the wizard thinks on waking (shown in a thought cloud). */
+  wakeThought: 'Dream of outside again… How long have I been stuck here…',
+} as const;
+
+/**
+ * The camp's room (team decision, Nov 4): like the lectern's, but built around a campfire with logs to sit on (the
+ * logs block their tiles). The wizard walks up to the fire, rests or tears out a page, and walks out.
+ */
+export const CAMP_ROOM = {
+  id: 'camp',
+  name: 'Camp',
+  blurb: 'A campfire crackles between a few logs. Somewhere safe, for a moment.',
+  width: 5,
+  height: 5,
+  start: 'a1',
+  feature: 'c3',
+  read: 'c2',
+  exit: 'e5',
+  seats: ['b3', 'd3', 'c4'],
 } as const;
 
 export type AttackKind = 'melee' | 'ranged' | 'drain' | 'telegraph' | 'none' | 'steal' | 'explode';

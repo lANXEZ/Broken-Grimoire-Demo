@@ -12,12 +12,24 @@ export const TIMING = {
   castFlash: 650,
   /** How long a floating damage number stays up. */
   damageNumber: 950,
+  /** How long the flame burst and "Burn 3" pop-up stay up when a unit catches fire. */
+  burnPopup: 1300,
+  /** A new line in the "Hmmm..." note glows this long. */
+  noteFresh: 2600,
   /** After CLEARED!: time per tile when the wizard walks to a clicked tile. */
   freeWalkStep: 170,
   /** Picking up a drop: the card is shown big for this long… */
   pickupHold: 800,
   /** …then flies into the discard pile (or the hand) in this long. */
   pickupFly: 450,
+  /** The lectern's room: pause before the wizard walks up to the lectern, and before walking out once it's over. */
+  eventWalkInDelay: 700,
+  eventWalkOutDelay: 1800,
+  /** The opening: the title fading out (Continue), the eyes closing (New game), the waking blink, the first thought. */
+  titleFade: 500,
+  eyesClose: 455,
+  wakeBlink: 1820,
+  wakeThought: 5500,
   /** Toasts (loot, errors) auto-dismiss after this. */
   toast: 3400,
 } as const;

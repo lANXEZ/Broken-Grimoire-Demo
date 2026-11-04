@@ -1,5 +1,5 @@
 import { cardsLabel, drawCards, freshShuffle, grimoireBroken, newCardState, ownedCards, refillHand, takeFromHand, type DrawResult } from './cards';
-import { ENEMY_DEFS, ROOMS, RULES, RUN, coordLabel, parseCoord } from './data';
+import { CAMP_ROOM, ENEMY_DEFS, LECTERN_ROOM, PROLOGUE_ROOM, ROOMS, RULES, RUN, coordLabel, parseCoord } from './data';
 import {
   RuleError,
   checkCleared,
@@ -15,7 +15,7 @@ import {
 } from './core';
 import { random } from './rng';
 import { randomRuneMap, runeName } from './runes';
-import { DIR_VECTORS, addPos, hazardAt, isLockedExit, isWalkable, manhattan, samePos, walkPath } from './grid';
+import { DIR_VECTORS, addPos, exitOpen, hazardAt, isLockedExit, isWalkable, manhattan, samePos, walkPath } from './grid';
 import type { Dir, Element, Enemy, EnemyKind, GameState, Pos, RuneEffect } from './types';
 
 export interface NewGameOptions {
@@ -23,6 +23,10 @@ export interface NewGameOptions {
   runeMap?: RuneEffect[];
   /** Grimoire pages written in earlier runs. */
   grimoire?: string[];
+  /** Card combinations already in the "Hmmm..." note (kept across runs). */
+  combos?: string[];
+  /** Start in room 0 (the prologue) instead of straight in the Cistern. The app always does; tests mostly don't. */
+  prologue?: boolean;
 }
 
 export function createGame(seed: number = Date.now(), opts: NewGameOptions = {}): GameState {
@@ -30,7 +34,7 @@ export function createGame(seed: number = Date.now(), opts: NewGameOptions = {})
     cards: newCardState(),
     stage: 0,
     roomIndex: 0,
-    room: { id: '', name: '', blurb: '', width: 0, height: 0, pillars: [], holes: [], exit: null, exitAlwaysOpen: false, hazards: [], drops: [] },
+    room: { id: '', name: '', blurb: '', width: 0, height: 0, pillars: [], holes: [], exit: null, exitAlwaysOpen: false, feature: null, seats: [], hazards: [], drops: [] },
     player: {
       pos: { x: 0, y: 0 },
       hp: RULES.playerMaxHp,
@@ -54,11 +58,14 @@ export function createGame(seed: number = Date.now(), opts: NewGameOptions = {})
     runeMap: [],
     runesFound: [],
     grimoire: [...(opts.grimoire ?? [])],
+    combos: [...(opts.combos ?? [])],
+    event: null,
     lastDrops: [],
   };
   state.runeMap = opts.runeMap ? [...opts.runeMap] : randomRuneMap(() => random(state));
   log(state, 'system', `New run: your deck holds ${state.cards.deck.length} fragments.`);
-  loadRoom(state, 0);
+  if (opts.prologue) loadPrologue(state);
+  else loadRoom(state, 0);
   return state;
 }
 
@@ -84,9 +91,12 @@ export function loadRoom(state: GameState, index: number): void {
     holes: def.holes.map(parseCoord),
     exit: def.exit ? parseCoord(def.exit) : null,
     exitAlwaysOpen: !!def.exitAlwaysOpen,
+    feature: null,
+    seats: [],
     hazards: [],
     drops: [],
   };
+  state.event = null;
   state.enemies = [];
   state.typeCounters = {};
   state.nextDeployId = 1;
@@ -151,6 +161,14 @@ export function playerAction(state: GameState, body: (s: GameState) => void): Ga
   body(s);
   checkCleared(s);
   if (s.phase !== 'player') return s;
+  // Room 0: actions and mana never run out, Unstable Fire comes back, and the hand refills after every action.
+  if (isPrologue(s)) {
+    s.actionsLeft = RULES.actionsPerTurn;
+    s.player.mana = s.player.maxMana;
+    s.player.unstableUsed = false;
+    refillHand(s);
+    return s;
+  }
   s.actionsLeft -= 1;
   if (s.actionsLeft <= 0) endTurnInPlace(s);
   return s;
@@ -285,18 +303,33 @@ function eraseFragment(s: GameState): void {
 // ---------------------------------------------------------------------------
 
 /** The tiles the wizard would walk through to reach `to` after the room is cleared (null if unreachable). */
+/** Room 0, the prologue (before the run's first stop). */
+export const isPrologue = (state: GameState) => state.room.id === PROLOGUE_ROOM.id;
+
+/** After CLEARED!, in the lectern's and the camp's rooms (where the app does the walking), and in room 0. */
+const walksFreely = (state: GameState) =>
+  state.phase === 'cleared' || state.phase === 'event' || state.phase === 'camp' || (state.phase === 'player' && isPrologue(state));
+
 export function freeWalkPath(state: GameState, to: Pos): Pos[] | null {
-  if (state.phase !== 'cleared') return null;
+  if (!walksFreely(state)) return null;
   return walkPath(state, state.player.pos, to);
 }
 
-/** One free step (no action, no turn) to an adjacent tile, picking up anything lying there. */
+/**
+ * One free step (no action, no turn) to an adjacent tile, picking up anything lying there. Works after CLEARED!
+ * and in the lectern's and camp's rooms, where reaching the lectern / fire starts the choice (and opens the door).
+ */
 export function freeStep(state: GameState, to: Pos): GameState {
-  if (state.phase !== 'cleared') throw new RuleError('You can only walk freely once the room is cleared.');
+  if (!walksFreely(state)) throw new RuleError('You can only walk freely once the room is cleared.');
   if (manhattan(state.player.pos, to) !== 1 || !isWalkable(state, to)) throw new RuleError('That tile is blocked.');
   const s = cloneState(state);
   s.player.pos = { ...to };
   enterTile(s, 'player', 'player');
+  const feature = s.room.feature;
+  if (s.event?.step === 'approach' && feature && manhattan(s.player.pos, feature.pos) === 1) {
+    s.event = { step: 'offer', said: null };
+    log(s, 'system', feature.kind === 'lectern' ? 'The lectern whispers to you in a familiar voice, in a language you don’t understand.' : 'You sit down by the fire.');
+  }
   return s;
 }
 
@@ -308,7 +341,8 @@ export function freeStep(state: GameState, to: Pos): GameState {
  */
 export function continueRun(state: GameState): GameState {
   const early = state.phase === 'player' && state.room.exitAlwaysOpen;
-  if (state.phase !== 'cleared' && !early) throw new RuleError('The room isn’t cleared yet.');
+  const between = (state.phase === 'event' || state.phase === 'camp') && exitOpen(state);
+  if (state.phase !== 'cleared' && !early && !between) throw new RuleError('The room isn’t cleared yet.');
   if (state.room.exit && !samePos(state.player.pos, state.room.exit)) throw new RuleError('Walk to the door first.');
   const s = cloneState(state);
   log(s, 'player', `You leave ${s.room.name} through the door.`);
@@ -333,15 +367,91 @@ function enterStage(s: GameState, stage: number): void {
   if (next.kind === 'room') {
     loadRoom(s, next.room);
   } else if (next.kind === 'event') {
-    s.phase = 'event';
-    log(s, 'system', 'Event: The Whispering Lectern.');
+    loadFeatureRoom(s, LECTERN_ROOM, 'lectern', 'event');
   } else {
-    s.phase = 'camp';
-    log(s, 'system', 'You reach a camp.');
+    loadFeatureRoom(s, CAMP_ROOM, 'campfire', 'camp');
   }
 }
 
-export type EventChoice = 'read' | 'copy' | 'leave';
+/** Room 0: where a new run wakes up (see PROLOGUE_ROOM). Before the first stop, so `stage` is -1. */
+function loadPrologue(s: GameState): void {
+  const R = PROLOGUE_ROOM;
+  s.stage = -1;
+  s.roomIndex = -1;
+  s.room = {
+    id: R.id,
+    name: R.name,
+    blurb: R.blurb,
+    width: R.width,
+    height: R.height,
+    pillars: [],
+    holes: [],
+    exit: parseCoord(R.exit),
+    exitAlwaysOpen: true,
+    feature: { kind: 'campfire', pos: parseCoord(R.feature), read: parseCoord(R.read) },
+    seats: R.seats.map(parseCoord),
+    seatStyle: 'rock',
+    moonlight: R.moonlight.map(parseCoord),
+    bigDoor: true,
+    hazards: [],
+    drops: [],
+  };
+  s.event = null;
+  s.enemies = [];
+  s.erasureZone = [];
+  s.player.pos = parseCoord(R.start);
+  s.player.mana = s.player.maxMana;
+  s.player.status = noStatus();
+  s.player.unstableUsed = false;
+  s.turn = 1;
+  s.phase = 'player';
+  s.actionsLeft = RULES.actionsPerTurn;
+  log(s, 'system', `${R.name}: ${R.blurb}`);
+  logDraw(s, freshShuffle(s), 'You draw');
+}
+
+/** Restart the stop the run is at (for saves made before a stop's rules changed). */
+export function restartStage(state: GameState): GameState {
+  const s = cloneState(state);
+  if (s.stage < 0) {
+    loadPrologue(s);
+    return s;
+  }
+  enterStage(s, s.stage);
+  return s;
+}
+
+/** A between-rooms room (the lectern's, the camp's): no enemies, a feature in the middle, the door locked until you reach it. */
+function loadFeatureRoom(s: GameState, R: typeof LECTERN_ROOM | typeof CAMP_ROOM, kind: 'lectern' | 'campfire', phase: 'event' | 'camp'): void {
+  s.room = {
+    id: R.id,
+    name: R.name,
+    blurb: R.blurb,
+    width: R.width,
+    height: R.height,
+    pillars: [],
+    holes: [],
+    exit: parseCoord(R.exit),
+    exitAlwaysOpen: false,
+    feature: { kind, pos: parseCoord(R.feature), read: parseCoord(R.read) },
+    seats: R.seats.map(parseCoord),
+    hazards: [],
+    drops: [],
+  };
+  s.enemies = [];
+  s.erasureZone = [];
+  s.player.pos = parseCoord(R.start);
+  s.player.status = noStatus();
+  s.phase = phase;
+  s.event = { step: 'approach', said: null };
+  log(s, 'system', `${R.name}: ${R.blurb}`);
+}
+
+/**
+ * The lectern's choices. offer: 'take' (a rune) or 'leave'. blood: 'blood' (another rune for HP, which can kill)
+ * or 'walk' (away). Every path ends at 'done', with the door open.
+ */
+export type EventChoice = 'take' | 'leave' | 'blood' | 'walk';
 
 /** Give the wizard `n` runes (into the deck). */
 function grantRunes(s: GameState, n: number): void {
@@ -353,29 +463,46 @@ function grantRunes(s: GameState, n: number): void {
   }
 }
 
-/** The Whispering Lectern: read aloud (2 runes, −3 HP, never below 1), copy one page (1 rune), or leave. */
+/** Why this choice can't be made now (null = it can). */
+export function eventError(state: GameState, choice: EventChoice): string | null {
+  if (state.phase !== 'event' || !state.event) return 'There is no event here.';
+  const step = state.event.step;
+  if (step === 'approach') return 'Walk up to the lectern first.';
+  if ((choice === 'take' || choice === 'leave') && step !== 'offer') return 'That choice has passed.';
+  if ((choice === 'blood' || choice === 'walk') && step !== 'blood') return 'That choice has passed.';
+  return null;
+}
+
+/** The Whispering Lectern. The wizard stays in the room afterwards; Continue (the door) moves on. */
 export function eventChoice(state: GameState, choice: EventChoice): GameState {
-  if (state.phase !== 'event') throw new RuleError('There is no event here.');
+  const err = eventError(state, choice);
+  if (err) throw new RuleError(err);
   const s = cloneState(state);
-  if (choice === 'read') {
-    const before = s.player.hp;
-    s.player.hp = Math.max(1, before - RULES.eventReadHpCost);
-    log(s, 'system', `You read the pages aloud. The words burn your throat: HP ${before} → ${s.player.hp}.`);
-    grantRunes(s, RULES.eventReadRunes);
-  } else if (choice === 'copy') {
-    log(s, 'system', 'You copy one page carefully.');
-    grantRunes(s, RULES.eventCopyRunes);
+  if (choice === 'take') {
+    log(s, 'system', 'You take a rune fragment from the lectern.');
+    grantRunes(s, 1);
+    s.event = { step: 'blood', said: LECTERN_ROOM.lines.blood };
+    log(s, 'system', `The lectern speaks: “${LECTERN_ROOM.lines.blood}”`);
+  } else if (choice === 'blood') {
+    log(s, 'system', 'You give the lectern some blood.');
+    damagePlayer(s, RULES.eventBloodCost, 'The lectern', 'system');
+    if (s.phase === 'lost') return s;
+    grantRunes(s, 1);
+    s.event = { step: 'done', said: LECTERN_ROOM.lines.fed };
+    log(s, 'system', `The lectern: “${LECTERN_ROOM.lines.fed}”`);
   } else {
-    log(s, 'system', 'You leave the lectern alone.');
+    log(s, 'system', choice === 'leave' ? 'You leave the lectern alone.' : 'You walk away from the lectern.');
+    s.event = { step: 'done', said: null };
   }
-  enterStage(s, s.stage + 1);
   return s;
 }
 
 export type CampChoice = { kind: 'rest' } | { kind: 'tear'; cardId: number };
 
 export function campError(state: GameState, choice: CampChoice): string | null {
-  if (state.phase !== 'camp') return 'There is no camp here.';
+  if (state.phase !== 'camp' || !state.event) return 'There is no camp here.';
+  if (state.event.step === 'approach') return 'Walk up to the fire first.';
+  if (state.event.step !== 'offer') return 'You’ve already made your choice.';
   if (choice.kind === 'rest') return null;
   const all = ownedCards(state.cards);
   if (!all.some((c) => c.id === choice.cardId)) return 'That fragment isn’t in your deck.';
@@ -389,7 +516,10 @@ export function campError(state: GameState, choice: CampChoice): string | null {
   return null;
 }
 
-/** The camp: rest (heal to full) or tear a page out (remove one fragment from your deck for good). */
+/**
+ * The camp: rest (heal to full) or tear a page out (remove one fragment from your deck for good). The wizard stays
+ * in the room afterwards; the app walks them out through the door (Continue).
+ */
 export function campChoice(state: GameState, choice: CampChoice): GameState {
   const err = campError(state, choice);
   if (err) throw new RuleError(err);
@@ -398,14 +528,15 @@ export function campChoice(state: GameState, choice: CampChoice): GameState {
     const before = s.player.hp;
     s.player.hp = s.player.maxHp;
     log(s, 'system', `You rest by the fire: HP ${before} → ${s.player.hp}.`);
+    s.event = { step: 'done', said: before < s.player.hp ? `You rest by the fire: HP ${before} → ${s.player.hp}.` : 'You rest by the fire.' };
   } else {
     const card = ownedCards(s.cards).find((c) => c.id === choice.cardId)!;
     s.cards.hand = s.cards.hand.filter((c) => c.id !== card.id);
     s.cards.deck = s.cards.deck.filter((c) => c.id !== card.id);
     s.cards.discard = s.cards.discard.filter((c) => c.id !== card.id);
     log(s, 'system', `You tear out a page: ${cardsLabel([card])} leaves your deck for good.`);
+    s.event = { step: 'done', said: `You tear out a page: ${cardsLabel([card])} is gone for good.` };
   }
-  enterStage(s, s.stage + 1);
   return s;
 }
 

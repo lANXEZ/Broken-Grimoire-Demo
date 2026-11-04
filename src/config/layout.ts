@@ -32,7 +32,13 @@ export const LAYOUT = {
   board: { top: 74, bottom: 440, sideMargin: 260 },
 
   /** Hand of fragment cards, centred at the bottom. `fanDeg` is the tilt between neighbouring cards. */
-  hand: { bottom: -24, cardWidth: 160, cardHeight: 224, spacing: 128, fanDeg: 4, arcDrop: 10, hoverLift: 70, hoverScale: 1.18 },
+  hand: { bottom: -24, cardWidth: 160, cardHeight: 224, spacing: 128, fanDeg: 4, arcDrop: 10, hoverLift: 70, hoverScale: 1.18, noteLift: 56 },
+
+  /**
+   * The "Hmmm..." note: the wizard's memory of card combinations, a column on the left under the top bar and above
+   * the mana orb (the board keeps `board.sideMargin` free on each side).
+   */
+  hmmm: { left: 18, top: 84, width: 236, bottom: 452 },
 
   /**
    * The crafting table: one big drop area centred above the hand. `offsetX` nudges it sideways from the screen
@@ -99,6 +105,10 @@ export function layoutCssVars(): Record<string, string> {
   const L = LAYOUT;
   return {
     '--topbar-h': px(L.topBar.height),
+    '--hmmm-left': px(L.hmmm.left),
+    '--hmmm-top': px(L.hmmm.top),
+    '--hmmm-w': px(L.hmmm.width),
+    '--hmmm-bottom': px(L.hmmm.bottom),
     '--hand-bottom': px(L.hand.bottom),
     '--card-w': px(L.hand.cardWidth),
     '--card-h': px(L.hand.cardHeight),

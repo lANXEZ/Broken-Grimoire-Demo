@@ -16,10 +16,10 @@ function countKinds(cards: Card[]) {
 }
 
 /** [UI-PLACEMENT] Mana orb, bottom left (LAYOUT.manaOrb). Slay the Spire's energy orb, but for mana. */
-export function ManaOrb({ mana, maxMana, cost }: { mana: number; maxMana: number; cost?: number }) {
+export function ManaOrb({ mana, maxMana, cost, runeGlow = false }: { mana: number; maxMana: number; cost?: number; runeGlow?: boolean }) {
   const short = cost !== undefined && cost > mana;
   return (
-    <div className={`mana-orb ${short ? 'is-short' : ''}`} title={`Mana ${mana}/${maxMana}`}>
+    <div className={`mana-orb ${short ? 'is-short' : ''} ${runeGlow ? 'is-rune' : ''}`} title={`Mana ${mana}/${maxMana}`}>
       <div className="mana-orb-glow" />
       <div className="mana-value">
         {mana}

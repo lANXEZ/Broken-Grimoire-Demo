@@ -1,5 +1,5 @@
 import { cardsLabel, grimoireBroken, newCard, rollDrop } from './cards';
-import { ENEMY_DEFS, RULES, coordLabel } from './data';
+import { ENEMY_DEFS, PROLOGUE_ROOM, RULES, coordLabel } from './data';
 import { addPos, enemyAt, hazardAt, inBounds, isHole, isLockedExit, pillarAt, samePos } from './grid';
 import { pick } from './rng';
 import { runeName } from './runes';
@@ -38,6 +38,8 @@ export function checkGrimoire(state: GameState): void {
  */
 export function checkCleared(state: GameState): void {
   if ((state.phase !== 'player' && state.phase !== 'enemy') || state.enemies.length > 0) return;
+  // Room 0 has no enemies to clear: it's left by its door.
+  if (state.room.id === PROLOGUE_ROOM.id) return;
   state.phase = 'cleared';
   state.player.status = noStatus();
   state.room.hazards = [];

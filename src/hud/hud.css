@@ -942,7 +942,8 @@ button {
 .dev-bar {
   position: absolute;
   top: calc(var(--topbar-h) + 0.6rem);
-  left: 0.8rem;
+  /* Right of the "Hmmm..." note. */
+  left: calc(var(--hmmm-left) + var(--hmmm-w) + 1.2rem);
   display: flex;
   gap: 0.35rem;
   align-items: center;
@@ -964,6 +965,10 @@ button {
   padding: 0.15rem 0.5rem;
   font-size: 0.8rem;
   cursor: pointer;
+}
+.dev-bar button.is-danger {
+  background: #8b2e2a;
+  border-color: #ff9a8a;
 }
 .dev-bar button:disabled {
   opacity: 0.4;
@@ -1082,6 +1087,7 @@ button {
 }
 
 .float-stack {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1098,6 +1104,75 @@ button {
 }
 .float-heal {
   color: #7be08a;
+}
+/* Damage from a Burn tick: orange, with the Burn icon. */
+.float-burn-tick {
+  display: flex;
+  align-items: center;
+  gap: 0.15em;
+  color: #ff9a3c;
+}
+.float-num img {
+  width: 0.85em;
+  height: 0.85em;
+  object-fit: contain;
+}
+/* A unit catches fire (Magma, Fire spells, Unstable Fire): "Burn 3" pops up over a flame burst. */
+.float-ignite {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+  font-size: 1.45rem;
+  color: #ffb347;
+  white-space: nowrap;
+  animation: float-ignite 1.3s ease-out forwards;
+}
+@keyframes float-ignite {
+  0% {
+    opacity: 0;
+    transform: translateY(0.4rem) scale(0.6);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1.25);
+  }
+  25% {
+    transform: translateY(-0.2rem) scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-1.6rem) scale(1);
+  }
+}
+.ignite-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7rem;
+  height: 7rem;
+  margin: -3.5rem 0 0 -3.5rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff3c4 0, #ffb347cc 22%, #ff5a1f88 45%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: ignite-burst 0.75s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes ignite-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5) translateY(-1rem);
+  }
 }
 @keyframes float-up {
   0% {
@@ -1275,6 +1350,141 @@ button {
   border-radius: 50%;
   background: #9c2a22;
   box-shadow: inset 0 0 0 0.15em #c2463b;
+}
+/* Wind and Wall, drawn in the printed kit's card layout (hud/KitCard.tsx). Sizes are container units so the card
+   scales like an image: cqw = % of the card's width, cqh = % of its height. */
+.fragment-card.has-art,
+.fragment-card.kit-card {
+  position: relative;
+  container-type: size;
+}
+.fragment-card.kit-card {
+  background: #1f150e;
+}
+/* The thin light edge around the printed cards' dark frame (a child, so cqw measures this card). */
+.fragment-card.kit-card::before {
+  content: '';
+  position: absolute;
+  inset: 0.6cqw;
+  border: 0.45cqw solid #d9c8a4;
+  border-radius: 0.45rem;
+}
+.kit-paper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10.5cqh 8cqw 10cqh;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 78% 82%, #e6dac466 0 9cqw, transparent 9.3cqw),
+    radial-gradient(circle at 25% 20%, #fdf9ef, transparent 65%),
+    repeating-linear-gradient(0deg, transparent 0 5.4cqh, #b8a7891c 5.4cqh 5.75cqh),
+    #f2e9d6;
+  color: #231810;
+  text-align: center;
+}
+.kit-label {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 3.6cqw;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3b2c20;
+}
+.kit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78cqw;
+  height: 8.6cqh;
+  margin-top: 2.4cqh;
+  transform: rotate(-1deg);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 1.1cqh, #ffffff30 1.1cqh 1.4cqh),
+    linear-gradient(90deg, transparent, var(--kit-banner) 5%, var(--kit-banner) 93%, transparent);
+  border-radius: 1.2cqw 3cqw 1.5cqw 2.5cqw;
+}
+.kit-banner span {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 9.2cqw;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #2b1f16;
+  transform: rotate(1deg);
+}
+.kit-picture {
+  width: 76cqw;
+  height: 25cqh;
+  margin-top: 3cqh;
+}
+.kit-picture svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.kit-body {
+  margin-top: 2.2cqh;
+  font-size: 5.3cqw;
+  line-height: 1.25;
+}
+.kit-body b {
+  font-weight: 700;
+}
+.kit-doubled {
+  margin-top: 2.6cqh;
+  font-size: 4.1cqw;
+  line-height: 1.3;
+  font-style: italic;
+  color: #5b4a3b;
+}
+.kit-chip {
+  margin-top: auto;
+  padding: 0.7cqh 2.6cqw 0.5cqh;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 4.1cqw;
+  text-transform: uppercase;
+  color: var(--kit-ink);
+  border: 0.5cqw solid var(--kit-ink);
+  border-radius: 1.2cqw;
+  background: color-mix(in srgb, var(--kit-banner) 45%, transparent);
+}
+.kit-card.is-loot .kit-chip {
+  color: #4a3424;
+  border-color: #4a3424;
+  background: #e8dcc5;
+}
+/* The punched holes down the left edge of the dark frame. */
+.kit-holes {
+  position: absolute;
+  left: 0.9cqw;
+  top: 7cqh;
+  bottom: 7cqh;
+  width: 1.6cqw;
+  background: radial-gradient(circle, #e9dfc9 0 32%, transparent 38%) 0 0 / 1.6cqw 6.6cqh repeat-y;
+  opacity: 0.85;
+}
+/* The red wax seal on loot cards (also drawn over kit art that has no loot version, like Cross). */
+.kit-seal {
+  position: absolute;
+  top: 8.6cqh;
+  right: 15cqw;
+  width: 10.5cqw;
+  height: 10.5cqw;
+  display: grid;
+  place-items: center;
+  border-radius: 46% 54% 50% 50%;
+  background: radial-gradient(circle at 40% 35%, #d2473a, #9c2219 60%, #6d1410);
+  box-shadow: 0 0.4cqw 0.8cqw #0006;
+}
+.kit-seal::after {
+  content: '★';
+  font-size: 5cqw;
+  line-height: 1;
+  color: #5e0f0b;
 }
 /* Cards on the crafting table are smaller: shrink the drawn text with them. */
 .table-card .fragment-card.is-drawn {
@@ -1635,4 +1845,799 @@ button {
   50% {
     box-shadow: 0 0 1.6rem #ffe2a0cc, 0 0.3rem 0.8rem #000a;
   }
+}
+
+/* ------------------------------------------------------------------ the wizard's thoughts (hud/Thought.tsx) */
+
+/* PLACEHOLDER look: a twisted, foggy, blurry cloud. Sized in em, so it scales with the text inside it. */
+.thought {
+  position: relative;
+  isolation: isolate;
+  color: #2d2538;
+}
+.thought-fog,
+.thought-puff {
+  position: absolute;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 22% 28%, #fbf9fd 0 28%, transparent 58%),
+    radial-gradient(ellipse at 78% 22%, #f3eff8 0 30%, transparent 60%),
+    radial-gradient(ellipse at 55% 85%, #f1edf6 0 32%, transparent 62%),
+    #e6e0edeb;
+  box-shadow: 0 0 0.7em 0.2em #e6e0ed88, 0 0.35em 1em #0008;
+  /* Twisted, foggy edges: the SVG filters in hud/Thought.tsx `ThoughtFilters`. */
+  filter: url(#thought-warp-sm);
+}
+.hmmm > .thought-fog {
+  filter: url(#thought-warp);
+}
+.thought-fog {
+  inset: -0.3em -0.45em;
+  border-radius: 48% 52% 44% 56% / 58% 48% 52% 42%;
+  overflow: hidden;
+  animation: thought-drift 7s ease-in-out infinite alternate;
+}
+/* The twist: a faint swirl turning slowly inside the fog. */
+.thought-fog::after {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(from 0deg at 45% 50%, transparent 0 8%, #ffffff70 14%, transparent 24% 40%, #cfc4de66 50%, transparent 62% 76%, #ffffff60 86%, transparent 94%);
+  filter: blur(0.7em);
+  animation: thought-swirl 18s linear infinite;
+}
+.thought-body {
+  position: relative;
+}
+.thought-puff {
+  border-radius: 50%;
+}
+.puff-a {
+  width: 0.8em;
+  height: 0.6em;
+  left: 38%;
+  bottom: -1em;
+}
+.puff-b {
+  width: 0.45em;
+  height: 0.38em;
+  left: 31%;
+  bottom: -1.55em;
+}
+@keyframes thought-drift {
+  0% {
+    transform: rotate(-1.2deg) scale(1);
+  }
+  100% {
+    transform: rotate(1.2deg) scale(1.025);
+  }
+}
+@keyframes thought-swirl {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ------------------------------------------------------------------ rune cards: the thought bubble with the player's note */
+
+.rune-holder {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  container-type: inline-size;
+}
+.rune-thought {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.9em);
+  width: 116cqw;
+  transform: translateX(-50%);
+  font-size: max(10cqw, 0.62rem);
+  line-height: 1.2;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+}
+.rune-thought .thought-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+  min-height: 1.5em;
+  padding: 0.25em 0.2em;
+}
+.rune-thought-text {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+.rune-thought-text.is-default {
+  color: #6e6380;
+}
+.rune-thought-edit {
+  flex: none;
+  width: 1.5em;
+  height: 1.5em;
+  padding: 0;
+  border: 0.08em solid #9a8cb0;
+  border-radius: 50%;
+  background: #fffc;
+  color: #4a3d5c;
+  font-size: 0.95em;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.rune-thought-edit:hover {
+  background: #fff;
+  border-color: #6b55a0;
+}
+.rune-thought.is-editing {
+  z-index: 60;
+}
+.rune-thought-input {
+  width: 100%;
+  min-height: 2.6em;
+  padding: 0.2em 0.3em;
+  border: 0.08em solid #9a8cb0;
+  border-radius: 0.4em;
+  background: #fffe;
+  color: #2d2538;
+  font: italic 1em/1.2 'Kreon', Georgia, serif;
+  resize: none;
+  outline: none;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ------------------------------------------------------------------ "Hmmm..."  [UI-PLACEMENT] LAYOUT.hmmm */
+
+.hmmm {
+  position: absolute;
+  left: var(--hmmm-left);
+  top: var(--hmmm-top);
+  width: var(--hmmm-w);
+  max-height: calc(100% - var(--hmmm-top) - var(--hmmm-bottom));
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  pointer-events: auto;
+}
+.hmmm > .thought-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0.6rem 0.5rem 0.7rem;
+}
+.hmmm > .thought-fog {
+  inset: -0.2rem -0.3rem;
+  border-radius: 1.6rem 2.2rem 1.4rem 2rem / 2rem 1.5rem 2.2rem 1.6rem;
+}
+.hmmm-title {
+  font-style: italic;
+  font-weight: 700;
+  font-size: 1.45rem;
+  color: #4a3d5c;
+  margin: 0 0 0.3rem 0.3rem;
+}
+.hmmm-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0.15rem 0.1rem;
+  scrollbar-width: thin;
+  scrollbar-color: #a596ba transparent;
+}
+.hmmm-section {
+  margin: 0.35rem 0.2rem 0.3rem;
+  padding-bottom: 0.15rem;
+  border-bottom: 0.08rem dashed #9a8cb0;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: #5b4d6e;
+}
+.hmmm-empty,
+.hmmm-hidden {
+  margin: 0.3rem;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: #5b4d6e;
+}
+.hmmm-line {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.35rem;
+  padding: 0.35rem 0.45rem 0.3rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: #ffffff59;
+  border: 0.1rem solid transparent;
+  border-radius: 0.7rem;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, opacity 0.12s;
+}
+.hmmm-line:not(:disabled) {
+  cursor: pointer;
+}
+.hmmm-line.is-available:not(:disabled):hover,
+.hmmm-line.is-available:not(:disabled):focus-visible {
+  background: #ffffffc0;
+  border-color: #a68bd0;
+  box-shadow: 0 0 0.8rem #b9a3e0aa;
+  outline: none;
+}
+/* Ghosted: combinations the hand can't make right now. */
+.hmmm-line.is-missing {
+  opacity: 0.45;
+  filter: grayscale(0.5);
+}
+.hmmm-line.is-fresh {
+  animation: hmmm-fresh 2.6s ease-out;
+}
+@keyframes hmmm-fresh {
+  0%,
+  40% {
+    background: #fff3c4;
+    box-shadow: 0 0 1rem #ffd36b;
+  }
+}
+.hmmm-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+.hmmm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.08rem 0.35rem 0.08rem 0.2rem;
+  border: 0.1rem solid color-mix(in srgb, var(--frag-color, #8f86a8) 55%, #fff);
+  border-radius: 0.45rem;
+  background: #fffd;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.hmmm-chip img {
+  width: 1.05rem;
+  height: 1.05rem;
+  object-fit: contain;
+}
+.hmmm-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin: 0 0.1rem;
+  border-radius: 50%;
+  background: var(--frag-color);
+  box-shadow: inset 0 0 0 0.1rem #0003;
+}
+/* Cards already on the crafting table light up in every line. */
+.hmmm-chip.is-on-table {
+  background: color-mix(in srgb, var(--frag-color, #8f86a8) 38%, #fff);
+  border-color: var(--frag-color, #8f86a8);
+  box-shadow: 0 0 0.55rem var(--frag-color, #8f86a8);
+  font-weight: 700;
+}
+.hmmm-chip.is-rune {
+  --frag-color: #8f86a8;
+}
+.hmmm-glyph {
+  font-family: serif;
+  font-size: 0.95rem;
+  color: #3b3150;
+}
+.hmmm-rune {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+/* The player's own note on the rune, as a little thought above its chip. */
+.hmmm-rune-note {
+  max-width: 8.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 1em;
+  background: #f7f3fb;
+  box-shadow: 0 0 0.45rem 0.1rem #ffffffcc;
+  font-style: italic;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.hmmm-rune-note.is-default {
+  color: #7a6f88;
+}
+.hmmm-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+.hmmm-cost {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #9fd2ff, #2f6fd0 70%);
+  box-shadow: 0 0 0 0.08rem #1d3f7a;
+  color: #fff;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-shadow: 0 0.05rem 0.1rem #0008;
+}
+/* Not enough mana right now. */
+.hmmm-cost.is-short {
+  background: radial-gradient(circle at 35% 30%, #ffb0a6, #c0392b 70%);
+  box-shadow: 0 0 0 0.08rem #6e1a12;
+}
+.hmmm-effect {
+  font-size: 0.82rem;
+  color: #3b3146;
+}
+.hmmm-name {
+  display: block;
+  margin-top: 0.1rem;
+  font-style: italic;
+  font-size: 0.72rem;
+  color: #6d6280;
+}
+
+/* Hand cards a hovered "Hmmm..." line would use rise out of the fan. */
+.hand-card.is-pulled .fragment-card {
+  outline: 0.2rem solid #d9c8f5;
+  box-shadow: 0 0 1.2rem #c9b3f0, 0 0.35rem 0.9rem #000c;
+}
+
+/* ------------------------------------------------------------------ the Deck (top bar) */
+
+.deck-button {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.deck-button img {
+  height: 1.35rem;
+  border-radius: 0.15rem;
+}
+.deck-modal {
+  width: min(62rem, 92vw);
+  max-width: none;
+  max-height: 90vh;
+}
+.deck-scroll {
+  width: 100%;
+  max-height: 66vh;
+  overflow-y: auto;
+  padding: 0 0.5rem 0.5rem;
+  box-sizing: border-box;
+}
+.deck-section-title {
+  margin: 0.7rem 0 0.5rem;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: left;
+}
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 7.2rem);
+  justify-content: center;
+  gap: 0.8rem;
+}
+/* Runes wear their thought bubble above the card: leave room for it. */
+.deck-section.is-runes .deck-grid {
+  padding-top: 4.2rem;
+  row-gap: 4.8rem;
+}
+.deck-card {
+  width: 7.2rem;
+  height: 10.1rem;
+}
+
+/* ------------------------------------------------------------------ Menu: settings (Dev mode switch) */
+
+.settings {
+  width: 16rem;
+  margin-top: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 0.1rem solid #6b5136;
+}
+.settings-title {
+  margin-bottom: 0.4rem;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: left;
+}
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+}
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 1rem;
+}
+.toggle-hint {
+  font-size: 0.75rem;
+  color: var(--ink-dim);
+}
+/* A sliding switch made from the checkbox itself. */
+.toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  position: relative;
+  width: 2.8rem;
+  height: 1.5rem;
+  margin: 0;
+  border: 0.12rem solid #6b5136;
+  border-radius: 1rem;
+  background: #0006;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 0.13rem;
+  left: 0.15rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  transition: transform 0.15s, background 0.15s;
+}
+.toggle:checked {
+  background: #6b3fa0;
+  border-color: #c9a2f0;
+}
+.toggle:checked::after {
+  transform: translateX(1.3rem);
+  background: #fff;
+}
+.toggle:focus-visible {
+  outline: 0.15rem solid var(--gold);
+  outline-offset: 0.15rem;
+}
+
+/* ------------------------------------------------------------------ rune casts (App.tsx castTable, scene/SpellFx.tsx) */
+
+/* HP changes from a rune's part of a cast: purple. */
+.float-num.is-rune {
+  color: #d29bff;
+  text-shadow: 0 0 0.6rem #a24dff, 0 0.12rem 0.3rem #000;
+}
+/* Free: the mana coming back makes the orb glow purple. */
+.mana-orb.is-rune {
+  box-shadow: 0 0 2.6rem 0.6rem #b05cffcc, inset 0 -0.6rem 1.2rem #0008;
+  border-color: #d9b3ff;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.cast-skip-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--topbar-h) + 4.2rem);
+  transform: translateX(-50%);
+  padding: 0.25rem 0.9rem;
+  border-radius: 0.5rem;
+  background: #0008;
+  color: #d9c8f5;
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ the Whispering Lectern (hud/Dialogs.tsx EventPanel, scene/Lectern.tsx) */
+
+.event-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  border-color: #b48cff;
+  box-shadow: 0 0.8rem 2rem #000c, 0 0 1.4rem #b05cff44;
+}
+.event-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #d9b3ff;
+}
+.event-runes {
+  font-family: 'Segoe UI Historic', 'Noto Sans Runic', serif;
+  font-size: 1.35rem;
+  letter-spacing: 0.12em;
+  color: #e4c8ff;
+  text-shadow: 0 0 0.6rem #b05cff;
+}
+.event-said {
+  max-width: 30rem;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: #f0e2ff;
+}
+.event-panel .choice-list {
+  text-align: left;
+}
+.choice.is-deadly {
+  border-color: var(--danger);
+}
+.choice.is-deadly span {
+  color: #ffb3a8;
+}
+
+/* Above the lectern: what it says in plain words, and the runes it whispers drifting up. */
+.lectern-voice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(-50%);
+}
+.lectern-said {
+  width: max-content;
+  max-width: 17rem;
+  padding: 0.45rem 0.8rem;
+  border: 0.12rem solid #b48cff;
+  border-radius: 0.8rem;
+  background: #1e1428e6;
+  box-shadow: 0 0 1.2rem #b05cff66;
+  color: #f0e2ff;
+  font-style: italic;
+  font-size: 0.95rem;
+  text-align: center;
+  animation: fade-in 0.4s;
+}
+.lectern-whispers {
+  position: relative;
+  width: 12rem;
+  height: 6rem;
+}
+.lectern-whispers span {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: 'Segoe UI Historic', 'Noto Sans Runic', serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  color: #e9d6ff;
+  text-shadow: 0 0 0.5rem #b05cff, 0 0 1rem #7a3ad6;
+  opacity: 0;
+  animation: lectern-whisper 3.6s ease-in-out infinite;
+}
+@keyframes lectern-whisper {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0.5rem) scale(0.9);
+    filter: blur(0.15rem);
+  }
+  25% {
+    opacity: 0.95;
+    filter: blur(0);
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -4.5rem) scale(1.05);
+    filter: blur(0.2rem);
+  }
+}
+
+/* The camp's panel: firelight instead of the lectern's purple. */
+.camp-panel {
+  border-color: #e0a050;
+  box-shadow: 0 0.8rem 2rem #000c, 0 0 1.4rem #ff9a3c44;
+}
+.camp-panel .event-title {
+  color: #ffc875;
+}
+.camp-panel .event-said {
+  color: #ffe6c4;
+}
+
+/* ------------------------------------------------------------------ title screen  [UI-PLACEMENT] (hud/TitleScreen.tsx) */
+
+.title-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  overflow: hidden;
+  background-color: #04070a;
+  background-size: cover;
+  /* The moon sits left of centre, leaving the right side for the buttons. */
+  background-position: 62% 55%;
+  font-family: 'Kreon', Georgia, serif;
+  color: var(--ink);
+  transition: opacity 0.5s;
+}
+.title-screen::after {
+  /* Darken the edges and the right side a little so the title and buttons read. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 45%, #000a 100%),
+    radial-gradient(ellipse at 40% 55%, transparent 35%, #0009 100%);
+  pointer-events: none;
+}
+.title-screen.is-leaving {
+  opacity: 0;
+}
+.title-stars {
+  position: absolute;
+  inset: 0 0 45% 0;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, #fff9, transparent),
+    radial-gradient(1px 1px at 28% 8%, #fffa, transparent),
+    radial-gradient(1.5px 1.5px at 44% 22%, #fff8, transparent),
+    radial-gradient(1px 1px at 63% 12%, #fff9, transparent),
+    radial-gradient(1px 1px at 78% 26%, #fff7, transparent),
+    radial-gradient(1.5px 1.5px at 88% 9%, #fffa, transparent),
+    radial-gradient(1px 1px at 6% 34%, #fff6, transparent),
+    radial-gradient(1px 1px at 92% 38%, #fff7, transparent);
+  animation: title-twinkle 5s ease-in-out infinite alternate;
+}
+@keyframes title-twinkle {
+  to {
+    opacity: 0.45;
+  }
+}
+.title-fog {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  height: 40%;
+  bottom: -8%;
+  background: radial-gradient(ellipse at 50% 70%, #9fb0c855, transparent 65%);
+  filter: blur(1.2rem);
+  pointer-events: none;
+}
+.fog-a {
+  animation: title-fog 26s ease-in-out infinite alternate;
+}
+.fog-b {
+  bottom: -14%;
+  opacity: 0.7;
+  animation: title-fog 34s ease-in-out infinite alternate-reverse;
+}
+@keyframes title-fog {
+  from {
+    transform: translateX(-6%);
+  }
+  to {
+    transform: translateX(6%);
+  }
+}
+.title-name {
+  position: absolute;
+  top: 9vh;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: clamp(3rem, 8vw, 7.5rem);
+  letter-spacing: 0.08em;
+  color: #e9dcc0;
+  text-shadow: 0 0 2rem #ffd9a066, 0 0.4rem 1.5rem #000;
+}
+.title-name span {
+  color: #d9b768;
+}
+.title-menu {
+  position: absolute;
+  right: 9vw;
+  top: 50%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+  width: 18rem;
+  transform: translateY(-10%);
+}
+.title-button {
+  padding: 0.9rem 1.4rem;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+  color: #f3e6c8;
+  background: linear-gradient(#3a2a1ccc, #1a120ccc);
+  border: 0.15rem solid #d9b768;
+  border-radius: 0.6rem;
+  box-shadow: 0 0 1.4rem #00000099, inset 0 0 0.8rem #d9b76822;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.title-button:hover:not(:disabled),
+.title-button:focus-visible {
+  transform: translateX(-0.3rem);
+  border-color: #ffe2a0;
+  box-shadow: 0 0 1.8rem #ffd9a055, inset 0 0 1rem #d9b76844;
+  outline: none;
+}
+.title-button.is-secondary {
+  font-size: 1.15rem;
+  border-color: #8a7350;
+}
+.title-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.title-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  text-align: center;
+  color: #f3e6c8;
+  text-shadow: 0 0.1rem 0.4rem #000;
+}
+.title-credit {
+  position: absolute;
+  left: 1rem;
+  bottom: 0.7rem;
+  z-index: 1;
+  font-size: 0.75rem;
+  color: #ffffff66;
+}
+
+/* ------------------------------------------------------------------ waking up (hud/TitleScreen.tsx Blink) */
+
+.blink {
+  --lid-glow: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  pointer-events: none;
+  /* Black, with a warm red glow in the middle while the eyes are (nearly) shut. */
+  background: radial-gradient(ellipse at 50% 55%, rgb(110 28 18 / var(--lid-glow)) 0%, transparent 60%), #000;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+/* The world comes into focus while the eyes open. */
+.game-root.is-waking .scene,
+.game-root.is-waking .hud {
+  animation: wake-focus 1.82s ease-out forwards; /* = TIMING.wakeBlink */
+}
+/* Very blurry and dim through the first crack, then clearing as the eyes open the second time. */
+@keyframes wake-focus {
+  0%,
+  45% {
+    filter: blur(0.9rem) brightness(0.55);
+  }
+  62% {
+    filter: blur(0.7rem) brightness(0.6);
+  }
+  100% {
+    filter: none;
+  }
+}
+
+/* The wizard's thought over their head (room 0 on waking). */
+.unit-thought {
+  width: 15rem;
+  transform: translateY(-60%);
+  font-size: 1rem;
+  font-style: italic;
+  text-align: center;
+  line-height: 1.3;
+  animation: fade-in 0.6s;
+}
+.unit-thought .thought-body {
+  padding: 0.5rem 0.6rem;
 }

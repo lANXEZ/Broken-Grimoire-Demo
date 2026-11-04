@@ -5,7 +5,10 @@ import {
   campError,
   stageName,
   cardName,
+  isElementKind,
+  isShapeKind,
   ownedCards,
+  type Card,
   type CampChoice,
   type EventChoice,
   type GameState,
@@ -103,60 +106,111 @@ export function LeaveEarlyDialog({ state, onLeave, onStay }: { state: GameState;
   );
 }
 
-/** The Whispering Lectern (fixed event between rooms 1 and 2). */
-export function EventDialog({ state, onChoose }: { state: GameState; onChoose: (c: EventChoice) => void }) {
+/** Rune "words" the lectern whispers (the dungeon's gibberish, written in the rune symbols). */
+export const WHISPERS = ['ᚦᚨᚱ ᚲᛉ ᚠᚢᚷ', 'ᚢᛉᚱ ᚷᚨ', 'ᚲᚠ ᚦᚢᚨᚷ ᚱ', 'ᛉᚷᚦ ᚨᚲ'];
+
+/**
+ * [UI-PLACEMENT] The Whispering Lectern's choices, in the crafting table's place (LAYOUT.cleared). The board stays in
+ * view: the lectern whispers in runes over its stand, and what it says in plain words floats over it too
+ * (scene/Lectern.tsx). After the last choice the wizard walks out by themselves.
+ */
+export function EventPanel({ state, onChoose }: { state: GameState; onChoose: (c: EventChoice) => void }) {
+  const ev = state.event;
+  if (!ev) return null;
+  const hp = state.player.hp;
+  const cost = RULES.eventBloodCost;
   return (
-    <Modal className="event-modal">
-      <h2>The Whispering Lectern</h2>
-      <p className="flavor">
-        A lectern of torn pages, written in the dungeon&apos;s gibberish. &ldquo;These pages are written in the dungeon&apos;s own tongue.
-        You&apos;ll have to work out what they mean yourself&hellip; better keep notes.&rdquo;
-      </p>
-      <div className="choice-list">
-        <button className="choice" onClick={() => onChoose('read')}>
-          <b>Read the pages aloud</b>
-          <span>
-            Take {RULES.eventReadRunes} runes. Lose {RULES.eventReadHpCost} HP (you have {state.player.hp}).
-          </span>
-        </button>
-        <button className="choice" onClick={() => onChoose('copy')}>
-          <b>Copy one page carefully</b>
-          <span>Take {RULES.eventCopyRunes} rune.</span>
-        </button>
-        <button className="choice" onClick={() => onChoose('leave')}>
-          <b>Leave it</b>
-          <span>Nothing happens.</span>
-        </button>
-      </div>
-    </Modal>
+    <div className="cleared-panel event-panel">
+      <div className="event-title">The Whispering Lectern</div>
+      {ev.step === 'approach' && <div className="cleared-sub">A familiar voice whispers from the lectern&hellip;</div>}
+      {ev.step === 'offer' && (
+        <>
+          <div className="cleared-sub">It whispers in a familiar voice, in a language you don&rsquo;t understand:</div>
+          <div className="event-runes">{WHISPERS.slice(0, 2).join(' · ')}</div>
+          <div className="choice-list">
+            <button className="choice" onClick={() => onChoose('take')}>
+              <b>Take a rune fragment</b>
+              <span>A page of the dungeon&rsquo;s own tongue.</span>
+            </button>
+            <button className="choice" onClick={() => onChoose('leave')}>
+              <b>Leave it</b>
+              <span>Walk out. Nothing happens.</span>
+            </button>
+          </div>
+        </>
+      )}
+      {ev.step === 'blood' && (
+        <>
+          <div className="event-said">&ldquo;{ev.said}&rdquo;</div>
+          <div className="choice-list">
+            <button className={`choice ${hp <= cost ? 'is-deadly' : ''}`} onClick={() => onChoose('blood')}>
+              <b>Give it some blood</b>
+              <span>
+                Another rune fragment. Lose {cost} HP (you have {hp}).{hp <= cost && ' This will kill you.'}
+              </span>
+            </button>
+            <button className="choice" onClick={() => onChoose('walk')}>
+              <b>Walk away</b>
+              <span>Keep the rune you took and go.</span>
+            </button>
+          </div>
+        </>
+      )}
+      {ev.step === 'done' && (
+        <>
+          {ev.said && <div className="event-said">&ldquo;{ev.said}&rdquo;</div>}
+          <div className="cleared-sub">You walk out of the room&hellip;</div>
+        </>
+      )}
+    </div>
   );
 }
 
-/** The camp (between rooms 2 and 3): rest, or tear a page out of the deck. */
-export function CampDialog({ state, onChoose }: { state: GameState; onChoose: (c: CampChoice) => void }) {
+/**
+ * [UI-PLACEMENT] The camp's choices, in the crafting table's place (LAYOUT.cleared), while the board shows the
+ * campfire. Rest, or tear out a page (the pages to pick from open over the board). After the choice the wizard
+ * walks out by themselves.
+ */
+export function CampPanel({ state, onChoose }: { state: GameState; onChoose: (c: CampChoice) => void }) {
   const [tearing, setTearing] = useState(false);
+  const ev = state.event;
+  if (!ev) return null;
   const deck = ownedCards(state.cards)
     .slice()
     .sort((a, b) => a.kind.localeCompare(b.kind) || a.id - b.id);
   return (
-    <Modal className="camp-modal">
-      <h2>Camp</h2>
-      {!tearing ? (
-        <div className="choice-list">
-          <button className="choice" onClick={() => onChoose({ kind: 'rest' })}>
-            <b>Rest</b>
-            <span>
-              Heal to full ({state.player.hp} &rarr; {state.player.maxHp} HP).
-            </span>
-          </button>
-          <button className="choice" onClick={() => setTearing(true)}>
-            <b>Tear out a page</b>
-            <span>Remove one fragment from your deck for good.</span>
-          </button>
-        </div>
-      ) : (
-        <>
-          <p>Pick the fragment to tear out.</p>
+    <>
+      <div className="cleared-panel event-panel camp-panel">
+        <div className="event-title">Camp</div>
+        {ev.step === 'approach' && <div className="cleared-sub">You head for the fire&hellip;</div>}
+        {ev.step === 'offer' && (
+          <>
+            <div className="cleared-sub">The fire crackles. Sit a while.</div>
+            <div className="choice-list">
+              <button className="choice" onClick={() => onChoose({ kind: 'rest' })}>
+                <b>Rest</b>
+                <span>
+                  Heal to full ({state.player.hp} &rarr; {state.player.maxHp} HP).
+                </span>
+              </button>
+              <button className="choice" onClick={() => setTearing(true)}>
+                <b>Tear out a page</b>
+                <span>Remove one fragment from your deck for good.</span>
+              </button>
+            </div>
+          </>
+        )}
+        {ev.step === 'done' && (
+          <>
+            {ev.said && <div className="event-said">{ev.said}</div>}
+            <div className="cleared-sub">You walk out of the camp&hellip;</div>
+          </>
+        )}
+      </div>
+      {tearing && ev.step === 'offer' && (
+        <Modal className="camp-modal">
+          <h2>Tear out a page</h2>
+          <p>Pick the fragment to remove from your deck for good.</p>
           <div className="camp-cards">
             {deck.map((c) => {
               const err = campError(state, { kind: 'tear', cardId: c.id });
@@ -166,19 +220,22 @@ export function CampDialog({ state, onChoose }: { state: GameState; onChoose: (c
                   className="camp-card"
                   disabled={!!err}
                   title={err ?? `Tear out ${cardName(c)}`}
-                  onClick={() => onChoose({ kind: 'tear', cardId: c.id })}
+                  onClick={() => {
+                    setTearing(false);
+                    onChoose({ kind: 'tear', cardId: c.id });
+                  }}
                 >
-                  <FragmentCard card={c} />
+                  <FragmentCard card={c} thought="show" />
                 </button>
               );
             })}
           </div>
-          <button className="text-button" onClick={() => setTearing(false)}>
+          <button className="text-button" onClick={() => setTearing(false)} autoFocus>
             Back
           </button>
-        </>
+        </Modal>
       )}
-    </Modal>
+    </>
   );
 }
 
@@ -219,6 +276,53 @@ export function GrimoireBook({ pages, onClose }: { pages: string[]; onClose: () 
   );
 }
 
+/**
+ * [UI-PLACEMENT] The Deck (top bar button): every card the wizard owns right now (draw pile, hand, crafting table
+ * and discard pile), sorted into elements, shapes and runes. Rune cards keep their thought bubble here, and the
+ * player can write or change their notes on them.
+ */
+export function DeckView({ state, onClose }: { state: GameState; onClose: () => void }) {
+  const owned = ownedCards(state.cards);
+  const order = ['fire', 'water', 'earth', 'wind', 'beam', 'cross', 'wall'];
+  const sort = (cards: Card[]) =>
+    [...cards].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || (a.rune ?? 0) - (b.rune ?? 0) || Number(!!a.loot) - Number(!!b.loot));
+  const sections = [
+    { title: 'Elements', cards: sort(owned.filter((c) => isElementKind(c.kind))) },
+    { title: 'Shapes', cards: sort(owned.filter((c) => isShapeKind(c.kind))) },
+    { title: 'Runes', cards: sort(owned.filter((c) => c.kind === 'rune')), runes: true },
+  ].filter((s) => s.cards.length > 0);
+  return (
+    <div className="modal-backdrop light" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal deck-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Your Deck</h2>
+        <p className="muted">
+          {owned.length} card{owned.length === 1 ? '' : 's'}: draw pile, hand and discard pile together.
+          {sections.some((s) => s.runes) && ' Click the pencil on a rune’s thought to note what you think it does.'}
+        </p>
+        <div className="deck-scroll">
+          {sections.map((s) => (
+            <div key={s.title} className={`deck-section ${s.runes ? 'is-runes' : ''}`}>
+              <div className="deck-section-title">
+                {s.title} <span className="muted">×{s.cards.length}</span>
+              </div>
+              <div className="deck-grid">
+                {s.cards.map((c) => (
+                  <div key={c.id} className="deck-card">
+                    <FragmentCard card={c} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <button className="hud-button" onClick={onClose} autoFocus>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun: () => void }) {
   const won = state.phase === 'won';
   return (
@@ -240,7 +344,12 @@ export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun
   );
 }
 
-export function MenuDialog({ onResume, onNewRun }: { onResume: () => void; onNewRun: () => void }) {
+export function MenuDialog({ onResume, onNewRun, devMode, onDevMode }: {
+  onResume: () => void;
+  onNewRun: () => void;
+  devMode: boolean;
+  onDevMode: (on: boolean) => void;
+}) {
   const [confirm, setConfirm] = useState(false);
   const desktop = window.grimoire?.isDesktop;
   const toggleFullscreen = () => {
@@ -277,6 +386,16 @@ export function MenuDialog({ onResume, onNewRun }: { onResume: () => void; onNew
           Quit game
         </button>
       )}
+      <div className="settings">
+        <div className="settings-title">Settings</div>
+        <label className="toggle-row" title="Dev toolbar (cheats), undo/redo with Ctrl+Z / Ctrl+Y, K kills the enemy under the pointer">
+          <span className="toggle-label">
+            Dev mode
+            <span className="toggle-hint">Dev toolbar, undo/redo (Ctrl+Z / Ctrl+Y), K to kill</span>
+          </span>
+          <input type="checkbox" className="toggle" checked={devMode} onChange={(e) => onDevMode(e.target.checked)} />
+        </label>
+      </div>
       <p className="muted">Your run is saved automatically.</p>
     </Modal>
   );

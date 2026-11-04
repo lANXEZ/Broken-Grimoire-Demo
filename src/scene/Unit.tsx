@@ -7,6 +7,7 @@ import { ELEMENT_COLOR, PLACEHOLDER_COLORS, STATUS_ART, UNIT_SPRITE } from '../c
 import { BOARD_GEOMETRY } from '../config/camera';
 import { TIMING } from '../config/timing';
 import { IntentChips, describeIntents } from '../hud/intents';
+import { ThoughtCloud } from '../hud/Thought';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 import { tileHandlers, type TilePointer } from './Board';
 
@@ -43,7 +44,10 @@ const FLOAT_ID = { n: 0 };
 interface FloatNum {
   id: number;
   text: string;
-  kind: 'dmg' | 'heal';
+  /** dmg/heal: HP changes. burn-tick: damage from Burn (shown with the Burn icon). ignite: the unit caught fire. */
+  kind: 'dmg' | 'heal' | 'burn-tick' | 'ignite';
+  /** Caused by a rune (purple). */
+  rune?: boolean;
 }
 
 /**
@@ -51,7 +55,17 @@ interface FloatNum {
  * Into the Breach. HTML plates float with it: HP and statuses under its feet, intents above its head.
  * PLACEHOLDER picture: the paper token (config/art.ts).
  */
-export function Unit({ unit, room, pointer, hovered, showIntents }: { unit: UnitView; room: RoomSize; pointer: TilePointer; hovered: boolean; showIntents: boolean }) {
+export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = false, thought = null }: {
+  unit: UnitView;
+  room: RoomSize;
+  pointer: TilePointer;
+  hovered: boolean;
+  showIntents: boolean;
+  /** HP changes now come from a rune: show them in purple. */
+  runeTint?: boolean;
+  /** The wizard's thought, in a thought cloud over their head. */
+  thought?: string | null;
+}) {
   const group = useRef<Group>(null);
   const sprite = useRef<MeshBasicMaterial>(null);
   const texture = useTexture(unit.art);
@@ -62,19 +76,31 @@ export function Unit({ unit, room, pointer, hovered, showIntents }: { unit: Unit
   const hitAt = useRef(-1);
   const [floats, setFloats] = useState<FloatNum[]>([]);
 
-  // Floating damage / heal numbers and a red flash when HP changes.
+  // Floating numbers and a red flash when HP changes; a flame burst and "Burn 3" when the unit catches fire.
   const prevHp = useRef(unit.hp);
+  const prevBurn = useRef(unit.status.burn);
   const timers = useRef<number[]>([]);
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
   useEffect(() => {
     const diff = unit.hp - prevHp.current;
+    const burnDiff = unit.status.burn - prevBurn.current;
     prevHp.current = unit.hp;
-    if (diff === 0) return;
-    const f: FloatNum = { id: ++FLOAT_ID.n, text: diff < 0 ? `${diff}` : `+${diff}`, kind: diff < 0 ? 'dmg' : 'heal' };
-    if (diff < 0) hitAt.current = performance.now();
-    setFloats((fs) => [...fs, f]);
-    timers.current.push(window.setTimeout(() => setFloats((fs) => fs.filter((x) => x.id !== f.id)), TIMING.damageNumber));
-  }, [unit.hp]);
+    prevBurn.current = unit.status.burn;
+    const add = (text: string, kind: FloatNum['kind'], ms: number) => {
+      const f: FloatNum = { id: ++FLOAT_ID.n, text, kind, rune: runeTint };
+      setFloats((fs) => [...fs, f]);
+      timers.current.push(window.setTimeout(() => setFloats((fs) => fs.filter((x) => x.id !== f.id)), ms));
+    };
+    if (diff !== 0) {
+      if (diff < 0) hitAt.current = performance.now();
+      // A Burn tick: lost HP while the Burn counter went down by one.
+      const tick = diff < 0 && burnDiff === -1;
+      add(diff < 0 ? `${diff}` : `+${diff}`, tick ? 'burn-tick' : diff < 0 ? 'dmg' : 'heal', TIMING.damageNumber);
+    }
+    // Caught fire (or a burning unit's Burn was reset to full).
+    if (burnDiff > 0) add(`Burn ${unit.status.burn}`, 'ignite', TIMING.burnPopup);
+  }, [unit.hp, unit.status.burn]);
+  const igniting = floats.some((f) => f.kind === 'ignite');
 
   const white = useMemo(() => new Color('#ffffff'), []);
   const red = useMemo(() => new Color('#ff5a4a'), []);
@@ -126,6 +152,15 @@ export function Unit({ unit, room, pointer, hovered, showIntents }: { unit: Unit
         </mesh>
       </Billboard>
 
+      {/* A thought over the head (the wizard waking in room 0). */}
+      {thought && (
+        <Html position={[0, headY + 0.15, 0]} center zIndexRange={[45, 35]} style={{ pointerEvents: 'none' }}>
+          <div className="unit-thought">
+            <ThoughtCloud tail>{thought}</ThoughtCloud>
+          </div>
+        </Html>
+      )}
+
       {/* Intents above the head */}
       {showIntents && !unit.isPlayer && (
         <Html position={[0, headY, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
@@ -142,8 +177,10 @@ export function Unit({ unit, room, pointer, hovered, showIntents }: { unit: Unit
       {floats.length > 0 && (
         <Html position={[0, TILE_TOP + S.footY + S.height * 0.6, 0]} center zIndexRange={[40, 30]} style={{ pointerEvents: 'none' }}>
           <div className="float-stack">
+            {igniting && <div className="ignite-burst" />}
             {floats.map((f) => (
-              <span key={f.id} className={`float-num float-${f.kind}`}>
+              <span key={f.id} className={`float-num float-${f.kind} ${f.rune ? 'is-rune' : ''}`}>
+                {(f.kind === 'burn-tick' || f.kind === 'ignite') && <img src={STATUS_ART.burn} alt="" />}
                 {f.text}
               </span>
             ))}

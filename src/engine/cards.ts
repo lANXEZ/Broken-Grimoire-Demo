@@ -159,6 +159,24 @@ export function comboFromCards(cards: Card[]): CardCombo {
   return { kind: 'invalid', reason: read.reason, rune, castable: !!rune };
 }
 
+/**
+ * The "Hmmm..." note's name for a card combination: its kinds in a fixed order (elements, shapes, then the rune by
+ * symbol), e.g. "fire+fire+beam" or "water+wall+rune-3". The same cards in any order give the same key.
+ */
+export function comboKey(cards: Pick<Card, 'kind' | 'rune'>[]): string {
+  const order = (c: Pick<Card, 'kind' | 'rune'>) =>
+    c.kind === 'rune' ? 100 + (c.rune ?? 0) : isElementKind(c.kind) ? ELEMENTS.indexOf(c.kind) : 10 + SHAPES.indexOf(c.kind as Shape);
+  return [...cards]
+    .sort((a, b) => order(a) - order(b))
+    .map((c) => (c.kind === 'rune' ? `rune-${c.rune ?? 0}` : c.kind))
+    .join('+');
+}
+
+/** The cards a `comboKey` stands for (`rune` = the rune's symbol). */
+export function comboTokens(key: string): { kind: FragmentKind; rune?: number }[] {
+  return key.split('+').map((t) => (t.startsWith('rune-') ? { kind: 'rune' as const, rune: Number(t.slice(5)) } : { kind: t as FragmentKind }));
+}
+
 /** Take these cards out of the hand (in hand order). */
 export function takeFromHand(cards: CardState, ids: number[]): Card[] {
   const taken = cards.hand.filter((c) => ids.includes(c.id));

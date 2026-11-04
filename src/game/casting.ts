@@ -4,6 +4,7 @@ import {
   mergeHazard,
   planCast,
   pushDistance,
+  pushLabel,
   spellArea,
   spellDamage,
   spellName,
@@ -100,10 +101,11 @@ function effectText(spell: Spell): string {
   if (spell.kind === 'unstable') return `${dmg} dmg to all 8 tiles around you · you gain Burn ${RULES.unstableBurn} · once per room`;
   if (spell.kind === 'merge') {
     const hazard = mergeHazard(spell.elements);
-    return `${dmg ? `${dmg} dmg · ` : ''}leaves ${hazard[0].toUpperCase()}${hazard.slice(1)} for ${RULES.hazardTurns} turns`;
+    const burn = hazard === 'magma' ? `Burn ${RULES.burnTicks} · ` : '';
+    return `${dmg ? `${dmg} dmg · ` : ''}${burn}leaves ${hazard[0].toUpperCase()}${hazard.slice(1)} for ${RULES.hazardTurns} turns`;
   }
   const word = { fire: 'Burn', water: 'Root', earth: 'Stun' } as const;
-  if (spell.element === 'wind') return `push ${pushDistance(spell)}`;
+  if (spell.element === 'wind') return pushLabel(pushDistance(spell));
   return `${dmg} dmg · ${word[spell.element]}`;
 }
 

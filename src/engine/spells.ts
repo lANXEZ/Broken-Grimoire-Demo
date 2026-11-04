@@ -11,7 +11,7 @@ export const ELEMENT_EFFECT: Record<Element, { status: 'burn' | 'root' | 'stun' 
 
 export const HAZARD_INFO: Record<HazardKind, { name: string; text: string }> = {
   fog: { name: 'Fog', text: 'Blocks sight. Monsters inside wander and don’t attack. Wind clears it.' },
-  magma: { name: 'Magma', text: 'Stepping onto it burns. Water turns it back to floor.' },
+  magma: { name: 'Magma', text: 'Burns units it lands on and units that step onto it. Water turns it back to floor.' },
   quicksand: { name: 'Quicksand', text: `A unit on it is stuck until it spends ${RULES.quicksandEscape} actions to climb out.` },
 };
 
@@ -31,6 +31,17 @@ export function spellName(spell: Spell): string {
   const el = spell.elementCount === 2 ? `${cap(spell.element)} ×2` : cap(spell.element);
   const sh = spell.shapeCount === 2 ? `${cap(spell.shape)} ×2` : cap(spell.shape);
   return `${el} + ${sh}`;
+}
+
+/**
+ * What a spell does to a campfire it reaches: 'light' (Fire, Unstable Fire, Magma), 'douse' (Water, Earth, Fog,
+ * Quicksand), or null (Wind). A merge counts as its hazard: Magma is burning rock, Fog and Quicksand are wet.
+ */
+export function campfireEffect(spell: Spell): 'light' | 'douse' | null {
+  if (spell.kind === 'unstable') return 'light';
+  if (spell.kind === 'merge') return mergeHazard(spell.elements) === 'magma' ? 'light' : 'douse';
+  if (spell.element === 'fire') return 'light';
+  return spell.element === 'water' || spell.element === 'earth' ? 'douse' : null;
 }
 
 /** The elements a spell contains (for Page Ward immunity). */
@@ -62,7 +73,12 @@ export function spellDamage(spell: Spell, rune: RuneEffect | null = null): numbe
   return dmg;
 }
 
-/** Tiles a Wind spell pushes its targets (0 for anything else). */
+/** "push 2", or "push until it hits something" for doubled Wind. */
+export function pushLabel(dist: number): string {
+  return Number.isFinite(dist) ? `push ${dist}` : 'push until it hits something';
+}
+
+/** Tiles a Wind spell pushes its targets (0 for anything else; Infinity = until something stops it). */
 export function pushDistance(spell: Spell): number {
   if (spell.kind !== 'basic' || spell.element !== 'wind') return 0;
   return spell.elementCount === 2 ? RULES.doubledWindPush : RULES.windPush;

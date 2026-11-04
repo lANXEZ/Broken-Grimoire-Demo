@@ -16,6 +16,14 @@ import {
   parseCoord,
   planCast,
   planEnemyTurn,
+  restartStage,
+  isPrologue,
+  campError,
+  eventError,
+  exitOpen,
+  isWalkable,
+  playerCast,
+  castFx,
   playerEscape,
   playerMeditate,
   playerMove,
@@ -31,7 +39,7 @@ import {
   type GameState,
   type Spell,
 } from './index';
-import { at, board, cast, castErr, dummy, enemy, give, giveRune, hazard, hp, labels, runEnemyTurn, toEnemyTurn } from './testkit';
+import { at, board, cast, castErr, dummy, enemy, give, giveRune, hazard, hp, idsFor, labels, runEnemyTurn, toEnemyTurn } from './testkit';
 
 const basic = (element: 'fire' | 'water' | 'earth' | 'wind', elementCount: 1 | 2, shape: 'beam' | 'cross' | 'wall', shapeCount: 1 | 2 = 1): Spell => ({
   kind: 'basic',
@@ -181,18 +189,29 @@ describe('player turn', () => {
 });
 
 describe('wind, pushes and collisions', () => {
-  it('Wind pushes along a beam (2 tiles when doubled) and deals no damage', () => {
+  it('Wind pushes 2 tiles along a beam and deals no damage', () => {
     const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }] });
     const one = cast(s, ['wind', 'beam'], 'up');
-    expect(at(one, '1a')).toBe('a3');
+    expect(at(one, '1a')).toBe('a4');
     expect(hp(one, '1a')).toBe(2);
-    expect(at(cast(s, ['wind', 'wind', 'beam'], 'up'), '1a')).toBe('a4');
+  });
+
+  it('doubled Wind pushes until the target hits something: the wall, or a unit (both take 1)', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }] });
+    const wall = cast(s, ['wind', 'wind', 'beam'], 'up');
+    expect(at(wall, '1a')).toBe('a6');
+    expect(hp(wall, '1a')).toBe(1);
+
+    const t = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }, { kind: 'brute', at: 'a6' }] });
+    const unit = cast(t, ['wind', 'wind', 'beam'], 'up');
+    expect(at(unit, '1a')).toBe('a5');
+    expect([hp(unit, '1a'), hp(unit, '3a')]).toEqual([1, 5]);
   });
 
   it('pushes the farthest unit first, so a line slides together', () => {
     const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }, { kind: 'rat', at: 'a3' }] });
     const after = cast(s, ['wind', 'beam'], 'up');
-    expect([at(after, '1a'), at(after, '1b')]).toEqual(['a3', 'a4']);
+    expect([at(after, '1a'), at(after, '1b')]).toEqual(['a4', 'a5']);
     expect([hp(after, '1a'), hp(after, '1b')]).toEqual([2, 2]);
   });
 
@@ -240,7 +259,7 @@ describe('wind, pushes and collisions', () => {
     const m = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'a2' }] });
     hazard(m, 'a3', 'magma');
     const burnt = cast(m, ['wind', 'wind', 'beam'], 'up');
-    expect(at(burnt, '1a')).toBe('a4');
+    expect(at(burnt, '1a')).toBe('a6');
     expect(enemy(burnt, '1a').status.burn).toBe(3);
   });
 
@@ -278,11 +297,13 @@ describe('merges and hazards', () => {
     expect(endPlayerTurn({ ...after, turn: 2 }).room.hazards).toHaveLength(2);
   });
 
-  it('Magma: 2 damage, no element statuses; stepping onto it later burns', () => {
+  it('Magma: 2 damage and Burn on the units it lands on; stepping onto it later burns too', () => {
     const s = board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a2' }] });
     const after = cast(s, ['fire', 'earth', 'beam'], 'up');
     expect(hp(after, '3a')).toBe(4);
-    expect(after.enemies[0].status).toMatchObject({ burn: 0, stun: 0 });
+    expect(after.enemies[0].status).toMatchObject({ burn: 3, stun: 0 });
+    // The Burn ticks at the start of its next turn.
+    expect(hp(runEnemyTurn(after), '3a')).toBe(3);
     expect(after.room.hazards.every((h) => h.kind === 'magma')).toBe(true);
 
     const walk = board({ player: 'a1', enemies: [dummy()] });
@@ -634,6 +655,29 @@ describe('boss room', () => {
 describe('runes', () => {
   const brute = () => board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a2' }] });
 
+  it('a rune cast can be shown in two parts: the spell alone first, then the real result', () => {
+    const s = brute();
+    const rune = giveRune(s, 'amplify');
+    const ids = [...idsFor(s, ['fire', 'beam']), rune.id];
+    const alone = playerCast(s, ids, 'up', { ignoreRune: true });
+    const real = playerCast(s, ids, 'up');
+    // The spell part: plain Fire + Beam (1 dmg), the rune card spent and its mana paid all the same.
+    expect(hp(alone, '3a')).toBe(5);
+    expect(hp(real, '3a')).toBe(3);
+    expect(alone.player.mana).toBe(real.player.mana);
+    expect(alone.cards.discard.map((c) => c.id).sort()).toEqual(real.cards.discard.map((c) => c.id).sort());
+    expect(castFx(s, ids, 'up')).toMatchObject({ rune: 'amplify', runeSymbol: rune.rune });
+    expect(castFx(s, ids, 'up', { ignoreRune: true })).toMatchObject({ rune: null, runeSymbol: rune.rune });
+  });
+
+  it('Free: the spell part pays the mana, the real result gives it back', () => {
+    const s = brute();
+    const rune = giveRune(s, 'free');
+    const ids = [...idsFor(s, ['fire', 'beam']), rune.id];
+    expect(playerCast(s, ids, 'up', { ignoreRune: true }).player.mana).toBe(3);
+    expect(playerCast(s, ids, 'up').player.mana).toBe(6);
+  });
+
   it('Echo casts the spell twice', () => {
     const s = brute();
     giveRune(s, 'echo');
@@ -647,7 +691,7 @@ describe('runes', () => {
     giveRune(s, 'amplify');
     const after = cast(s, ['wind', 'beam', 'rune'], 'up');
     expect(hp(after, '3a')).toBe(4);
-    expect(at(after, '3a')).toBe('a3');
+    expect(at(after, '3a')).toBe('a4');
   });
 
   it('Siphon heals 1 per enemy hit', () => {
@@ -727,23 +771,154 @@ describe('the run', () => {
     expect(s.phase).toBe('event');
   });
 
-  it('the event: reading aloud gives 2 different runes for 3 HP, then the Scriptorium', () => {
-    const s = { ...board({ player: 'a1' }), phase: 'event' as const, stage: 1 };
-    const after = eventChoice(s, 'read');
-    expect(after.player.hp).toBe(17);
-    expect(after.room.name).toBe('The Scriptorium');
-    const runes = [...after.cards.hand, ...after.cards.deck].filter((c) => c.kind === 'rune');
-    expect(new Set(runes.map((c) => c.rune)).size).toBe(2);
+  describe('room 0, the prologue', () => {
+    const wake = () => createGame(7, { prologue: true });
+    const walkTo = (s: GameState, coord: string) => (freeWalkPath(s, parseCoord(coord)) ?? []).reduce((st, p) => freeStep(st, p), s);
+
+    it('is a 3\u00d74 room with a campfire, a rock, a collapsed corner and the big door; no enemies, never cleared', () => {
+      const s = wake();
+      expect([s.room.width, s.room.height, s.stage, s.phase]).toEqual([3, 4, -1, 'player']);
+      expect(isPrologue(s)).toBe(true);
+      expect(coordLabel(s.player.pos)).toBe('a1');
+      expect(s.room.feature).toMatchObject({ kind: 'campfire' });
+      expect(labels(s.room.seats)).toEqual(['a2']);
+      expect(labels(s.room.moonlight ?? [])).toEqual(['a3', 'a4']);
+      expect(coordLabel(s.room.exit!)).toBe('c4');
+      expect(s.enemies).toEqual([]);
+      expect(s.cards.hand).toHaveLength(5);
+    });
+
+    it('actions and mana never run out, and the hand refills after a cast', () => {
+      let s = wake();
+      s.cards.hand = [...s.cards.hand.filter((c) => c.kind !== 'fire' && c.kind !== 'cross'), { id: 900, kind: 'fire' }, { id: 901, kind: 'cross' }];
+      for (let i = 0; i < 5; i++) s = playerMeditate(s);
+      s = playerCast(s, [900, 901], null);
+      expect(s.phase).toBe('player');
+      expect(s.actionsLeft).toBe(3);
+      expect(s.player.mana).toBe(s.player.maxMana);
+      expect(s.cards.hand).toHaveLength(5);
+      expect(s.combos).toContain('fire+cross');
+    });
+
+    it('the campfire: Water or Earth puts it out, Fire lights it again, Wind does nothing', () => {
+      let s = walkTo(wake(), 'b1');
+      const castUp = (st: GameState, kinds: FragmentKind[]) => {
+        const ids = kinds.map((_, i) => 950 + i);
+        st.cards.hand = [...st.cards.hand, ...kinds.map((kind, i) => ({ id: ids[i], kind }))];
+        return playerCast(st, ids, 'up');
+      };
+      expect(s.room.fireLit).not.toBe(false);
+      s = castUp(s, ['wind', 'beam']);
+      expect(s.room.fireLit).not.toBe(false);
+      s = castUp(s, ['water', 'beam']);
+      expect(s.room.fireLit).toBe(false);
+      s = castUp(s, ['earth', 'beam']);
+      expect(s.room.fireLit).toBe(false);
+      s = castUp(s, ['fire', 'beam']);
+      expect(s.room.fireLit).toBe(true);
+      s = castUp(s, ['earth', 'beam']);
+      expect(s.room.fireLit).toBe(false);
+    });
+
+    it('walk anywhere, and the door leads into the Cistern', () => {
+      const s = walkTo(wake(), 'c4');
+      expect(coordLabel(s.player.pos)).toBe('c4');
+      const run = continueRun(s);
+      expect(run.room.name).toBe('The Cistern');
+      expect(run.stage).toBe(0);
+      expect(restartStage(wake()).room.id).toBe('prologue');
+    });
   });
 
-  it('the camp: rest heals to full, or tear out a page (never one that breaks the grimoire)', () => {
-    const s = { ...board({ player: 'a1', hand: ['fire', 'beam'] }), phase: 'camp' as const, stage: 3 };
-    s.cards.deck = [];
-    s.player.hp = 5;
-    const rested = campChoice(s, { kind: 'rest' });
-    expect(rested.player.hp).toBe(20);
-    expect(rested.room.name).toBe('The Redactor');
-    expect(() => campChoice(s, { kind: 'tear', cardId: s.cards.hand[0].id })).toThrow(/break/);
+  describe('the Whispering Lectern', () => {
+    /** The event room, as if just arrived from the Cistern. */
+    const arrive = () => restartStage({ ...board({ player: 'a1' }), stage: 1 });
+    const walkTo = (s: GameState, coord: string) => (freeWalkPath(s, parseCoord(coord)) ?? []).reduce((st, p) => freeStep(st, p), s);
+    const runes = (s: GameState) => [...s.cards.hand, ...s.cards.deck, ...s.cards.discard].filter((c) => c.kind === 'rune');
+
+    it('is a 5×5 room with the lectern in the middle; the door stays locked until you reach it', () => {
+      const s = arrive();
+      expect(s.phase).toBe('event');
+      expect([s.room.width, s.room.height]).toEqual([5, 5]);
+      expect(coordLabel(s.player.pos)).toBe('a1');
+      expect(coordLabel(s.room.feature!.pos)).toBe('c3');
+      expect(exitOpen(s)).toBe(false);
+      expect(freeWalkPath(s, parseCoord('e5'))).toBeNull();
+      expect(eventError(s, 'take')).toMatch(/lectern first/);
+      const there = walkTo(s, 'c2');
+      expect(there.event).toEqual({ step: 'offer', said: null });
+      expect(exitOpen(there)).toBe(true);
+      expect(isWalkable(there, parseCoord('c3'))).toBe(false);
+    });
+
+    it('take a rune, then give it blood: a second, different rune for 2 HP', () => {
+      const s = walkTo(arrive(), 'c2');
+      const took = eventChoice(s, 'take');
+      expect(runes(took)).toHaveLength(1);
+      expect(took.event).toMatchObject({ step: 'blood', said: expect.stringMatching(/taste your blood/) });
+      const fed = eventChoice(took, 'blood');
+      expect(fed.player.hp).toBe(18);
+      expect(new Set(runes(fed).map((c) => c.rune)).size).toBe(2);
+      expect(fed.event).toMatchObject({ step: 'done', said: expect.stringMatching(/my favorite/) });
+      // Out through the door to the Scriptorium.
+      const out = continueRun(walkTo(fed, 'e5'));
+      expect(out.room.name).toBe('The Scriptorium');
+      expect(out.event).toBeNull();
+    });
+
+    it('take one and walk away, or leave it alone: no blood', () => {
+      const s = walkTo(arrive(), 'c2');
+      const away = eventChoice(eventChoice(s, 'take'), 'walk');
+      expect([runes(away).length, away.player.hp, away.event?.step]).toEqual([1, 20, 'done']);
+      const left = eventChoice(s, 'leave');
+      expect([runes(left).length, left.event?.step]).toEqual([0, 'done']);
+      expect(() => eventChoice(left, 'blood')).toThrow(/passed/);
+    });
+
+    it('the blood can kill', () => {
+      const s = eventChoice(walkTo(arrive(), 'c2'), 'take');
+      s.player.hp = 2;
+      const dead = eventChoice(s, 'blood');
+      expect(dead.phase).toBe('lost');
+    });
+  });
+
+  describe('the camp', () => {
+    const arrive = (setup: Parameters<typeof board>[0] = { player: 'a1' }) => restartStage({ ...board(setup), stage: 3 });
+    const walkTo = (s: GameState, coord: string) => (freeWalkPath(s, parseCoord(coord)) ?? []).reduce((st, p) => freeStep(st, p), s);
+
+    it('is a 5×5 room with a campfire and logs; the door opens once you reach the fire', () => {
+      const s = arrive();
+      expect(s.phase).toBe('camp');
+      expect(s.room.feature).toMatchObject({ kind: 'campfire' });
+      expect(labels(s.room.seats)).toEqual(['b3', 'c4', 'd3']);
+      expect(exitOpen(s)).toBe(false);
+      expect(campError(s, { kind: 'rest' })).toMatch(/fire first/);
+      const there = walkTo(s, 'c2');
+      expect(there.event?.step).toBe('offer');
+      expect(exitOpen(there)).toBe(true);
+      expect(isWalkable(there, parseCoord('b3'))).toBe(false);
+    });
+
+    it('rest heals to full, then out through the door to the Redactor', () => {
+      const s = walkTo(arrive(), 'c2');
+      s.player.hp = 5;
+      const rested = campChoice(s, { kind: 'rest' });
+      expect(rested.player.hp).toBe(20);
+      expect(rested.event?.step).toBe('done');
+      expect(() => campChoice(rested, { kind: 'rest' })).toThrow(/already/);
+      expect(continueRun(walkTo(rested, 'e5')).room.name).toBe('The Redactor');
+    });
+
+    it('tear out a page, never one that breaks the grimoire', () => {
+      const s = walkTo(arrive({ player: 'a1', hand: ['fire', 'beam', 'water'] }), 'c2');
+      s.cards.deck = [];
+      s.cards.discard = [];
+      expect(campError(s, { kind: 'tear', cardId: s.cards.hand[1].id })).toMatch(/break/);
+      const torn = campChoice(s, { kind: 'tear', cardId: s.cards.hand[2].id });
+      expect(torn.cards.hand.map((c) => c.kind)).toEqual(['fire', 'beam']);
+      expect(torn.event?.said).toMatch(/Water/);
+    });
   });
 
   it('room data follows the design (holes, Earth ward)', () => {
@@ -790,8 +965,6 @@ describe('previews and determinism', () => {
 
 describe('spell effects (castFx)', () => {
   it('reports the real area: runes included, and which enemies can be touched', async () => {
-    const { castFx } = await import('./index');
-    const { idsFor } = await import('./testkit');
     const s = board({ player: 'c1', enemies: [{ kind: 'brute', at: 'b2' }, { kind: 'ward', at: 'c2', element: 'fire' }] });
     giveRune(s, 'widen');
     const fx = castFx(s, idsFor(s, ['water', 'beam', 'rune']), 'up')!;
@@ -801,8 +974,6 @@ describe('spell effects (castFx)', () => {
   });
 
   it('Backfire includes your own tile; Echo plays twice; a rune on a bad table only fizzles', async () => {
-    const { castFx } = await import('./index');
-    const { idsFor } = await import('./testkit');
     const s = board({ player: 'a1', enemies: [dummy()] });
     giveRune(s, 'backfire');
     expect(castFx(s, idsFor(s, ['fire', 'beam', 'rune']), 'up')!.area!.self).not.toBeNull();

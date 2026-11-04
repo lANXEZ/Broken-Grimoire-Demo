@@ -9,7 +9,10 @@ import { TileOverlay, type BoardOverlays } from './TileOverlay';
 import { CameraShake, SpellFxLayer, type FxEvent } from './SpellFx';
 import { Unit, type UnitView } from './Unit';
 import { Drops, Hazards } from './Hazards';
-import { DOOR_TOP } from './Door';
+import { BIG_DOOR_SCALE, DOOR_TOP } from './Door';
+import { Moonlight } from './Moonlight';
+import { Lectern } from './Lectern';
+import { Campfire } from './Campfire';
 import { TILE_TOP, tileToWorld } from './iso';
 
 interface Props {
@@ -19,6 +22,10 @@ interface Props {
   overlays: BoardOverlays;
   /** Spell effects playing right now (scene/SpellFx.tsx). */
   fx: FxEvent[];
+  /** A rune's part of a cast is showing: HP changes appear as purple numbers. */
+  runeTint: boolean;
+  /** What the wizard is thinking, shown in a thought cloud over their head (or null). */
+  playerThought?: string | null;
   hover: Pos | null;
   pointer: TilePointer;
   onRightClick: () => void;
@@ -73,7 +80,7 @@ function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitVie
 }
 
 /** The 3D board: camera, lights, tiles, highlights and units. The HUD is drawn on top of it in HTML. */
-export function GameScene({ state, intents, overlays, fx, hover, pointer, onRightClick }: Props) {
+export function GameScene({ state, intents, overlays, fx, runeTint, playerThought = null, hover, pointer, onRightClick }: Props) {
   const room = state.room;
   const units = useMemo(() => unitViews(state, intents), [state, intents]);
   // For the obstacle fade (scene/Obstacle.tsx): where every unit stands, and whether the mouse is on the board.
@@ -93,7 +100,7 @@ export function GameScene({ state, intents, overlays, fx, hover, pointer, onRigh
       }}
     >
       <Canvas orthographic shadows dpr={[1, 2]} gl={{ antialias: true, alpha: true }} camera={{ zoom: 60, position: [-20, 20, 20], near: 0.1, far: 200 }}>
-        <CameraRig room={room} extraPoints={room.exit ? [tileToWorld(room.exit, room, DOOR_TOP)] : []} />
+        <CameraRig room={room} extraPoints={room.exit ? [tileToWorld(room.exit, room, room.bigDoor ? DOOR_TOP * BIG_DOOR_SCALE : DOOR_TOP)] : []} />
         <CameraShake />
         <hemisphereLight args={['#fff1d6', '#2a1f18', 0.9]} />
         <directionalLight
@@ -110,6 +117,31 @@ export function GameScene({ state, intents, overlays, fx, hover, pointer, onRigh
         />
         <Board room={room} exitOpen={exitOpen(state)} exitLabel={stageName(state.stage + 1)} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
         <Hazards hazards={room.hazards} room={room} />
+        {room.moonlight && room.moonlight.length > 0 && <Moonlight tiles={room.moonlight} room={room} />}
+        {room.feature?.kind === 'lectern' && (
+          <Lectern
+            pos={room.feature.pos}
+            room={room}
+            step={state.event?.step ?? null}
+            said={state.event?.said ?? null}
+            pointer={pointer}
+            unitFeet={unitFeet}
+            pointerOnBoard={pointerOnBoard}
+          />
+        )}
+        {room.feature?.kind === 'campfire' && (
+          <Campfire
+            pos={room.feature.pos}
+            seats={room.seats ?? []}
+            seatStyle={room.seatStyle}
+            room={room}
+            lit={state.event?.step !== 'done'}
+            out={room.fireLit === false}
+            pointer={pointer}
+            unitFeet={unitFeet}
+            pointerOnBoard={pointerOnBoard}
+          />
+        )}
         <TileOverlay room={room} overlays={overlays} />
         <Drops drops={room.drops} room={room} />
         <Suspense fallback={null}>
@@ -121,6 +153,8 @@ export function GameScene({ state, intents, overlays, fx, hover, pointer, onRigh
               pointer={pointer}
               hovered={!!hover && hover.x === u.pos.x && hover.y === u.pos.y}
               showIntents={showIntents}
+              runeTint={runeTint}
+              thought={u.isPlayer ? playerThought : null}
             />
           ))}
         </Suspense>

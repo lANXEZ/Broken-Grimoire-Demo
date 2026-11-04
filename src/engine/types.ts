@@ -131,17 +131,54 @@ export interface RoomRuntime {
   exit: Pos | null;
   /** The door is open from the start (the Cistern): the wizard may leave early, losing what the survivors would drop. */
   exitAlwaysOpen: boolean;
+  /**
+   * The thing a between-rooms room is built around (the event's lectern, the camp's fire), or null. It blocks its
+   * tile like a pillar but never breaks; `read` is where the wizard stands to use it.
+   */
+  feature: RoomFeature | null;
+  /** Decorations that block their tiles too (the logs around the campfire). */
+  seats: Pos[];
+  /** A campfire feature: false once a spell has put it out (Water or Earth); a Fire spell lights it again. */
+  fireLit?: boolean;
+  /** How the seats look (logs by default; room 0 has a rock). */
+  seatStyle?: 'log' | 'rock';
+  /** Room 0: tiles under the collapsed ceiling, where moonlight, dust and gravel come down (walkable). */
+  moonlight?: Pos[];
+  /** Room 0: the big dungeon door. */
+  bigDoor?: boolean;
   hazards: Hazard[];
   drops: Drop[];
 }
 
+export interface RoomFeature {
+  kind: 'lectern' | 'campfire';
+  pos: Pos;
+  read: Pos;
+}
+
 /**
  * player / enemy: combat turns. cleared: every enemy is dead, walk freely and Continue.
- * event / camp: the screens between rooms. won / lost: the run is over.
+ * event / camp: the Whispering Lectern's room and the camp's room (see `EventState`): the wizard walks up to the
+ * feature, the player chooses, the wizard walks out. won / lost: the run is over.
  */
 export type Phase = 'player' | 'enemy' | 'cleared' | 'event' | 'camp' | 'won' | 'lost';
 
 export type LostReason = 'hp' | 'grimoire' | 'hole';
+
+/**
+ * The lectern's room and the camp's room, step by step:
+ * - approach: the wizard is walking up to the lectern / fire (the door is locked);
+ * - offer: the choice. Lectern: take a rune fragment, or leave it. Camp: rest, or tear out a page;
+ * - blood (lectern only): you took one, and it speaks: give it some blood (another rune, for HP), or walk away;
+ * - done: it's over; the door is open and the wizard walks out.
+ */
+export type EventStep = 'approach' | 'offer' | 'blood' | 'done';
+
+export interface EventState {
+  step: EventStep;
+  /** What the lectern last said in plain words (shown over it); at the camp, what you did. Null otherwise. */
+  said: string | null;
+}
 
 /** 'dev' = edits made with the dev-mode tools (see devtools.ts). */
 export type LogSide = 'player' | 'enemy' | 'system' | 'dev';
@@ -185,6 +222,13 @@ export interface GameState {
   runesFound: number[];
   /** Grimoire pages written so far (see `pageId`). Kept across runs; the app passes it in. */
   grimoire: string[];
+  /**
+   * The "Hmmm..." note: every exact card combination ever cast successfully (see `comboKey`), runes included.
+   * Kept across runs; the app passes it in.
+   */
+  combos: string[];
+  /** The event in progress (phase 'event'), else null. */
+  event: EventState | null;
   /** The last two random fragment drops (no card drops three times in a row). */
   lastDrops: FragmentKind[];
 }

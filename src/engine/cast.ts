@@ -1,4 +1,4 @@
-import { cardsLabel, comboFromCards, takeFromHand, type CardCombo } from './cards';
+import { cardsLabel, comboFromCards, comboKey, takeFromHand, type CardCombo } from './cards';
 import { RULES, coordLabel } from './data';
 import {
   RuleError,
@@ -15,6 +15,7 @@ import {
 } from './core';
 import { enemyAt, hazardAt, isHole, isPillar, manhattan, posKey, samePos } from './grid';
 import {
+  campfireEffect,
   mergeHazard,
   needsAim,
   pageId,
@@ -79,14 +80,23 @@ function runeOf(state: GameState, combo: CardCombo): RuneEffect | null {
   return combo.rune ? state.runeMap[combo.rune.rune ?? 0] ?? null : null;
 }
 
+/**
+ * Options for showing a rune cast in two parts. `ignoreRune`: resolve the cast as if its rune did nothing (the
+ * rune card is still spent and its mana paid). The app shows that state first ("the spell itself"), then the
+ * real result ("the rune's part"); it's never committed as the game state.
+ */
+export interface CastOptions {
+  ignoreRune?: boolean;
+}
+
 /** Cast the cards with these ids (from the hand) in `dir` (Beam and Wall only). Costs 1 action. */
-export function playerCast(state: GameState, cardIds: number[], dir: Dir | null): GameState {
+export function playerCast(state: GameState, cardIds: number[], dir: Dir | null, opts: CastOptions = {}): GameState {
   const err = castError(state, cardIds, dir);
   if (err) throw new RuleError(err);
   return playerAction(state, (s) => {
     const cards = pickCards(s, cardIds) as Card[];
     const plan = planCast(cards);
-    const rune = runeOf(s, plan.combo);
+    const rune = opts.ignoreRune ? null : runeOf(s, plan.combo);
     const cost = rune === 'free' ? 0 : plan.cost;
     const before = s.player.mana;
     s.player.mana -= cost;
@@ -95,6 +105,11 @@ export function playerCast(state: GameState, cardIds: number[], dir: Dir | null)
     log(s, 'player', `Cast ${what}${plan.combo.rune ? ` with the ${cardsLabel([plan.combo.rune])}` : ''}${dir ? ` ${dir}` : ''} (mana ${before} → ${s.player.mana}).`);
 
     if (rune === 'free') log(s, 'player', 'The rune drinks no mana…');
+    // A real spell (even one a Fizzle rune spoils) goes into the "Hmmm..." note the first time it's cast.
+    if (plan.combo.kind === 'spell') {
+      const key = comboKey(cards);
+      if (!s.combos.includes(key)) s.combos = [...s.combos, key];
+    }
     if (plan.combo.kind === 'invalid') {
       log(s, 'player', 'The fragments don’t form a spell: the cast fizzles.');
     } else if (rune === 'fizzle') {
@@ -170,6 +185,11 @@ function applyArea(s: GameState, spell: Spell, area: SpellArea, rune: RuneEffect
     hits++;
     if (dmg > 0 && damageEnemy(s, e, dmg, source)) continue;
     if (spell.kind === 'basic') applyElement(s, e.id, spell, t.push, push);
+    // Magma lands under it: it catches fire straight away (house rule, Nov 4), as if it had stepped in.
+    if (hazard === 'magma') {
+      e.status.burn = RULES.burnTicks;
+      log(s, 'player', `${enemyName(e)} is caught in the magma and catches fire (Burn ${RULES.burnTicks}).`);
+    }
     if (s.phase === 'lost' || s.phase === 'won') return hits;
   }
 
@@ -179,9 +199,26 @@ function applyArea(s: GameState, spell: Spell, area: SpellArea, rune: RuneEffect
     if (dmg > 0) damagePlayer(s, dmg, source, 'player');
     if (s.phase === 'lost') return hits;
     if (spell.kind === 'basic') applyElement(s, 'player', spell, area.self.push, push);
+    if (hazard === 'magma') {
+      s.player.status.burn = RULES.burnTicks;
+      log(s, 'player', `YOU catch fire in your own magma (Burn ${RULES.burnTicks}).`);
+    }
   }
 
   const tiles = area.tiles.map((t) => t.pos);
+  // A campfire in the area: Water and Earth put it out, Fire lights it again.
+  const fire = s.room.feature;
+  if (fire?.kind === 'campfire' && [...tiles, ...area.pillars].some((p) => samePos(p, fire.pos))) {
+    const effect = campfireEffect(spell);
+    const lit = s.room.fireLit !== false;
+    if (effect === 'douse' && lit) {
+      s.room.fireLit = false;
+      log(s, 'player', 'The campfire hisses out.');
+    } else if (effect === 'light' && !lit) {
+      s.room.fireLit = true;
+      log(s, 'player', 'The campfire catches and burns again.');
+    }
+  }
   if (hazard) {
     // A merge leaves its hazard on every open tile of its shape for 3 turns (one hazard per tile).
     const until = s.turn + RULES.hazardTurns - 1;
@@ -251,6 +288,8 @@ function applyElement(s: GameState, ref: UnitRef, spell: Extract<Spell, { kind: 
 export interface CastFx {
   /** spell: the spell takes effect. fizzle: a rune on a table that makes nothing, or the Fizzle rune. */
   kind: 'spell' | 'fizzle';
+  /** The rune card's symbol, if a rune was cast (whatever it does). */
+  runeSymbol: number | null;
   spell: Spell | null;
   rune: RuneEffect | null;
   dir: Dir | null;
@@ -265,14 +304,15 @@ export interface CastFx {
   hits: { id: string; pos: { x: number; y: number }; immune: boolean }[];
 }
 
-export function castFx(state: GameState, cardIds: number[], dir: Dir | null): CastFx | null {
+export function castFx(state: GameState, cardIds: number[], dir: Dir | null, opts: CastOptions = {}): CastFx | null {
   if (castError(state, cardIds, dir)) return null;
   const cards = pickCards(state, cardIds) as Card[];
   const { combo } = planCast(cards);
-  const rune = runeOf(state, combo);
+  const rune = opts.ignoreRune ? null : runeOf(state, combo);
   const origin = { ...state.player.pos };
+  const runeSymbol = combo.rune ? combo.rune.rune ?? 0 : null;
   if (combo.kind === 'invalid' || rune === 'fizzle') {
-    return { kind: 'fizzle', spell: combo.kind === 'spell' ? combo.spell : null, rune, dir, origin, area: null, passes: 0, push: 0, hits: [] };
+    return { kind: 'fizzle', spell: combo.kind === 'spell' ? combo.spell : null, rune, runeSymbol, dir, origin, area: null, passes: 0, push: 0, hits: [] };
   }
   const spell = combo.spell;
   const area = spellArea(state, spell, dir, rune);
@@ -282,7 +322,7 @@ export function castFx(state: GameState, cardIds: number[], dir: Dir | null): Ca
     const e = enemyAt(state, t.pos);
     return e ? [{ id: e.id, pos: { ...e.pos }, immune: !!immunityReason(state, e, { elements, hazard }) }] : [];
   });
-  return { kind: 'spell', spell, rune, dir, origin, area, passes: rune === 'echo' ? 2 : 1, push: pushDistance(spell), hits };
+  return { kind: 'spell', spell, rune, runeSymbol, dir, origin, area, passes: rune === 'echo' ? 2 : 1, push: pushDistance(spell), hits };
 }
 
 /** Every tile key the spell covers (for previews). */

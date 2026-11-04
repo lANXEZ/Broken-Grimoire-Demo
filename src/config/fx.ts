@@ -11,12 +11,16 @@ export const FX = {
   lead: 0.08,
   /** Wall: extra delay before the second row. */
   wallRowDelay: 0.12,
-  /** Echo: pause before the second pass. */
-  echoGap: 0.12,
-  /** Amplify: everything is this much bigger (plus a white flash). */
-  amplifyScale: 1.35,
   /** Siphon motes take this long to drift back to the wizard. */
   siphonTime: 0.55,
+
+  /**
+   * A cast with a rune plays in two parts: the spell itself, then (after the rune's symbol glows on the floor for
+   * `sigilTime`) the rune's own part in purple. `strike` = when the rune's part hits after it starts; `time` = how
+   * long the rune's part lasts for effects without their own timing. `spellHold` = how much of the spell part's
+   * effect plays before the sigil appears (0-1).
+   */
+  rune: { sigilTime: 1.0, strike: 0.12, time: 1.0, spellHold: 0.8 },
 
   /** Camera shake: off switch, and how hard (world units) and long (seconds) each kind shakes. */
   shake: {
@@ -28,12 +32,15 @@ export const FX = {
   },
 
   colors: {
-    /** Echo's second pass is tinted toward this. */
-    echo: '#b48cff',
+    /** Everything a rune does (its part of a rune cast, the floor sigil, its damage numbers). */
+    rune: '#b05cff',
+    runeLight: '#e4c8ff',
     siphon: '#7dffa0',
     /** Sparks on the wizard for Volatile and Free. */
     selfHurt: '#ff4a3a',
     fizzle: '#8f7fb0',
+    /** A rune on a table that makes no spell: the cards failed, so grey smoke, no purple. */
+    dud: '#8a8580',
     scorch: '#1a0d06',
     spark: '#fff4d6',
     dust: '#9a8466',

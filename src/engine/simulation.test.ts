@@ -97,7 +97,7 @@ describe('rooms', () => {
     s.cards.discard.push({ id: 99, kind: 'earth', loot: 'brute' });
     s = continueRun(s); // stage 3 is the camp
     expect(s.phase).toBe('camp');
-    s = { ...s, phase: 'cleared', stage: 1 };
+    s = { ...s, phase: 'cleared', stage: 1, player: { ...s.player, pos: s.room.exit! } };
     s = continueRun(s);
     expect(s.room.name).toBe('The Scriptorium');
     expect(s.cards.hand).toHaveLength(5);

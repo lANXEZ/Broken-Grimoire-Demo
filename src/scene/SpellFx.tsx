@@ -1,7 +1,7 @@
-import { useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { AdditiveBlending, Color, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
-import { DIR_VECTORS, mergeHazard, spellDamage, type CastFx, type Pos } from '../engine';
+import { AdditiveBlending, CanvasTexture, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
+import { DIR_VECTORS, RUNE_SYMBOLS, mergeHazard, spellDamage, type CastFx, type Pos, type RuneEffect } from '../engine';
 import { ELEMENT_COLOR, HAZARD_COLOR, UNIT_SPRITE } from '../config/art';
 import { FX } from '../config/fx';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
@@ -15,21 +15,54 @@ import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
  *   Wind: streaks blowing the push direction. Merges show their hazard forming (fog, magma, quicksand).
  * - Units hit get a spark; chipped pillars throw debris (a broken one collapses in dust); a pushed unit that
  *   hits something kicks up dust.
- * - Runes, revealed by the cast: Echo replays it in purple, Amplify is bigger and flashes, Siphon sends green
- *   motes back to you, Volatile and Free spark red on you, a fizzle just puffs purple smoke.
- * The game state has already changed when this plays (damage numbers appear at once); it's purely visual.
+ * - A cast with a rune plays in two parts (App.tsx runs the timeline): first the spell itself, exactly like a cast
+ *   without the rune (`cast` event); then the rune's symbol glows purple on the 3×3 floor around the wizard
+ *   (`sigil`); then the rune's own part, in purple (`rune`): Echo replays the spell, Amplify strikes each target,
+ *   Widen hits the extra tiles, Siphon draws wisps back to you, Volatile blasts the targets again and lashes back,
+ *   Free gives the mana back, Backfire hits your own tile, Fizzle smokes. A rune on a table that makes no spell
+ *   just puffs grey smoke (no sigil: the cards failed, not the rune).
+ * Purely visual: the board shows the matching game state for each part.
  * PLACEHOLDER looks, all drawn in code. Timing and colours live in config/fx.ts.
  */
 
-/** One cast to show, with what it did that the effect needs to know. */
-export interface FxEvent {
+/** One cast (or the spell part of a rune cast) to show, with what it did that the effect needs to know. */
+export interface CastEvent {
+  type: 'cast';
   id: number;
   fx: CastFx;
   /** Pillars the cast broke. */
   broken: Pos[];
   /** Where a pushed unit hit something (wall, pillar or unit), with the direction it was going. */
   bumps: { at: Pos; dir: Pos }[];
+  /** A rune on a table that makes no spell: grey smoke instead of purple. */
+  grey?: boolean;
 }
+
+/** The rune's symbol glowing on the floor under the wizard, between the two parts of a rune cast. */
+export interface SigilEvent {
+  type: 'sigil';
+  id: number;
+  origin: Pos;
+  symbol: number;
+}
+
+/** The rune's own part of a rune cast. */
+export interface RuneEvent {
+  type: 'rune';
+  id: number;
+  effect: RuneEffect;
+  /** The real cast (rune included) and the spell part alone (null for Fizzle). */
+  fx: CastFx;
+  base: CastFx | null;
+  /** Where the enemies the rune acts on stand after the spell part (Amplify, Volatile, Siphon). */
+  targets: Pos[];
+  /** Widen: the tiles the rune added. */
+  extra: Pos[];
+  /** Pillars the rune's part broke. */
+  broken: Pos[];
+}
+
+export type FxEvent = CastEvent | SigilEvent | RuneEvent;
 
 type Look = 'fire' | 'water' | 'earth' | 'wind' | 'fog' | 'magma' | 'quicksand';
 
@@ -89,13 +122,33 @@ function passTime(fx: CastFx): number {
   return Math.max(FX.lead, ...all.map((p) => tileDelay(fx, p))) + FX.tileTime;
 }
 
-/** How long the whole effect lasts, in milliseconds (App removes it after this). */
+/** How long the rune's part lasts, in seconds. */
+function runeTime(e: RuneEvent): number {
+  const R = FX.rune;
+  switch (e.effect) {
+    case 'echo':
+      return e.base ? passTime(e.base) + FX.tileTime : R.time;
+    case 'widen':
+      return e.base ? Math.max(0, ...e.extra.map((p) => tileDelay(e.fx, p) - FX.lead)) + FX.tileTime * 1.6 : R.time;
+    case 'siphon':
+      return R.strike + FX.siphonTime + 0.35;
+    default:
+      return R.time;
+  }
+}
+
+/** How long an event lasts, in milliseconds (App removes it after this, and times a rune cast's parts with it). */
+export function fxEventDuration(e: FxEvent): number {
+  if (e.type === 'cast') return fxDuration(e.fx);
+  if (e.type === 'sigil') return FX.rune.sigilTime * 1000;
+  return runeTime(e) * 1000;
+}
+
+/** How long a cast's effect lasts, in milliseconds. */
 export function fxDuration(fx: CastFx): number {
   if (fx.kind === 'fizzle') return 1100;
-  const pass = passTime(fx);
-  let t = fx.passes * pass + (fx.passes - 1) * FX.echoGap;
-  if (fx.rune === 'siphon') t += FX.siphonTime;
-  return (t + FX.tileTime) * 1000; // + room for scorch marks and dust to fade
+  // (A rune's own part is a separate event; see runeTime.)
+  return (passTime(fx) + FX.tileTime) * 1000; // + room for scorch marks and dust to fade
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -637,14 +690,14 @@ function Blast({ t0, at, delay }: { t0: MutableRefObject<number | null>; at: [nu
   );
 }
 
-/** Amplify: a white flash on a tile. */
-function TileFlash({ t0, at, delay }: { t0: MutableRefObject<number | null>; at: [number, number, number]; delay: number }) {
+/** A flash on a tile. */
+function TileFlash({ t0, at, delay, color = '#ffffff', span = 0.25 }: { t0: MutableRefObject<number | null>; at: [number, number, number]; delay: number; color?: string; span?: number }) {
   const m = useRef<Mesh>(null);
   return (
-    <Timed t0={t0} delay={delay} span={0.25} animate={(u) => fade(m.current, 0.8 * (1 - u))}>
+    <Timed t0={t0} delay={delay} span={span} animate={(u) => fade(m.current, 0.85 * (1 - u))}>
       <mesh ref={m} position={[at[0], TILE_TOP + 0.03, at[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.95, 0.95]} />
-        <meshBasicMaterial color="#ffffff" {...additive} />
+        <meshBasicMaterial color={color} {...additive} />
       </mesh>
     </Timed>
   );
@@ -692,23 +745,22 @@ function lanes(fx: CastFx): { from: Pos; to: Pos; steps: number }[] {
   return out;
 }
 
-function mix(a: string, b: string, k: number): string {
-  return `#${new Color(a).lerp(new Color(b), k).getHexString()}`;
-}
 
-function CastEffect({ event, room }: { event: FxEvent; room: RoomSize }) {
+function CastEffect({ event, room, tint }: { event: CastEvent; room: RoomSize; tint?: string }) {
   const t0 = useRef<number | null>(null);
   const { fx } = event;
   const world = (p: Pos, y = 0) => tileToWorld(p, room, y);
   const origin = world(fx.origin);
 
-  // A fizzle: purple smoke and a few sparks on the wizard, nothing else.
+  // No spell (a rune on a table that makes nothing): grey smoke on the wizard. The rune's price (Volatile, Free)
+  // is still paid, so it still sparks red.
   if (fx.kind === 'fizzle' || !fx.area || !fx.spell) {
+    const smoke = event.grey ? FX.colors.dud : FX.colors.fizzle;
     return (
       <group>
-        <Puff t0={t0} at={world(fx.origin, TILE_TOP + 0.6)} delay={0} color={FX.colors.fizzle} />
-        <Puff t0={t0} at={world(fx.origin, TILE_TOP + 0.9)} delay={0.15} color={FX.colors.fizzle} />
-        <Motes t0={t0} from={world(fx.origin, TILE_TOP + 0.6)} delay={0.05} span={0.7} color={FX.colors.fizzle} count={8} seed={event.id} burst />
+        <Puff t0={t0} at={world(fx.origin, TILE_TOP + 0.6)} delay={0} color={smoke} />
+        <Puff t0={t0} at={world(fx.origin, TILE_TOP + 0.9)} delay={0.15} color={smoke} />
+        <Motes t0={t0} from={world(fx.origin, TILE_TOP + 0.6)} delay={0.05} span={0.7} color={smoke} count={8} seed={event.id} burst />
         {(fx.rune === 'volatile' || fx.rune === 'free') && (
           <Motes t0={t0} from={world(fx.origin, UNIT_MID)} delay={0.3} span={0.5} color={FX.colors.selfHurt} count={10} seed={event.id + 7} burst />
         )}
@@ -717,51 +769,41 @@ function CastEffect({ event, room }: { event: FxEvent; room: RoomSize }) {
   }
 
   const look = lookOf(fx);
-  const base = colorOf(fx);
-  const scale = fx.rune === 'amplify' ? FX.amplifyScale : 1;
+  const color = tint ?? colorOf(fx);
   const unstable = fx.spell.kind === 'unstable';
   const pass = passTime(fx);
   const tiles = [...fx.area.tiles, ...(fx.area.self ? [fx.area.self] : [])];
   const Tile = TILE_LOOK[look];
   const toWorldDir = (p: Pos | null): [number, number] | null => (p ? [p.x, -p.y] : null);
-  const passEnd = fx.passes * pass + (fx.passes - 1) * FX.echoGap;
 
   return (
     <group>
-      {Array.from({ length: fx.passes }, (_, i) => {
-        const start = i * (pass + FX.echoGap);
-        const color = i === 0 ? base : mix(base, FX.colors.echo, 0.65);
-        return (
-          <group key={i}>
-            {lanes(fx).map((l, j) => (
-              <Bolt
-                key={j}
-                t0={t0}
-                from={world(l.from, TILE_TOP + 0.45)}
-                to={world(l.to, TILE_TOP + 0.45)}
-                start={start}
-                travel={FX.lead + Math.max(0, l.steps - 1) * FX.stepDelay}
-                color={color}
-                scale={scale}
-              />
-            ))}
-            {tiles.map((t, j) => (
-              <Tile key={j} t0={t0} at={world(t.pos)} delay={start + tileDelay(fx, t.pos)} color={color} scale={scale * (unstable ? 1.15 : 1)} seed={event.id * 97 + j * 13 + i} push={toWorldDir(t.push)} />
-            ))}
-            {fx.rune === 'amplify' && tiles.map((t, j) => <TileFlash key={`f${j}`} t0={t0} at={world(t.pos)} delay={start + tileDelay(fx, t.pos)} />)}
-            {fx.hits.map((h) => (
-              <Spark key={h.id} t0={t0} at={world(h.pos, UNIT_MID)} delay={start + tileDelay(fx, h.pos) + 0.1} color={h.immune ? '#9a9a9a' : color} small={h.immune} />
-            ))}
-            {fx.area!.self && <Spark t0={t0} at={world(fx.origin, UNIT_MID)} delay={start + FX.lead + 0.1} color={color} />}
-            {/* Damaging spells chip the pillars in their way. */}
-            {spellDamage(fx.spell!, fx.rune) > 0 &&
-              fx.area!.pillars.map((p, j) => {
-                const broken = i === fx.passes - 1 && event.broken.some((b) => b.x === p.x && b.y === p.y);
-                return <Debris key={`p${j}`} t0={t0} at={world(p)} delay={start + tileDelay(fx, p)} broken={broken} seed={event.id * 31 + j * 7 + i} />;
-              })}
-          </group>
-        );
-      })}
+      {lanes(fx).map((l, j) => (
+        <Bolt
+          key={j}
+          t0={t0}
+          from={world(l.from, TILE_TOP + 0.45)}
+          to={world(l.to, TILE_TOP + 0.45)}
+          start={0}
+          travel={FX.lead + Math.max(0, l.steps - 1) * FX.stepDelay}
+          color={color}
+          scale={1}
+        />
+      ))}
+      {tiles.map((t, j) => (
+        <Tile key={j} t0={t0} at={world(t.pos)} delay={tileDelay(fx, t.pos)} color={color} scale={unstable ? 1.15 : 1} seed={event.id * 97 + j * 13} push={toWorldDir(t.push)} />
+      ))}
+      {tint && tiles.map((t, j) => <TileFlash key={`f${j}`} t0={t0} at={world(t.pos)} delay={tileDelay(fx, t.pos)} color={tint} span={0.4} />)}
+      {fx.hits.map((h) => (
+        <Spark key={h.id} t0={t0} at={world(h.pos, UNIT_MID)} delay={tileDelay(fx, h.pos) + 0.1} color={h.immune ? '#9a9a9a' : color} small={h.immune} />
+      ))}
+      {fx.area.self && <Spark t0={t0} at={world(fx.origin, UNIT_MID)} delay={FX.lead + 0.1} color={color} />}
+      {/* Damaging spells chip the pillars in their way. */}
+      {spellDamage(fx.spell) > 0 &&
+        fx.area.pillars.map((p, j) => {
+          const broken = event.broken.some((b) => b.x === p.x && b.y === p.y);
+          return <Debris key={`p${j}`} t0={t0} at={world(p)} delay={tileDelay(fx, p)} broken={broken} seed={event.id * 31 + j * 7} />;
+        })}
 
       {unstable && (
         <>
@@ -769,37 +811,289 @@ function CastEffect({ event, room }: { event: FxEvent; room: RoomSize }) {
           <ShakeAt t0={t0} delay={FX.lead * 0.5} kind="unstable" />
         </>
       )}
-      {fx.rune === 'amplify' && <ShakeAt t0={t0} delay={FX.lead} kind="amplify" />}
-      {event.broken.length > 0 && <ShakeAt t0={t0} delay={passEnd - FX.tileTime * 0.8} kind="pillarBreak" />}
+      {event.broken.length > 0 && <ShakeAt t0={t0} delay={pass - FX.tileTime * 0.8} kind="pillarBreak" />}
 
       {/* A pushed unit that hit something kicks up dust where it hit. */}
       {event.bumps.map((b, j) => (
         <Puff key={`b${j}`} t0={t0} at={[world(b.at)[0] + b.dir.x * 0.45, UNIT_MID * 0.7, world(b.at)[2] - b.dir.y * 0.45]} delay={FX.lead + FX.stepDelay * 2 + 0.1} />
       ))}
-
-      {fx.rune === 'siphon' &&
-        fx.hits
-          .filter((h) => !h.immune)
-          .map((h, j) => (
-            <Motes key={`s${j}`} t0={t0} from={world(h.pos, UNIT_MID)} to={world(fx.origin, UNIT_MID)} delay={passEnd - FX.tileTime * 0.5} span={FX.siphonTime} color={FX.colors.siphon} count={5} seed={event.id * 11 + j} />
-          ))}
-      {(fx.rune === 'volatile' || fx.rune === 'free') && (
-        <>
-          <Motes t0={t0} from={world(fx.origin, UNIT_MID)} delay={passEnd - FX.tileTime * 0.6} span={0.5} color={FX.colors.selfHurt} count={10} seed={event.id + 3} burst />
-          {fx.rune === 'volatile' && <ShakeAt t0={t0} delay={passEnd - FX.tileTime * 0.6} kind="volatile" />}
-        </>
-      )}
     </group>
   );
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Runes
+
+/** The rune's symbol in a glowing circle, drawn once per symbol onto a canvas (it's used as a floor decal). */
+function sigilTexture(symbol: number): CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 512;
+  const g = c.getContext('2d')!;
+  const mid = 256;
+  const glow = g.createRadialGradient(mid, mid, 10, mid, mid, 256);
+  glow.addColorStop(0, 'rgba(214, 170, 255, 0.95)');
+  glow.addColorStop(0.42, 'rgba(160, 90, 255, 0.5)');
+  glow.addColorStop(0.8, 'rgba(110, 50, 220, 0.18)');
+  glow.addColorStop(1, 'rgba(90, 30, 200, 0)');
+  g.fillStyle = glow;
+  g.fillRect(0, 0, 512, 512);
+  g.strokeStyle = 'rgba(240, 225, 255, 0.95)';
+  g.shadowColor = '#c78cff';
+  g.shadowBlur = 18;
+  g.lineWidth = 7;
+  g.beginPath();
+  g.arc(mid, mid, 214, 0, Math.PI * 2);
+  g.stroke();
+  g.lineWidth = 3;
+  g.beginPath();
+  g.arc(mid, mid, 180, 0, Math.PI * 2);
+  g.stroke();
+  // The other runes, small, around the ring.
+  g.font = '34px "Segoe UI Historic", "Noto Sans Runic", serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(240, 225, 255, 0.85)';
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    g.save();
+    g.translate(mid + Math.cos(a) * 197, mid + Math.sin(a) * 197);
+    g.rotate(a + Math.PI / 2);
+    g.fillText(RUNE_SYMBOLS[i % RUNE_SYMBOLS.length].glyph, 0, 0);
+    g.restore();
+  }
+  // The rune itself, big, in the middle.
+  g.font = 'bold 250px "Segoe UI Historic", "Noto Sans Runic", serif';
+  g.shadowBlur = 36;
+  g.fillStyle = '#ffffff';
+  g.fillText(RUNE_SYMBOLS[symbol]?.glyph ?? '?', mid, mid + 10);
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  return tex;
+}
+
+/** The rune's symbol glowing purple on the 3×3 floor around the wizard, before the rune's part plays. */
+function Sigil({ event, room }: { event: SigilEvent; room: RoomSize }) {
+  const t0 = useRef<number | null>(null);
+  const tex = useMemo(() => sigilTexture(event.symbol), [event.symbol]);
+  useEffect(() => () => tex.dispose(), [tex]);
+  const disc = useRef<Mesh>(null);
+  const halo = useRef<Mesh>(null);
+  const at = tileToWorld(event.origin, room);
+  const T = FX.rune.sigilTime;
+  useFxClock(t0, (t) => {
+    const u = clamp01(t / T);
+    // Fade in fast, pulse, fade out at the end.
+    const o = Math.min(1, u / 0.2) * Math.min(1, (1 - u) / 0.2);
+    const pulse = 0.85 + 0.15 * Math.sin(t * 9);
+    if (disc.current) {
+      fade(disc.current, o * pulse);
+      disc.current.scale.setScalar(0.85 + 0.15 * Math.min(1, u / 0.25));
+      disc.current.rotation.z = -t * 0.35;
+    }
+    if (halo.current) {
+      fade(halo.current, 0.35 * o * pulse);
+      halo.current.scale.set(1, 0.6 + 0.4 * Math.min(1, u / 0.3), 1);
+    }
+  });
+  return (
+    <group position={[at[0], 0, at[2]]}>
+      {/* Turned so the symbol reads upright from the camera. */}
+      <group rotation={[0, -Math.PI / 4, 0]}>
+        <mesh ref={disc} position={[0, TILE_TOP + 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+          <planeGeometry args={[3.1, 3.1]} />
+          <meshBasicMaterial map={tex} {...additive} opacity={0} />
+        </mesh>
+      </group>
+      {/* A low column of purple light rising off it. */}
+      <mesh ref={halo} position={[0, TILE_TOP + 0.6, 0]} raycast={() => null}>
+        <cylinderGeometry args={[1.25, 1.45, 1.2, 32, 1, true]} />
+        <meshBasicMaterial color={FX.colors.rune} side={2} {...additive} opacity={0} />
+      </mesh>
+      <Motes t0={t0} from={[0, TILE_TOP + 0.1, 0]} delay={0.1} span={T - 0.1} color={FX.colors.runeLight} count={14} seed={event.id * 5 + 1} burst />
+    </group>
+  );
+}
+
+/** Amplify: a purple bolt striking down onto a target. */
+function Strike({ t0, at, delay }: { t0: MutableRefObject<number | null>; at: [number, number, number]; delay: number }) {
+  const glow = useRef<Mesh>(null);
+  const core = useRef<Mesh>(null);
+  return (
+    <Timed t0={t0} delay={delay} span={0.5} animate={(u) => {
+      const grow = Math.min(1, u * 6);
+      glow.current?.scale.set(1 + u * 0.8, grow, 1 + u * 0.8);
+      core.current?.scale.set(1 - u * 0.7, grow, 1 - u * 0.7);
+      fade(glow.current, 0.9 * (1 - u));
+      fade(core.current, 1 - u);
+    }}>
+      {/* A wide purple glow around a thin bright core, so it reads purple even over bright tiles. */}
+      <mesh ref={glow} position={[at[0], at[1] + 1.4, at[2]]}>
+        <cylinderGeometry args={[0.2, 0.32, 2.8, 12, 1, true]} />
+        <meshBasicMaterial color={FX.colors.rune} side={2} {...soft} />
+      </mesh>
+      <mesh ref={core} position={[at[0], at[1] + 1.4, at[2]]}>
+        <cylinderGeometry args={[0.04, 0.08, 2.8, 8, 1, true]} />
+        <meshBasicMaterial color={FX.colors.runeLight} side={2} {...additive} />
+      </mesh>
+    </Timed>
+  );
+}
+
+/** A purple ring blasting out from a point (Volatile's second blast, Backfire). */
+function Ring({ t0, at, delay, size = 1 }: { t0: MutableRefObject<number | null>; at: [number, number, number]; delay: number; size?: number }) {
+  const ring = useRef<Mesh>(null);
+  return (
+    <Timed t0={t0} delay={delay} span={0.45} animate={(u) => {
+      ring.current?.scale.setScalar(size * (0.3 + u * 1.6));
+      fade(ring.current, 1 - u);
+    }}>
+      <mesh ref={ring} position={[at[0], TILE_TOP + 0.25, at[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.5, 0.07, 8, 36]} />
+        <meshBasicMaterial color={FX.colors.rune} {...additive} />
+      </mesh>
+    </Timed>
+  );
+}
+
+/** The rune's own part of a rune cast, in purple. */
+function RuneFx({ event, room }: { event: RuneEvent; room: RoomSize }) {
+  const t0 = useRef<number | null>(null);
+  const world = (p: Pos, y = 0) => tileToWorld(p, room, y);
+  const { fx, base } = event;
+  const purple = FX.colors.rune;
+  const S = FX.rune.strike;
+  const me = world(fx.origin, UNIT_MID);
+
+  switch (event.effect) {
+    case 'echo':
+      // The whole spell again, in purple.
+      return base ? <CastEffect event={{ type: 'cast', id: event.id, fx: base, broken: event.broken, bumps: [] }} room={room} tint={purple} /> : null;
+
+    case 'amplify':
+      return (
+        <group>
+          {event.targets.map((p, j) => (
+            <group key={j}>
+              <Strike t0={t0} at={world(p, UNIT_MID)} delay={S + j * 0.06} />
+              <TileFlash t0={t0} at={world(p)} delay={S + j * 0.06} color={purple} span={0.45} />
+              <Spark t0={t0} at={world(p, UNIT_MID)} delay={S + 0.05 + j * 0.06} color={purple} />
+            </group>
+          ))}
+          <ShakeAt t0={t0} delay={S} kind="amplify" />
+        </group>
+      );
+
+    case 'widen': {
+      if (!fx.spell) return null;
+      const Tile = TILE_LOOK[lookOf(fx)];
+      const pushOf = (p: Pos) => fx.area?.tiles.find((t) => t.pos.x === p.x && t.pos.y === p.y)?.push ?? null;
+      const first = Math.min(...event.extra.map((p) => tileDelay(fx, p)));
+      return (
+        <group>
+          {event.extra.map((p, j) => {
+            const d = tileDelay(fx, p) - first + 0.05;
+            const push = pushOf(p);
+            return (
+              <group key={j}>
+                <TileFlash t0={t0} at={world(p)} delay={d} color={purple} span={0.5} />
+                <Tile t0={t0} at={world(p)} delay={d} color={purple} scale={1} seed={event.id * 17 + j} push={push ? [push.x, -push.y] : null} />
+              </group>
+            );
+          })}
+          {fx.hits
+            .filter((h) => event.extra.some((p) => p.x === h.pos.x && p.y === h.pos.y))
+            .map((h) => (
+              <Spark key={h.id} t0={t0} at={world(h.pos, UNIT_MID)} delay={tileDelay(fx, h.pos) - first + 0.15} color={h.immune ? '#9a9a9a' : purple} small={h.immune} />
+            ))}
+        </group>
+      );
+    }
+
+    case 'siphon':
+      return (
+        <group>
+          {event.targets.map((p, j) => (
+            <group key={j}>
+              <Spark t0={t0} at={world(p, UNIT_MID)} delay={0.05 + j * 0.05} color={purple} small />
+              <Motes t0={t0} from={world(p, UNIT_MID)} to={me} delay={S} span={FX.siphonTime} color={FX.colors.runeLight} count={7} seed={event.id * 11 + j} />
+            </group>
+          ))}
+          <Spark t0={t0} at={me} delay={S + FX.siphonTime} color={FX.colors.siphon} />
+          <Ring t0={t0} at={world(fx.origin)} delay={S + FX.siphonTime - 0.05} size={0.8} />
+        </group>
+      );
+
+    case 'volatile':
+      return (
+        <group>
+          {event.targets.map((p, j) => (
+            <group key={j}>
+              <Ring t0={t0} at={world(p)} delay={S + j * 0.05} />
+              <TileFlash t0={t0} at={world(p)} delay={S + j * 0.05} color={purple} span={0.45} />
+              <Puff t0={t0} at={world(p, UNIT_MID)} delay={S + 0.05 + j * 0.05} color={purple} />
+              <Spark t0={t0} at={world(p, UNIT_MID)} delay={S + 0.05 + j * 0.05} color={purple} />
+            </group>
+          ))}
+          <ShakeAt t0={t0} delay={S} kind="volatile" />
+          {/* The backlash on the wizard. */}
+          <Ring t0={t0} at={world(fx.origin)} delay={S + 0.4} size={0.9} />
+          <Motes t0={t0} from={me} delay={S + 0.4} span={0.5} color={purple} count={12} seed={event.id + 3} burst />
+          <Spark t0={t0} at={me} delay={S + 0.42} color={FX.colors.selfHurt} />
+        </group>
+      );
+
+    case 'free':
+      return (
+        <group>
+          {/* The mana flows back (the mana orb glows purple meanwhile, see hud/Controls.tsx), then the price in HP. */}
+          <Motes t0={t0} from={world(fx.origin, TILE_TOP + 0.2)} to={world(fx.origin, TILE_TOP + 2.4)} delay={0.05} span={0.6} color={FX.colors.runeLight} count={14} seed={event.id * 3} />
+          <Ring t0={t0} at={world(fx.origin)} delay={0.55} size={0.9} />
+          <Motes t0={t0} from={me} delay={0.6} span={0.45} color={purple} count={10} seed={event.id + 9} burst />
+          <Spark t0={t0} at={me} delay={0.62} color={FX.colors.selfHurt} />
+        </group>
+      );
+
+    case 'backfire': {
+      if (!fx.spell) return null;
+      const Tile = TILE_LOOK[lookOf(fx)];
+      const back = fx.area?.self?.push ?? null;
+      return (
+        <group>
+          <TileFlash t0={t0} at={world(fx.origin)} delay={S} color={purple} span={0.5} />
+          <Tile t0={t0} at={world(fx.origin)} delay={S} color={purple} scale={1.1} seed={event.id * 7} push={back ? [back.x, -back.y] : null} />
+          <Ring t0={t0} at={world(fx.origin)} delay={S + 0.05} />
+          <Spark t0={t0} at={me} delay={S + 0.12} color={purple} />
+          <ShakeAt t0={t0} delay={S} kind="volatile" />
+        </group>
+      );
+    }
+
+    default:
+      // Fizzle: the gathered magic collapses into purple smoke.
+      return (
+        <group>
+          <Puff t0={t0} at={world(fx.origin, TILE_TOP + 0.6)} delay={0} color={purple} />
+          <Puff t0={t0} at={world(fx.origin, TILE_TOP + 0.95)} delay={0.15} color={purple} />
+          <Puff t0={t0} at={world(fx.origin, TILE_TOP + 0.4)} delay={0.3} color={FX.colors.fizzle} />
+          <Motes t0={t0} from={world(fx.origin, TILE_TOP + 0.6)} delay={0.05} span={0.8} color={FX.colors.runeLight} count={12} seed={event.id} burst />
+        </group>
+      );
+  }
 }
 
 /** Every spell effect playing right now. */
 export function SpellFxLayer({ events, room }: { events: FxEvent[]; room: RoomSize }) {
   return (
     <group>
-      {events.map((e) => (
-        <CastEffect key={e.id} event={e} room={room} />
-      ))}
+      {events.map((e) =>
+        e.type === 'cast' ? (
+          <CastEffect key={e.id} event={e} room={room} />
+        ) : e.type === 'sigil' ? (
+          <Sigil key={e.id} event={e} room={room} />
+        ) : (
+          <RuneFx key={e.id} event={e} room={room} />
+        ),
+      )}
     </group>
   );
 }

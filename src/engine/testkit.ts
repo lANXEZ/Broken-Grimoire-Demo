@@ -38,6 +38,8 @@ export function board(setup: Setup): GameState {
     holes: (setup.holes ?? []).map(parseCoord),
     exit: setup.exit ? parseCoord(setup.exit) : null,
     exitAlwaysOpen: !!setup.exitAlwaysOpen,
+    feature: null,
+    seats: [],
     hazards: [],
     drops: [],
   };

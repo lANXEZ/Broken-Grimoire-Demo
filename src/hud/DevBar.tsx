@@ -1,14 +1,23 @@
+import { useEffect, useState } from 'react';
 import { ROOMS, devEdit, devRemoveEnemy, enemyAt, killEnemy, loadRoom, type GameState, type Pos } from '../engine';
 import type { GameApi } from '../game/useGame';
 
 /**
  * Dev toolbar: only rendered in dev mode (config/dev.ts), never in the built game or the .exe.
- * Undo/redo (also Ctrl+Z / Ctrl+Y) plus a few cheats to reach later rooms quickly.
+ * Undo/redo (also Ctrl+Z / Ctrl+Y) plus a few cheats to reach later rooms quickly, and "Forget everything" to wipe
+ * the Grimoire and the "Hmmm..." note (it asks once more first: click again within a few seconds).
  */
 export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
   const s = game.state;
   const hovered = hover ? enemyAt(s, hover) : undefined;
   const cheat = (note: string, edit: (d: GameState) => void) => game.run((st) => devEdit(st, note, edit));
+  const [confirmForget, setConfirmForget] = useState(false);
+  useEffect(() => {
+    if (!confirmForget) return;
+    const t = window.setTimeout(() => setConfirmForget(false), 3000);
+    return () => window.clearTimeout(t);
+  }, [confirmForget]);
+  const known = s.grimoire.length + s.combos.length;
   return (
     <div className="dev-bar">
       <span className="dev-tag">DEV</span>
@@ -40,6 +49,18 @@ export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
         onClick={() => cheat(`skip to room ${s.roomIndex + 2}`, (d) => loadRoom(d, d.roomIndex + 1))}
       >
         Next room
+      </button>
+      <button
+        className={confirmForget ? 'is-danger' : ''}
+        disabled={known === 0}
+        title="Wipe every Grimoire page and every Hmmm... line, on this computer too (rune notes stay)"
+        onClick={() => {
+          if (!confirmForget) return setConfirmForget(true);
+          setConfirmForget(false);
+          game.forgetKnowledge();
+        }}
+      >
+        {confirmForget ? 'Really forget?' : 'Forget everything'}
       </button>
     </div>
   );

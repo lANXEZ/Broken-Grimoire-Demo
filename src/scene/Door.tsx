@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { AdditiveBlending, type Group, type Mesh, type MeshBasicMaterial } from 'three';
@@ -28,10 +28,17 @@ export const DOOR_TOP = TILE_TOP + SIGN_Y + 0.38;
 const glow = { transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false } as const;
 const noRaycast = () => null;
 
-export function Door({ pos, room, open, label, pointer, unitFeet, pointerOnBoard }: {
+/** The big dungeon door (room 0) is this much bigger than a normal one. */
+export const BIG_DOOR_SCALE = 1.45;
+/** Height of the open door's light column (scaled with the big door: about 2.47, reaching world y ≈ 2.61). */
+export const DOOR_BEAM_HEIGHT = 1.7;
+
+export function Door({ pos, room, open, label, big = false, pointer, unitFeet, pointerOnBoard }: {
   pos: Pos;
   room: RoomSize;
   open: boolean;
+  /** Room 0's big dungeon door. */
+  big?: boolean;
   /** Where the door leads ("The Whispering Lectern"), shown on the EXIT sign while it's open. */
   label: string;
   pointer: TilePointer;
@@ -39,6 +46,10 @@ export function Door({ pos, room, open, label, pointer, unitFeet, pointerOnBoard
   pointerOnBoard: { current: boolean };
 }) {
   const portal = useRef<Mesh>(null);
+  // drei's <Html> comes up empty if it's created in the scene's very first render (a door that's open from the
+  // start, like room 0's or the Cistern's), so the EXIT sign is added one render later.
+  const [signReady, setSignReady] = useState(false);
+  useEffect(() => setSignReady(true), []);
   const beam = useRef<Mesh>(null);
   const arrow = useRef<Group>(null);
   useFrame(({ clock }) => {
@@ -56,8 +67,10 @@ export function Door({ pos, room, open, label, pointer, unitFeet, pointerOnBoard
   const C = PLACEHOLDER_COLORS;
   const half = ARCH.width / 2 - ARCH.post / 2;
 
+  const k = big ? BIG_DOOR_SCALE : 1;
+  const beamH = DOOR_BEAM_HEIGHT;
   return (
-    <group>
+    <group position={[at[0] * (1 - k), at[1] * (1 - k), at[2] * (1 - k)]} scale={k}>
       <Obstacle
         position={at}
         size={{ width: ARCH.width, depth: 0.2, height: ARCH.height + 0.12 }}
@@ -99,6 +112,13 @@ export function Door({ pos, room, open, label, pointer, unitFeet, pointerOnBoard
         </group>
       </Obstacle>
 
+      {/* An invisible click area over the doorway: clicking the door always means the door, even while the arch
+          has faded to let you see past it (a faded obstacle lets clicks through). */}
+      <mesh position={[at[0], at[1] + ARCH.height / 2, at[2]]} {...tileHandlers(pos, pointer)}>
+        <boxGeometry args={[ARCH.width, ARCH.height, 0.3]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
       {open && (
         <group position={at}>
           {/* The portal shimmering in the arch. */}
@@ -107,8 +127,8 @@ export function Door({ pos, room, open, label, pointer, unitFeet, pointerOnBoard
             <meshBasicMaterial color={C.portal} side={2} {...glow} opacity={0.6} />
           </mesh>
           {/* A beam of light rising from the tile. */}
-          <mesh ref={beam} position={[0, 0.85, 0]} raycast={noRaycast}>
-            <cylinderGeometry args={[0.38, 0.42, 1.7, 24, 1, true]} />
+          <mesh ref={beam} position={[0, beamH / 2, 0]} raycast={noRaycast}>
+            <cylinderGeometry args={[0.38, 0.42, beamH, 24, 1, true]} />
             <meshBasicMaterial color={C.portal} side={2} {...glow} opacity={0.16} />
           </mesh>
           {/* A gold arrow bobbing above the door, pointing down at it. */}
@@ -118,12 +138,12 @@ export function Door({ pos, room, open, label, pointer, unitFeet, pointerOnBoard
               <meshStandardMaterial color={C.exitOpen} emissive={C.exitOpen} emissiveIntensity={0.9} />
             </mesh>
           </group>
-          <Html position={[0, TILE_TOP + SIGN_Y, 0]} center zIndexRange={[15, 5]} style={{ pointerEvents: 'none' }}>
+          {signReady && <Html position={[0, TILE_TOP + SIGN_Y, 0]} center zIndexRange={[15, 5]} style={{ pointerEvents: 'none' }}>
             <div className="door-sign">
               <span className="door-sign-title">Exit</span>
               <span className="door-sign-to">{label}</span>
             </div>
-          </Html>
+          </Html>}
         </group>
       )}
     </group>

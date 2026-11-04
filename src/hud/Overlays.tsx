@@ -44,7 +44,7 @@ export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
           {t.cards && t.cards.length > 0 && (
             <div className="toast-cards">
               {t.cards.map((c) => (
-                <FragmentCard key={c.id} card={c} className="toast-card" />
+                <FragmentCard key={c.id} card={c} className="toast-card" thought="none" />
               ))}
             </div>
           )}
@@ -68,6 +68,8 @@ export interface Pickup {
   cards: Card[];
   /** true = back into the hand (a Page Scrap's stolen cards); false = into the discard pile. */
   toHand: boolean;
+  /** Into the deck instead (runes from the lectern). */
+  toDeck?: boolean;
 }
 
 /**
@@ -82,7 +84,7 @@ export function PickupReveal({ pickup, onDone }: { pickup: Pickup; onDone: (id: 
 
   // Where to fly: the centre of the discard pile (or the hand), relative to where the cards are shown.
   useLayoutEffect(() => {
-    const target = document.querySelector(pickup.toHand ? '.hand' : '.pile-discard .pile-stack')?.getBoundingClientRect();
+    const target = document.querySelector(pickup.toHand ? '.hand' : pickup.toDeck ? '.pile-draw .pile-stack' : '.pile-discard .pile-stack')?.getBoundingClientRect();
     const from = box.current?.getBoundingClientRect();
     if (target && from) {
       setFly({ x: target.left + target.width / 2 - (from.left + from.width / 2), y: target.top + target.height / 2 - (from.top + from.height / 2) });
@@ -99,16 +101,16 @@ export function PickupReveal({ pickup, onDone }: { pickup: Pickup; onDone: (id: 
   } as CSSProperties;
   return (
     <div ref={box} className="pickup-reveal" style={style}>
-      <div className="pickup-label">{pickup.toHand ? 'Recovered' : 'Picked up'}</div>
+      <div className="pickup-label">{pickup.toHand ? 'Recovered' : pickup.toDeck ? 'You take' : 'Picked up'}</div>
       <div className="pickup-cards">
         {pickup.cards.map((c) => (
           <div key={c.id} className="pickup-card">
-            <FragmentCard card={c} />
+            <FragmentCard card={c} thought="show" />
             <div className="pickup-name">{cardName(c)}</div>
           </div>
         ))}
       </div>
-      <div className="pickup-where">{pickup.toHand ? '→ back to your hand' : '→ discard pile'}</div>
+      <div className="pickup-where">{pickup.toHand ? '→ back to your hand' : pickup.toDeck ? '→ your deck' : '→ discard pile'}</div>
     </div>
   );
 }

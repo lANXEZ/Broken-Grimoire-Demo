@@ -9,6 +9,12 @@ import type { Card, Element, EnemyKind, FragmentKind, HazardKind } from '../engi
  */
 export const artUrl = (path: string) => `${import.meta.env.BASE_URL}art/${path}`;
 
+/**
+ * The title screen's background. PLACEHOLDER photo: "Full moon behind tree silhouettes" by Aron Visuals, from
+ * Unsplash (https://unsplash.com/photos/4zxSWESyZio), free to use under the Unsplash License.
+ */
+export const TITLE_ART = artUrl('title/moon-forest.jpg');
+
 // ---------------------------------------------------------------- units
 
 /**
@@ -63,6 +69,26 @@ export const PLACEHOLDER_COLORS = {
   doorWood: '#5a3b24',
   /** The open door's portal, light beam and arrow. */
   portal: '#ffe2a0',
+  /** The Whispering Lectern (scene/Lectern.tsx). */
+  lecternStone: '#8d8379',
+  lecternWood: '#4a2f1d',
+  lecternPage: '#efe4cc',
+  lecternGlow: '#b05cff',
+  /** The camp's fire and logs (scene/Campfire.tsx). */
+  campStone: '#6f665d',
+  campLog: '#6b4a2e',
+  campLogDark: '#2e1d12',
+  campLogEnd: '#c9a57a',
+  campFlameOuter: '#ff5a1f',
+  campFlame: '#ff9a3c',
+  campFlameCore: '#ffe08a',
+  campLight: '#ffb066',
+  campSmoke: '#8a8580',
+  campSteam: '#e8ecf0',
+  /** Room 0's collapsed corner (scene/Moonlight.tsx). */
+  moonlight: '#b9cdff',
+  moonDust: '#e6eeff',
+  rubble: '#7a7067',
   hole: '#060405',
   holeRim: '#241b16',
   unitBase: { player: '#d8b55a', enemy: '#8b2e2a' },
@@ -71,8 +97,8 @@ export const PLACEHOLDER_COLORS = {
 // ---------------------------------------------------------------- cards & icons
 
 /**
- * Kit card art that exists for each fragment kind. Kinds missing here (Wind, Wall, runes) are drawn as plain
- * placeholder cards in CSS (hud/Hand.tsx `FragmentCard`) until the artist delivers them.
+ * Kit card art that exists for each fragment kind. Kinds missing here are drawn in code until the artist delivers
+ * them: Wind and Wall in the kit's card layout (hud/KitCard.tsx), runes as plain cards (hud/Hand.tsx).
  */
 const CARD_IMAGE: Partial<Record<FragmentKind, string>> = { fire: 'fire', water: 'water', earth: 'rock', beam: 'beam', cross: 'cross' };
 /** Kinds whose loot version (with the wax seal printed on) exists in public/art/cards/. The kit has no Cross loot card. */
