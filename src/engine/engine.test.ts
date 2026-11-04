@@ -23,6 +23,12 @@ import {
   exitOpen,
   isWalkable,
   playerCast,
+  RUNE_EFFECTS,
+  ALPHABET,
+  CIPHER_SYMBOLS,
+  makeCipher,
+  encryptRunes,
+  decryptRunes,
   castFx,
   playerEscape,
   playerMeditate,
@@ -655,6 +661,38 @@ describe('boss room', () => {
 describe('runes', () => {
   const brute = () => board({ player: 'a1', enemies: [{ kind: 'brute', at: 'a2' }] });
 
+  it('the rune alphabet: a different symbol per letter; each rune shows its first letter, clashes get their own', () => {
+    let seed = 7;
+    const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const c = makeCipher(rand);
+    const own = ALPHABET.map((l) => c.letters[l][0]);
+    expect(new Set(own).size).toBe(26);
+    const all = ALPHABET.flatMap((l) => c.letters[l]);
+    expect(new Set(all).size).toBe(all.length);
+    expect(all.every((s) => CIPHER_SYMBOLS.includes(s))).toBe(true);
+    for (const e of RUNE_EFFECTS) expect(c.letters[e[0].toUpperCase()]).toContain(c.runes[e]);
+    expect(new Set(RUNE_EFFECTS.map((e) => c.runes[e])).size).toBe(RUNE_EFFECTS.length);
+    // Free and Fizzle: F's own symbol for Free (first in RUNE_EFFECTS), a second F symbol for Fizzle.
+    expect(c.letters.F).toEqual([c.runes.free, c.runes.fizzle]);
+    expect(c.letters.A).toEqual([c.runes.amplify]);
+    // Saved once, never changes; a broken save is repaired, keeping what's still good.
+    expect(makeCipher(Math.random, JSON.parse(JSON.stringify(c)))).toEqual(c);
+    const broken = JSON.parse(JSON.stringify(c));
+    delete broken.runes.fizzle;
+    broken.letters.F = [c.runes.free];
+    const fixed = makeCipher(Math.random, broken);
+    expect(fixed.letters.A).toEqual(c.letters.A);
+    expect(fixed.letters.F[0]).toBe(c.runes.free);
+    expect(fixed.letters.F).toHaveLength(2);
+    expect(fixed.runes.fizzle).toBe(fixed.letters.F[1]);
+    // Messages: letters become symbols, the rest stays; reading back gives the letters.
+    const L = (l: string) => c.letters[l][0];
+    const secret = encryptRunes(c, 'Fizz, buzz!');
+    expect(secret).toBe(`${L('F')}${L('I')}${L('Z')}${L('Z')}, ${L('B')}${L('U')}${L('Z')}${L('Z')}!`);
+    expect(decryptRunes(c, secret)).toBe('FIZZ, BUZZ!');
+    expect(decryptRunes(c, c.runes.fizzle)).toBe('F');
+  });
+
   it('a rune cast can be shown in two parts: the spell alone first, then the real result', () => {
     const s = brute();
     const rune = giveRune(s, 'amplify');
@@ -786,6 +824,15 @@ describe('the run', () => {
       expect(coordLabel(s.room.exit!)).toBe('c4');
       expect(s.enemies).toEqual([]);
       expect(s.cards.hand).toHaveLength(5);
+    });
+
+    it('the wizard wakes up on the sleeping mat (two tiles), which can be walked off and back onto', () => {
+      const s = wake();
+      expect(labels(s.room.mat!)).toEqual(['a1', 'b1']);
+      expect(coordLabel(s.player.pos)).toBe('a1');
+      const away = walkTo(s, 'c1');
+      expect(coordLabel(away.player.pos)).toBe('c1');
+      expect(coordLabel(walkTo(away, 'a1').player.pos)).toBe('a1');
     });
 
     it('actions and mana never run out, and the hand refills after a cast', () => {

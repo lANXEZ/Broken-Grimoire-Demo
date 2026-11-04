@@ -38,15 +38,16 @@ npm run dist       # build the portable Windows .exe into release/BrokenGrimoire
 ```
 
 The .exe needs no installer and no internet. The run is saved automatically and continues when the game reopens.
-Four things are kept per computer and survive a new run: what each rune symbol does (shuffled once, on first launch,
-so the player's notes keep working), the player's own rune notes, the Grimoire's pages, and the "Hmmm..." note's
-card combinations.
+Five things are kept per computer and survive a new run: what each rune card does and the rune alphabet (both
+shuffled once, on first launch, so the player's notes keep working), the player's own rune notes, the Grimoire's
+pages, and the "Hmmm..." note's card combinations.
 
 ## Controls
 
 | Action | How |
 |---|---|
-| Start | Title screen: **Start** (or **Continue** / **New game** when a run is saved) |
+| Start | Title screen: **Start** (or **Continue** / **New game** when a run is saved; a run still in room 0 doesn't count). **Quit** closes the game (.exe only) |
+| Back to the title | In room 0, stand on the sleeping mat and click **Get some rest?** over the pillow |
 | Room 0 | Click any tile to walk there, click the big door to start the run. Spells are free to try: mana and actions never run out, Reroll works, and Water or Earth puts the campfire out (Fire lights it again) |
 | Move | Click a highlighted tile next to the wizard |
 | Craft a spell | Drag fragments from your hand onto the crafting table: they stay wherever you drop them (clicking a card drops it at a random spot). Drag a table card to move it |
@@ -82,7 +83,11 @@ card combinations.
 | Animation speeds | `src/config/timing.ts` |
 | Spell effects (timing, size, colours, camera shake on/off) | `src/config/fx.ts`; the effects themselves are in `src/scene/SpellFx.tsx` |
 | Balance numbers, enemies, rooms, the run order | `src/engine/data.ts` (`RULES`, `ENEMY_DEFS`, `ROOMS`, `RUN`) |
-| Rune symbols and their made-up names | `src/engine/runes.ts` |
+| Room 0's layout (campfire, moonlight, the sleeping mat's tiles) | `src/engine/data.ts` (`PROLOGUE_ROOM`); the mat's look and its "Get some rest?" prompt are `src/scene/Mat.tsx` |
+| Rune cards' made-up names | `src/engine/runes.ts` (`RUNE_SYMBOLS`) |
+| The rune alphabet (cipher) and its symbols | `src/engine/cipher.ts` (`CIPHER_SYMBOLS`, how clashes are handled); saved per computer in `src/game/runeMap.ts` |
+| Hidden messages' English text (e.g. the line after a defeat) | `src/config/runeMessages.ts`; the black screen after a defeat is `FateScreen` in `src/hud/TitleScreen.tsx`, its timing `fate*` in `src/config/timing.ts` |
+| Write a hidden message in runes | `<RuneText text="..." />` from `src/hud/RuneLetter.tsx` (or `inRunes(text)` from `src/game/runeMap.ts`): write English, it shows in that computer's runes |
 | The "Hmmm..." note | Logic in `src/game/notes.ts`, panel in `src/hud/HmmmNote.tsx`, position `LAYOUT.hmmm`. The thought-cloud look (and the rune bubbles) is `src/hud/Thought.tsx` plus the "wizard's thoughts" styles in `hud.css` |
 | Card art for kinds without art yet (Wind, Wall, runes) | Wind and Wall are drawn in the kit's card layout in `src/hud/KitCard.tsx` (text, pictures, colours); runes are plain cards in `FragmentCard` (`src/hud/Hand.tsx`). To use real art instead, add the kind to `CARD_IMAGE` in `src/config/art.ts` |
 | Dev mode on or off | In the game: the **Dev mode** switch in the Menu. Its starting value before anyone flips it (on for `npm run dev`, off in builds) is in `src/config/dev.ts` |

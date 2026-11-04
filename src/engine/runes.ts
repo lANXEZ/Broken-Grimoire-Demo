@@ -1,21 +1,22 @@
 import type { RuneEffect } from './types';
 
 /**
- * Runes: fragments written in the dungeon's gibberish. The player only ever sees the symbol and its made-up name;
- * what each one does is shuffled once per computer (the app saves the mapping) and never shown.
+ * Runes: fragments written in the dungeon's gibberish. The player sees a rune letter and a made-up name; what each
+ * one does is never shown. Which of the 8 rune cards does what is shuffled once per computer, and so is the rune
+ * alphabet the letters come from (engine/cipher.ts); the app saves both (game/runeMap.ts).
  */
 export const RUNE_EFFECTS: RuneEffect[] = ['echo', 'amplify', 'widen', 'siphon', 'volatile', 'free', 'backfire', 'fizzle'];
 
-/** The 8 symbols. `glyph` is placeholder art until the artist draws them. */
-export const RUNE_SYMBOLS: { glyph: string; name: string }[] = [
-  { glyph: 'ᚠ', name: 'Vreth' },
-  { glyph: 'ᚢ', name: 'Ulmo' },
-  { glyph: 'ᚦ', name: 'Thask' },
-  { glyph: 'ᚨ', name: 'Azzri' },
-  { glyph: 'ᚱ', name: 'Rhoun' },
-  { glyph: 'ᚲ', name: 'Kesh' },
-  { glyph: 'ᚷ', name: 'Gyvel' },
-  { glyph: 'ᛉ', name: 'Zhoth' },
+/** The 8 rune cards' made-up names. A name stays with its card, so it says nothing about what the rune does. */
+export const RUNE_SYMBOLS: { name: string }[] = [
+  { name: 'Vreth' },
+  { name: 'Ulmo' },
+  { name: 'Thask' },
+  { name: 'Azzri' },
+  { name: 'Rhoun' },
+  { name: 'Kesh' },
+  { name: 'Gyvel' },
+  { name: 'Zhoth' },
 ];
 
 export function runeName(symbol: number): string {

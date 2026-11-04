@@ -112,6 +112,11 @@ export const PROLOGUE_ROOM = {
   read: 'b1',
   seats: ['a2'],
   moonlight: ['a3', 'a4'],
+  /**
+   * The sleeping mat the wizard wakes up on: two tiles, pillow end first (walkable). Standing on it offers
+   * "Get some rest?" (back to the title).
+   */
+  mat: ['a1', 'b1'],
   exit: 'c4',
   /** What the wizard thinks on waking (shown in a thought cloud). */
   wakeThought: 'Dream of outside again… How long have I been stuck here…',

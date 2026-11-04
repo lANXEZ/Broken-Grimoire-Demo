@@ -2121,6 +2121,11 @@ button {
 .hmmm-chip.is-rune {
   --frag-color: #8f86a8;
 }
+/* Hidden messages in the rune alphabet (hud/RuneLetter.tsx RuneText). */
+.rune-text {
+  font-family: 'Segoe UI Historic', 'Noto Sans Runic', serif;
+  letter-spacing: 0.08em;
+}
 .hmmm-glyph {
   font-family: serif;
   font-size: 0.95rem;
@@ -2376,6 +2381,35 @@ button {
 }
 
 /* Above the lectern: what it says in plain words, and the runes it whispers drifting up. */
+/* Room 0's mat: "Get some rest?" over the pillow (scene/Mat.tsx). */
+.rest-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  width: max-content;
+  padding: 0.4rem 0.85rem 0.45rem;
+  border: 0.12rem solid #c9a86a;
+  border-radius: 0.7rem;
+  background: #1c140ee6;
+  box-shadow: 0 0.3rem 1rem #0008;
+  color: #f3e6c8;
+  font-family: 'Kreon', Georgia, serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  cursor: pointer;
+  animation: fade-in 0.35s;
+}
+.rest-prompt span {
+  font-size: 0.72rem;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  color: #c9b48a;
+}
+.rest-prompt:hover {
+  border-color: #ffd36b;
+  background: #2a1e14ee;
+}
 .lectern-voice {
   position: relative;
   display: flex;
@@ -2454,6 +2488,7 @@ button {
   inset: 0;
   z-index: 900;
   overflow: hidden;
+  animation: title-in 0.6s ease-out;
   background-color: #04070a;
   background-size: cover;
   /* The moon sits left of centre, leaving the right side for the buttons. */
@@ -2598,6 +2633,58 @@ button {
 
 /* ------------------------------------------------------------------ waking up (hud/TitleScreen.tsx Blink) */
 
+/* After a defeat: black, and the rune message in the middle (hud/TitleScreen.tsx FateScreen). */
+.fate-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 960;
+  display: grid;
+  place-items: center;
+  padding: 0 1.5rem;
+  background: #000;
+  animation: fate-dark var(--fate-fade) ease-in both;
+  cursor: default;
+}
+@keyframes fate-dark {
+  from {
+    opacity: 0;
+  }
+}
+.fate-message {
+  max-width: 60rem;
+  text-align: center;
+  font-size: clamp(2rem, 4.2vw, 3.6rem);
+  line-height: 1.5;
+  letter-spacing: 0.18em;
+  color: #e6dcff;
+  text-shadow: 0 0 0.5em rgb(170 120 255 / 0.65), 0 0 1.4em rgb(120 60 220 / 0.4);
+  transition: opacity var(--fate-out) ease-in, filter var(--fate-out) ease-in;
+}
+/* A word never breaks across lines; its letters appear one by one, left to right (hud/TitleScreen.tsx). */
+.fate-word {
+  white-space: nowrap;
+}
+.fate-char {
+  display: inline-block;
+  opacity: 0;
+  animation: fate-char var(--fate-letter) ease-out both;
+}
+@keyframes fate-char {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateX(-0.25em);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+.fate-screen.is-out .fate-message {
+  opacity: 0;
+  filter: blur(4px);
+}
 .blink {
   --lid-glow: 0;
   position: fixed;
@@ -2640,4 +2727,10 @@ button {
 }
 .unit-thought .thought-body {
   padding: 0.5rem 0.6rem;
+}
+
+@keyframes title-in {
+  from {
+    opacity: 0;
+  }
 }

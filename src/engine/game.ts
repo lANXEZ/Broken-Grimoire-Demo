@@ -392,6 +392,7 @@ function loadPrologue(s: GameState): void {
     seats: R.seats.map(parseCoord),
     seatStyle: 'rock',
     moonlight: R.moonlight.map(parseCoord),
+    mat: R.mat.map(parseCoord),
     bigDoor: true,
     hazards: [],
     drops: [],

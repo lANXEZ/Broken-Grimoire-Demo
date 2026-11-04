@@ -323,6 +323,10 @@ export function DeckView({ state, onClose }: { state: GameState; onClose: () => 
   );
 }
 
+/**
+ * The end of a run. Victory: New run. Defeat: Continue, which goes dark and shows the rune message before the
+ * wizard wakes up in room 0 again (App.tsx, hud/TitleScreen.tsx FateScreen).
+ */
 export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun: () => void }) {
   const won = state.phase === 'won';
   return (
@@ -338,7 +342,7 @@ export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun
               : 'The wizard has fallen.'}
       </p>
       <button className="hud-button primary" onClick={onNewRun} autoFocus>
-        New run
+        {won ? 'New run' : 'Continue'}
       </button>
     </Modal>
   );

@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { RUNE_SYMBOLS, cardName, isShapeKind, type Card } from '../engine';
+import { RuneLetter } from './RuneLetter';
 import { FRAGMENT_COLOR, cardArt } from '../config/art';
 import { LAYOUT } from '../config/layout';
 import { KitCard, hasKitCard } from './KitCard';
@@ -52,7 +53,7 @@ function CardFace({ card, className = '', style }: { card: Card; className?: str
       style={{ ...style, ['--frag-color' as string]: FRAGMENT_COLOR[card.kind] }}
       title={cardName(card)}
     >
-      <div className="drawn-glyph">{rune ? rune.glyph : cardName(card).charAt(0)}</div>
+      <div className="drawn-glyph">{rune ? <RuneLetter symbol={card.rune ?? 0} /> : cardName(card).charAt(0)}</div>
       <div className="drawn-name">{rune ? rune.name : cardName(card)}</div>
       {card.loot && <div className="drawn-seal" />}
     </div>

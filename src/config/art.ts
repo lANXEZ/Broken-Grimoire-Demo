@@ -87,6 +87,12 @@ export const PLACEHOLDER_COLORS = {
   campSteam: '#e8ecf0',
   /** Room 0's collapsed corner (scene/Moonlight.tsx). */
   moonlight: '#b9cdff',
+  // Room 0's sleeping mat: old straw, darker woven bands and worn patches, a dirty off-white pillow.
+  matStraw: '#8f7a52',
+  matWeave: '#6f5d3c',
+  matWorn: '#5a4a31',
+  matPillow: '#b9ad90',
+  matStain: '#9a8a66',
   moonDust: '#e6eeff',
   rubble: '#7a7067',
   hole: '#060405',

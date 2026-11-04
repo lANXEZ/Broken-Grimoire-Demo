@@ -27,9 +27,24 @@ export const TIMING = {
   eventWalkOutDelay: 1800,
   /** The opening: the title fading out (Continue), the eyes closing (New game), the waking blink, the first thought. */
   titleFade: 500,
+  /** "Get some rest?" on room 0's mat: the eyes close slowly, then the title screen fades in. */
+  restClose: 1100,
   eyesClose: 455,
   wakeBlink: 1820,
   wakeThought: 5500,
+  /**
+   * After a defeat (Continue): the screen fades to black, then the rune message appears left to right as if someone
+   * were saying it (one letter every fateLetter ms, a little longer between words, a pause after , . ! ? as when
+   * speaking), each letter fading in over fateLetterFade. It stays for fateHold once it's all there, fades out, and
+   * the wizard wakes up in room 0 (the waking blink above).
+   */
+  fateFade: 900,
+  fateLetter: 75,
+  fateWordGap: 170,
+  fatePause: 700,
+  fateLetterFade: 450,
+  fateHold: 2800,
+  fateMessageOut: 1000,
   /** Toasts (loot, errors) auto-dismiss after this. */
   toast: 3400,
 } as const;

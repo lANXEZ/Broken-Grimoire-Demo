@@ -11,6 +11,7 @@ import { Unit, type UnitView } from './Unit';
 import { Drops, Hazards } from './Hazards';
 import { BIG_DOOR_SCALE, DOOR_TOP } from './Door';
 import { Moonlight } from './Moonlight';
+import { Mat } from './Mat';
 import { Lectern } from './Lectern';
 import { Campfire } from './Campfire';
 import { TILE_TOP, tileToWorld } from './iso';
@@ -26,6 +27,9 @@ interface Props {
   runeTint: boolean;
   /** What the wizard is thinking, shown in a thought cloud over their head (or null). */
   playerThought?: string | null;
+  /** Room 0: the wizard is on the mat and can go back to the title ("Get some rest?"). */
+  restPrompt?: boolean;
+  onRest?: () => void;
   hover: Pos | null;
   pointer: TilePointer;
   onRightClick: () => void;
@@ -80,7 +84,7 @@ function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitVie
 }
 
 /** The 3D board: camera, lights, tiles, highlights and units. The HUD is drawn on top of it in HTML. */
-export function GameScene({ state, intents, overlays, fx, runeTint, playerThought = null, hover, pointer, onRightClick }: Props) {
+export function GameScene({ state, intents, overlays, fx, runeTint, playerThought = null, restPrompt = false, onRest = () => {}, hover, pointer, onRightClick }: Props) {
   const room = state.room;
   const units = useMemo(() => unitViews(state, intents), [state, intents]);
   // For the obstacle fade (scene/Obstacle.tsx): where every unit stands, and whether the mouse is on the board.
@@ -118,6 +122,7 @@ export function GameScene({ state, intents, overlays, fx, runeTint, playerThough
         <Board room={room} exitOpen={exitOpen(state)} exitLabel={stageName(state.stage + 1)} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
         <Hazards hazards={room.hazards} room={room} />
         {room.moonlight && room.moonlight.length > 0 && <Moonlight tiles={room.moonlight} room={room} />}
+        {room.mat && room.mat.length > 0 && <Mat tiles={room.mat} room={room} prompt={restPrompt} onRest={onRest} />}
         {room.feature?.kind === 'lectern' && (
           <Lectern
             pos={room.feature.pos}

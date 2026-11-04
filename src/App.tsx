@@ -42,7 +42,7 @@ import { EndTurnButton, EscapeButton, ManaOrb, MeditateButton, Pile, RerollButto
 import { DevBar } from './hud/DevBar';
 import { CampPanel, ClearedPanel, DeckView, EventPanel, GameOverDialog, GrimoireBook, LeaveEarlyDialog, MenuDialog } from './hud/Dialogs';
 import { HmmmNote } from './hud/HmmmNote';
-import { Blink, TitleScreen } from './hud/TitleScreen';
+import { Blink, FateScreen, TitleScreen } from './hud/TitleScreen';
 import { ThoughtFilters } from './hud/Thought';
 import { FragmentCard, Hand } from './hud/Hand';
 import { EnemyCaption, LogDrawer, PickupReveal, Toasts, TurnBanner, type Pickup, type Toast } from './hud/Overlays';
@@ -111,7 +111,7 @@ export function App() {
    * The opening: the title screen ('title'), fading out on Continue ('leaving'), eyes closing over it on New game
    * ('closing'), then waking in room 0 ('waking'); null once playing.
    */
-  const [intro, setIntro] = useState<'title' | 'leaving' | 'closing' | 'waking' | null>('title');
+  const [intro, setIntro] = useState<'title' | 'leaving' | 'closing' | 'fate' | 'resting' | 'waking' | null>('title');
   /** What the wizard is thinking (a thought cloud over their head), e.g. on waking in room 0. */
   const [thought, setThought] = useState<string | null>(null);
   const [bookOpen, setBookOpen] = useState(false);
@@ -145,6 +145,10 @@ export function App() {
   /** Walking around without turns: after CLEARED!, in the event and camp rooms, and in room 0. */
   const freeWalk = state.phase === 'cleared' || inEvent || prologue;
   const dialogOpen = menuOpen || bookOpen || deckOpen || finished || earlyAsk;
+  // Room 0: standing still on the mat, with nothing else going on (not even the wake-up thought), offers rest.
+  const onMat = !!state.room.mat?.some((p) => samePos(p, state.player.pos));
+  const restPrompt =
+    prologue && onMat && !intro && !thought && !castPlaying && !dialogOpen && walk.path.length === 0 && mode.kind === 'idle' && table.length === 0;
   const canAct = state.phase === 'player' && !enemyTurn.playing && !castPlaying && !dialogOpen && state.actionsLeft > 0;
 
   const onTable = useMemo(() => tableCards(hand, table), [hand, table]);
@@ -188,6 +192,18 @@ export function App() {
   const continueGame = () => {
     setIntro('leaving');
     window.setTimeout(() => setIntro(null), TIMING.titleFade);
+  };
+  /** "Get some rest?" on room 0's mat: the eyes close slowly, and the title screen comes back (Start, Quit). */
+  const rest = () => {
+    resetCasting();
+    setIntro('resting');
+    window.setTimeout(() => setIntro('title'), TIMING.restClose);
+  };
+  /** After the rune message on the black screen (a defeat): a new run, waking up in room 0 like at the start. */
+  const afterFate = () => {
+    resetCasting();
+    game.newRun();
+    wakeUp();
   };
   // The thought fades on its own (or at the first click).
   useEffect(() => {
@@ -730,7 +746,19 @@ export function App() {
       onPointerDownCapture={castPlaying ? skipCast : thought ? () => setThought(null) : undefined}
     >
       <ThoughtFilters />
-      <GameScene state={view} runeTint={!!castPlay?.runeTint} playerThought={thought} intents={intents} overlays={overlays} fx={fx} hover={hover} pointer={pointer} onRightClick={cancel} />
+      <GameScene
+        state={view}
+        runeTint={!!castPlay?.runeTint}
+        playerThought={thought}
+        restPrompt={restPrompt}
+        onRest={rest}
+        intents={intents}
+        overlays={overlays}
+        fx={fx}
+        hover={hover}
+        pointer={pointer}
+        onRightClick={cancel}
+      />
 
       <div className="hud">
         <TopBar state={view} onGrimoire={() => setBookOpen(true)} onDeck={() => setDeckOpen(true)} onToggleLog={() => setLogOpen((o) => !o)} onMenu={() => setMenuOpen(true)} />
@@ -831,20 +859,25 @@ export function App() {
           }}
         />
       )}
-      {finished && !castPlaying && (
+      {finished && !castPlaying && intro !== 'fate' && (
         <GameOverDialog
           state={state}
           onNewRun={() => {
+            // Defeat: everything goes dark and the rune message shows first (FateScreen), then the same waking.
+            if (state.phase === 'lost') return setIntro('fate');
             resetCasting();
             game.newRun();
             wakeUp();
           }}
         />
       )}
+      {intro === 'fate' && <FateScreen onDone={afterFate} />}
       {(intro === 'title' || intro === 'leaving' || intro === 'closing') && (
-        <TitleScreen canContinue={game.resumable} leaving={intro !== 'title'} fading={intro === 'leaving'} onContinue={continueGame} onNewGame={startNewGame} />
+        <TitleScreen canContinue={game.resumable && !isPrologue(state)} leaving={intro !== 'title'} fading={intro === 'leaving'} onContinue={continueGame} onNewGame={startNewGame} />
       )}
-      {(intro === 'closing' || intro === 'waking') && <Blink stage={intro === 'closing' ? 'close' : 'wake'} />}
+      {(intro === 'closing' || intro === 'resting' || intro === 'waking') && (
+        <Blink stage={intro === 'waking' ? 'wake' : 'close'} duration={intro === 'resting' ? TIMING.restClose : undefined} />
+      )}
       {menuOpen && (
         <MenuDialog
           devMode={dev}

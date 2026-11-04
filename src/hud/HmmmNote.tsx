@@ -3,6 +3,7 @@ import { FRAGMENT_COLOR, iconArt } from '../config/art';
 import type { NoteLine, NoteToken, NoteView } from '../game/notes';
 import { useRuneNote } from '../game/runeNotes';
 import { RUNE_THOUGHT_DEFAULT, ThoughtCloud } from './Thought';
+import { RuneLetter } from './RuneLetter';
 
 /**
  * [UI-PLACEMENT] "Hmmm...": the wizard's memory of every card combination cast so far (LAYOUT.hmmm), drawn as one
@@ -104,7 +105,9 @@ function RuneChip({ symbol, onTable }: { symbol: number; onTable: boolean }) {
     <span className="hmmm-rune">
       <span className={`hmmm-rune-note ${note ? '' : 'is-default'}`}>{note || RUNE_THOUGHT_DEFAULT}</span>
       <span className={`hmmm-chip is-rune ${onTable ? 'is-on-table' : ''}`}>
-        <span className="hmmm-glyph">{rune?.glyph ?? '?'}</span>
+        <span className="hmmm-glyph">
+          <RuneLetter symbol={symbol} />
+        </span>
         {rune?.name ?? 'Rune'}
       </span>
     </span>
