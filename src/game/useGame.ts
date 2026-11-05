@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createGame, isRuneMap, randomRuneMap, restartStage, type GameState, type RuneEffect } from '../engine';
+import { createGame, restartStage, type GameState } from '../engine';
+import { runeMap } from './runeMap';
 import { isDevMode, useDevMode } from '../config/dev';
 
 /**
  * The current run, saved in local storage after every change (the .exe keeps it in the app's data folder),
  * so closing the game and reopening it continues the run.
  *
- * Two things outlive a run and are saved on their own:
- * - the rune mapping (which symbol does what): made once, on first launch, and the same for every run on this
- *   computer so the player's notes keep working;
+ * Three things outlive a run and are saved on their own:
+ * - the rune mapping (which rune card does what) and the rune alphabet (the symbol for each letter): made once, on
+ *   first launch, and the same for every run on this computer so the player's notes keep working (game/runeMap.ts);
  * - the Grimoire's pages: every spell ever cast on this computer;
  * - the "Hmmm..." note: every exact card combination ever cast on this computer.
  * (The player's own rune notes are saved separately, in game/runeNotes.ts.)
@@ -16,7 +17,6 @@ import { isDevMode, useDevMode } from '../config/dev';
  * Undo/redo history is kept only while dev mode is on (switched in the Menu); turning it off drops the history.
  */
 const SAVE_KEY = 'broken-grimoire/run/v3';
-const RUNES_KEY = 'broken-grimoire/runes/v1';
 const GRIMOIRE_KEY = 'broken-grimoire/grimoire/v1';
 const COMBOS_KEY = 'broken-grimoire/combos/v1';
 
@@ -35,15 +35,6 @@ function writeJson(key: string, value: unknown): void {
   } catch {
     // Storage blocked or full: the game still works, it just won't remember this.
   }
-}
-
-/** This computer's rune mapping, made (and saved) on first launch. */
-function runeMap(): RuneEffect[] {
-  const saved = readJson(RUNES_KEY);
-  if (isRuneMap(saved)) return saved;
-  const map = randomRuneMap(Math.random);
-  writeJson(RUNES_KEY, map);
-  return map;
 }
 
 /** Grimoire pages written on this computer, in any run. */

@@ -7,12 +7,14 @@ import { PLACEHOLDER_COLORS } from '../config/art';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 import { Obstacle } from './Obstacle';
 import { tileHandlers, type TilePointer } from './Board';
-import { WHISPERS } from '../hud/Dialogs';
+import { LECTERN_MESSAGE } from '../config/runeMessages';
+import { inRunes } from '../game/runeMap';
 
 /**
  * PLACEHOLDER: the Whispering Lectern, in the middle of the event room. A stone stand with an open book glowing
- * purple. Until the event is over it whispers: rune "words" drift up off the book and fade (it speaks the dungeon's
- * tongue). When it speaks plain words, they float above it in a speech bubble. It's an <Obstacle>, so it fades when
+ * purple. Until the event is over it chants: its line (config/runeMessages.ts LECTERN_MESSAGE, in this computer's
+ * rune alphabet) rises off the book again and again and fades. When it speaks plain words, they float above it in a
+ * speech bubble. It's an <Obstacle>, so it fades when
  * the wizard stands behind it.
  */
 const glow = { transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false } as const;
@@ -77,9 +79,9 @@ export function Lectern({ pos, room, step, said, pointer, unitFeet, pointerOnBoa
             {said && <div className="lectern-said">{said}</div>}
             {whispering && (
               <div className="lectern-whispers">
-                {WHISPERS.map((w, i) => (
-                  <span key={i} style={{ animationDelay: `${i * 0.9}s`, left: `${[18, 58, 32, 70][i]}%` }}>
-                    {w}
+                {[0, 1].map((i) => (
+                  <span key={i} style={{ animationDelay: `${i * 1.8}s` }}>
+                    {inRunes(LECTERN_MESSAGE)}
                   </span>
                 ))}
               </div>

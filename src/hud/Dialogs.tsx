@@ -14,6 +14,8 @@ import {
   type GameState,
 } from '../engine';
 import { FragmentCard } from './Hand';
+import { RuneText } from './RuneLetter';
+import { LECTERN_MESSAGE } from '../config/runeMessages';
 
 /** The bridge the Electron app exposes (electron/preload.cjs). Undefined when running in a browser. */
 declare global {
@@ -106,9 +108,6 @@ export function LeaveEarlyDialog({ state, onLeave, onStay }: { state: GameState;
   );
 }
 
-/** Rune "words" the lectern whispers (the dungeon's gibberish, written in the rune symbols). */
-export const WHISPERS = ['ᚦᚨᚱ ᚲᛉ ᚠᚢᚷ', 'ᚢᛉᚱ ᚷᚨ', 'ᚲᚠ ᚦᚢᚨᚷ ᚱ', 'ᛉᚷᚦ ᚨᚲ'];
-
 /**
  * [UI-PLACEMENT] The Whispering Lectern's choices, in the crafting table's place (LAYOUT.cleared). The board stays in
  * view: the lectern whispers in runes over its stand, and what it says in plain words floats over it too
@@ -126,7 +125,7 @@ export function EventPanel({ state, onChoose }: { state: GameState; onChoose: (c
       {ev.step === 'offer' && (
         <>
           <div className="cleared-sub">It whispers in a familiar voice, in a language you don&rsquo;t understand:</div>
-          <div className="event-runes">{WHISPERS.slice(0, 2).join(' · ')}</div>
+          <RuneText className="event-runes" text={LECTERN_MESSAGE} />
           <div className="choice-list">
             <button className="choice" onClick={() => onChoose('take')}>
               <b>Take a rune fragment</b>
@@ -323,6 +322,10 @@ export function DeckView({ state, onClose }: { state: GameState; onClose: () => 
   );
 }
 
+/**
+ * The end of a run. Victory: New run. Defeat: Continue, which goes dark and shows the rune message before the
+ * wizard wakes up in room 0 again (App.tsx, hud/TitleScreen.tsx FateScreen).
+ */
 export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun: () => void }) {
   const won = state.phase === 'won';
   return (
@@ -338,7 +341,7 @@ export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun
               : 'The wizard has fallen.'}
       </p>
       <button className="hud-button primary" onClick={onNewRun} autoFocus>
-        New run
+        {won ? 'New run' : 'Continue'}
       </button>
     </Modal>
   );

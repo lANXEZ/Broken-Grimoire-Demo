@@ -146,6 +146,8 @@ export interface RoomRuntime {
   moonlight?: Pos[];
   /** Room 0: the big dungeon door. */
   bigDoor?: boolean;
+  /** Room 0: the sleeping mat's tiles, pillow end first (walkable); standing on it offers a way back to the title. */
+  mat?: Pos[];
   hazards: Hazard[];
   drops: Drop[];
 }

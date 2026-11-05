@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { AdditiveBlending, CanvasTexture, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
-import { DIR_VECTORS, RUNE_SYMBOLS, mergeHazard, spellDamage, type CastFx, type Pos, type RuneEffect } from '../engine';
+import { DIR_VECTORS, mergeHazard, spellDamage, type CastFx, type Pos, type RuneEffect } from '../engine';
+import { runeCipher, runeGlyphOf } from '../game/runeMap';
 import { ELEMENT_COLOR, HAZARD_COLOR, UNIT_SPRITE } from '../config/art';
 import { FX } from '../config/fx';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
@@ -853,19 +854,21 @@ function sigilTexture(symbol: number): CanvasTexture {
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.fillStyle = 'rgba(240, 225, 255, 0.85)';
+  // (The rune alphabet's first 16 letters, A to P.)
+  const letters = Object.values(runeCipher().letters).map((s) => s[0]);
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * Math.PI * 2;
     g.save();
     g.translate(mid + Math.cos(a) * 197, mid + Math.sin(a) * 197);
     g.rotate(a + Math.PI / 2);
-    g.fillText(RUNE_SYMBOLS[i % RUNE_SYMBOLS.length].glyph, 0, 0);
+    g.fillText(letters[i % letters.length], 0, 0);
     g.restore();
   }
   // The rune itself, big, in the middle.
   g.font = 'bold 250px "Segoe UI Historic", "Noto Sans Runic", serif';
   g.shadowBlur = 36;
   g.fillStyle = '#ffffff';
-  g.fillText(RUNE_SYMBOLS[symbol]?.glyph ?? '?', mid, mid + 10);
+  g.fillText(runeGlyphOf(symbol), mid, mid + 10);
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
   return tex;

@@ -76,8 +76,27 @@ function TileFrame({ p, room, color, width = 0.06, layer = 5 }: { p: Pos; room: 
 
 const k = (p: Pos) => `${p.x},${p.y}`;
 
+/**
+ * Each tile once. The lists can repeat a tile (Wall's four aim directions overlap at the corners), and two meshes
+ * with the same React key break the scene: one of them never gets removed and stays on the floor for good, even
+ * after the room changes.
+ */
+function once(ps: Pos[]): Pos[] {
+  const seen = new Set<string>();
+  return ps.filter((p) => !seen.has(k(p)) && !!seen.add(k(p)));
+}
+
 export function TileOverlay({ room, overlays }: { room: RoomSize; overlays: BoardOverlays }) {
-  const o = overlays;
+  const o: BoardOverlays = {
+    ...overlays,
+    move: once(overlays.move),
+    spell: once(overlays.spell),
+    spellFaint: once(overlays.spellFaint),
+    aim: once(overlays.aim),
+    focus: once(overlays.focus),
+    marked: once(overlays.marked),
+    erasure: once(overlays.erasure),
+  };
   return (
     <group>
       {o.erasure.map((p) => <TileQuad key={`er-${k(p)}`} p={p} room={room} color="#050304" opacity={0.72} layer={0} />)}

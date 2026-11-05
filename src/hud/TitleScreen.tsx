@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { TITLE_ART } from '../config/art';
 import { TIMING } from '../config/timing';
+import { FATE_MESSAGE } from '../config/runeMessages';
+import { inRunes } from '../game/runeMap';
 
 /**
  * [UI-PLACEMENT] The title screen, shown when the game opens: a night forest under the moon (PLACEHOLDER photo, see
  * config/art.ts TITLE_ART), the game's name big across the top, and the buttons on the right. With a run saved
- * from last time: Continue, or New game (which asks once, since it drops that run). Otherwise just Start.
+ * from last time: Continue, or New game (which asks once, since it drops that run). Otherwise just Start. A run
+ * still in room 0 doesn't count as saved (App.tsx). Quit closes the game (the .exe only: a browser tab can't).
  */
 export function TitleScreen({ canContinue, leaving, fading = false, onContinue, onNewGame }: {
   canContinue: boolean;
@@ -52,6 +55,11 @@ export function TitleScreen({ canContinue, leaving, fading = false, onContinue, 
             </button>
           </div>
         )}
+        {window.grimoire?.isDesktop && !confirm && (
+          <button className="title-button is-secondary" onClick={() => window.grimoire?.quit()} disabled={leaving}>
+            Quit
+          </button>
+        )}
       </div>
       <div className="title-credit">Placeholder photo: Aron Visuals / Unsplash</div>
     </div>
@@ -87,17 +95,17 @@ function openness(keys: [number, number][], t: number): number {
  * warm red glow shows through. 'close' shrinks the hole to black (over the title screen); 'wake' blinks awake.
  * App blurs and dims the game for the same time (hud.css `wake-focus`).
  */
-export function Blink({ stage }: { stage: 'close' | 'wake' }) {
+export function Blink({ stage, duration }: { stage: 'close' | 'wake'; duration?: number }) {
   const el = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const keys = stage === 'wake' ? WAKE : CLOSE;
-    const duration = stage === 'wake' ? TIMING.wakeBlink : TIMING.eyesClose;
+    const time = duration ?? (stage === 'wake' ? TIMING.wakeBlink : TIMING.eyesClose);
     const start = performance.now();
     let frame = 0;
     const draw = (now: number) => {
       const node = el.current;
       if (!node) return;
-      const t = Math.min(1, (now - start) / duration);
+      const t = Math.min(1, (now - start) / time);
       const o = openness(keys, t);
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -113,6 +121,100 @@ export function Blink({ stage }: { stage: 'close' | 'wake' }) {
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [stage]);
+  }, [stage, duration]);
   return <div ref={el} className="blink" aria-hidden />;
+}
+
+/**
+ * When each character of a spoken line appears (ms after it starts), like someone saying it: a letter every
+ * TIMING.fateLetter, a bit more between words, and a pause after a comma or full stop. `total`: until the last one
+ * has fully faded in.
+ */
+export function spokenTimeline(text: string): { delays: number[]; total: number } {
+  const T = TIMING;
+  const delays: number[] = [];
+  let at = 0;
+  for (const c of text) {
+    delays.push(at);
+    at += c === ' ' ? T.fateWordGap : /[,.;:!?]/.test(c) ? T.fatePause : T.fateLetter;
+  }
+  const last = delays.length ? delays[delays.length - 1] : 0;
+  return { delays, total: last + T.fateLetterFade };
+}
+
+/**
+ * After a defeat: everything fades to black, then the rune message (config/runeMessages.ts FATE_MESSAGE, in this
+ * computer's rune alphabet) appears in the middle of the screen from left to right, the way the wizard hears it
+ * (spokenTimeline), stays, and fades out. Then `onDone`: the wizard wakes up in room 0 (App.tsx). Once it's fully
+ * shown, a click (or Space / Enter) moves on to the fade-out. Timing: TIMING.fate*.
+ */
+export function FateScreen({ onDone }: { onDone: () => void }) {
+  const [step, setStep] = useState<'dark' | 'in' | 'out'>('dark');
+  const [ready, setReady] = useState(false);
+  const done = useRef(onDone);
+  done.current = onDone;
+  const plain = [...FATE_MESSAGE];
+  const runes = [...inRunes(FATE_MESSAGE)];
+  const { delays, total } = spokenTimeline(FATE_MESSAGE);
+  useEffect(() => {
+    const T = TIMING;
+    const timers = [
+      window.setTimeout(() => setStep('in'), T.fateFade),
+      window.setTimeout(() => setReady(true), T.fateFade + total),
+      window.setTimeout(() => setStep('out'), T.fateFade + total + T.fateHold),
+    ];
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [total]);
+  useEffect(() => {
+    if (step !== 'out') return;
+    const t = window.setTimeout(() => done.current(), TIMING.fateMessageOut);
+    return () => window.clearTimeout(t);
+  }, [step]);
+  // Skipping the wait: straight to the fade-out, but never before the message is fully shown.
+  const skip = () => {
+    if (ready && step === 'in') setStep('out');
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') skip();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  // Words are kept whole so a line never breaks inside one; each character fades in at its own time.
+  const words: { start: number; end: number }[] = [];
+  plain.forEach((c, i) => {
+    if (c === ' ') return;
+    const w = words[words.length - 1];
+    if (w && w.end === i) w.end = i + 1;
+    else words.push({ start: i, end: i + 1 });
+  });
+  return (
+    <div
+      className={`fate-screen is-${step}`}
+      style={{
+        ['--fate-fade' as string]: `${TIMING.fateFade}ms`,
+        ['--fate-letter' as string]: `${TIMING.fateLetterFade}ms`,
+        ['--fate-out' as string]: `${TIMING.fateMessageOut}ms`,
+      }}
+      onPointerDown={skip}
+    >
+      {step !== 'dark' && (
+        <div className="fate-message rune-text" aria-hidden>
+          {words.map((w, wi) => (
+            <span key={w.start}>
+              {wi > 0 && ' '}
+              <span className="fate-word">
+                {runes.slice(w.start, w.end).map((r, k) => (
+                  <span key={k} className="fate-char" style={{ animationDelay: `${delays[w.start + k]}ms` }}>
+                    {r}
+                  </span>
+                ))}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

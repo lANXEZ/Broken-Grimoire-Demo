@@ -61,8 +61,9 @@ function Fog({ hazard, room }: { hazard: Hazard; room: RoomSize }) {
 export function Hazards({ hazards, room }: { hazards: Hazard[]; room: RoomSize }) {
   return (
     <group>
-      {hazards.map((h) => {
-        const key = `${h.kind}-${h.pos.x},${h.pos.y}`;
+      {hazards.map((h, i) => {
+        // The index keeps keys unique even if a tile were ever listed twice (a repeated key leaves a mesh behind).
+        const key = `${h.kind}-${h.pos.x},${h.pos.y}-${i}`;
         if (h.kind === 'magma') return <Magma key={key} hazard={h} room={room} />;
         if (h.kind === 'quicksand') return <Quicksand key={key} hazard={h} room={room} />;
         return <Fog key={key} hazard={h} room={room} />;

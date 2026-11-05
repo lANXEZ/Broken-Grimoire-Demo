@@ -41,6 +41,17 @@ same fixed sequence:
   tile: Water, Earth, Fog and Quicksand put it out; Fire, Unstable Fire and Magma light it again; Wind does nothing.
   The moonlight comes down through the hole in a "|_\\" shape (straight on the left, fanning out to the right). Click a tile to walk there; walking through the door
   starts the run in the Cistern. Room 0 isn't one of the numbered stops.
+- **The sleeping mat and the title (team decision, Nov 5):** the wizard wakes up on a rough old sleeping mat in room 0
+  (two tiles, a1–b1, a small old pillow at a1; walkable). Standing on it, once the waking thought has gone, a small
+  prompt floats over the pillow: *"Get some rest? (Return to menu)"*. Clicking it closes the eyes and goes back to
+  the title screen. A run still in room 0 doesn't count as saved, so the title then shows **Start** (and on the
+  .exe **Quit**, which closes the game); Start wakes the wizard in room 0 again.
+- **Defeat (team decision, Nov 5):** the defeat panel's button says **Continue** (victory keeps New run). Everything
+  fades to black, and a line written in the rune alphabet appears in the middle of the screen, letter by letter from
+  left to right as if someone were saying it to the wizard, with a pause after "Wake up,": *"Wake up, you can't
+  escape your fate."* (players only read it once they've worked out enough runes; punctuation isn't encrypted). It
+  stays a few seconds (Space, Enter or a click moves on once it's fully shown), fades, and the wizard wakes up in
+  room 0 as at the start of a new run.
 - **Finishing a combat room:** kill every enemy. The room's **door** (as in the low-fi demo) stays locked until the
   room is cleared, except in the Cistern, whose door is open the whole time (see [Rooms](#rooms)). When the last enemy dies a big **CLEARED!** appears, turns stop
   counting, the door opens, and you walk freely to pick up any drops on the floor. **Continue** (or clicking the
@@ -243,6 +254,14 @@ itself, and never says whether a note is right.
 
 - **Fixed but random:** on first launch the game randomly assigns the 8 meanings to the 8 symbols and saves that
   mapping. It then stays the same for every run on that computer, so notes keep working.
+- **The rune alphabet (team decision, Nov 5):** a secret cipher. On first launch every computer also gets its own
+  random alphabet: each English letter A–Z gets a different rune symbol (drawn from 33: the 24 Elder Futhark runes
+  and 9 Anglo-Saxon ones). A rune card shows the symbol for the first letter of what it does (Amplify shows A's
+  symbol). When two runes start with the same letter (Free and Fizzle), the second gets an extra symbol that also
+  means that letter, so no two rune cards look alike. Players who work out the runes learn part of the alphabet,
+  which lets them read the developer's hidden messages: English text the game writes in the same symbols (always
+  a letter's first symbol). The made-up name (Vreth, Ulmo, …) stays with the shuffled card and tells you nothing.
+  Saved like the mapping; a rune added in a later version just gets a symbol added to the saved alphabet.
 - **Sources:** up to 2 from the event and 1 from the Warden, so at most 3 per run. **Never a random drop.**
 
 | Effect (proposed) | Type |
@@ -429,7 +448,9 @@ roll is written out in [DESIGN.md](DESIGN.md#cards-and-drops).
 **Event · The Whispering Lectern** (team decision, Nov 4; replaces the design's read / copy / leave). A small room
 of its own: **5×5**, empty but for a **lectern** in the middle (c3), which blocks its tile. The wizard comes in at
 a1 and walks up to it by themselves (to c2); the **door (e5) stays locked until the wizard reaches the lectern**. It
-whispers in a familiar voice, in a language you don't understand: rune words drift up off its open book.
+whispers in a familiar voice, in a language you don't understand: its line rises off its open book again and
+again, *"Hail the rune lord"* written in the rune alphabet (also shown in its choice panel), readable only once
+you've worked out enough runes.
 
 1. **Take a rune fragment** or **Leave it.** Leaving ends the event.
 2. If you took one, the lectern speaks plain words: *"…Still lost, would you? Though I am so thirsty… let me
