@@ -10,6 +10,7 @@ import { IntentChips, describeIntents } from '../hud/intents';
 import { ThoughtCloud } from '../hud/Thought';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 import { tileHandlers, type TilePointer } from './Board';
+import { sceneLight } from './Lighting';
 
 /** Everything the board needs to draw one unit (the player or an enemy). Built in GameScene.tsx. */
 export interface UnitView {
@@ -40,6 +41,21 @@ export interface UnitView {
   maxMana?: number;
 }
 
+/**
+ * A unit flying onto its tile instead of walking (the opening cutscene): dropping in from `height` tiles above it
+ * (`from` null: the wizard falling through room 0's hole), or thrown from the `from` tile along an arc `height`
+ * tiles high. Plays once per `id`, over `ms`.
+ */
+export interface Flight {
+  id: number;
+  from: Pos | null;
+  height: number;
+  ms: number;
+}
+
+/** How dim a unit's picture gets in a pitch-dark room (1 = not at all). */
+const DARK_SHADE = 0.42;
+
 const FLOAT_ID = { n: 0 };
 interface FloatNum {
   id: number;
@@ -55,7 +71,7 @@ interface FloatNum {
  * Into the Breach. HTML plates float with it: HP and statuses under its feet, intents above its head.
  * PLACEHOLDER picture: the paper token (config/art.ts).
  */
-export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = false, thought = null }: {
+export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = false, thought = null, speech = null, hidden = false, bare = false, flight = null }: {
   unit: UnitView;
   room: RoomSize;
   pointer: TilePointer;
@@ -65,6 +81,13 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
   runeTint?: boolean;
   /** The wizard's thought, in a thought cloud over their head. */
   thought?: string | null;
+  /** What the wizard says out loud, in a speech bubble over their head. */
+  speech?: string | null;
+  /** Not seen: hiding in a dark room (fades back in when it turns false), or off stage in a cutscene. */
+  hidden?: boolean;
+  /** Cutscene: just the picture (no HP plate, hover card or intents). */
+  bare?: boolean;
+  flight?: Flight | null;
 }) {
   const group = useRef<Group>(null);
   const sprite = useRef<MeshBasicMaterial>(null);
@@ -104,6 +127,10 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
 
   const white = useMemo(() => new Color('#ffffff'), []);
   const red = useMemo(() => new Color('#ff5a4a'), []);
+  const base = useRef<Group>(null);
+  // How visible the unit is (eases to 0 while hidden), and the flight being played.
+  const shown = useRef(hidden ? 0 : 1);
+  const flying = useRef<{ id: number; start: number } | null>(null);
 
   useFrame((_, dt) => {
     const g = group.current;
@@ -111,6 +138,28 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
     if (firstFrame.current) {
       g.position.copy(target);
       firstFrame.current = false;
+    }
+    if (flight && flying.current?.id !== flight.id) flying.current = { id: flight.id, start: performance.now() };
+    const u = flight && flying.current ? Math.min(1, (performance.now() - flying.current.start) / flight.ms) : 1;
+    // Fades in when it comes out of the dark; a flying unit is just there.
+    shown.current = flight && u < 1 ? 1 : shown.current + ((hidden ? 0 : 1) - shown.current) * Math.min(1, dt * (hidden ? 30 : 3));
+    const vis = shown.current;
+    g.visible = vis > 0.01;
+    if (base.current) base.current.visible = vis > 0.6;
+    if (sprite.current) {
+      sprite.current.opacity = vis;
+      sprite.current.alphaTest = 0.4 * vis;
+    }
+    // Shade: units dim with the room's light (their pictures don't take light themselves).
+    const shade = DARK_SHADE + (1 - DARK_SHADE) * sceneLight.level;
+    if (flight && u < 1) {
+      const from = flight.from ? tileToWorld(flight.from, room) : [target.x, 0, target.z];
+      g.position.x = from[0] + (target.x - from[0]) * u;
+      g.position.z = from[2] + (target.z - from[2]) * u;
+      // Thrown: an arc. Dropped: falling faster and faster.
+      g.position.y = flight.from ? 4 * flight.height * u * (1 - u) : flight.height * (1 - u * u);
+      if (sprite.current) sprite.current.color.copy(white).multiplyScalar(shade);
+      return;
     }
     // Glide toward the tile with a little hop in the middle of the move.
     const flat = new Vector3(g.position.x, 0, g.position.z);
@@ -123,7 +172,7 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
     // Hit flash: tint the picture red for a moment.
     if (sprite.current) {
       const since = (performance.now() - hitAt.current) / 280;
-      sprite.current.color.copy(white).lerp(red, since >= 0 && since < 1 ? 1 - since : 0);
+      sprite.current.color.copy(white).lerp(red, since >= 0 && since < 1 ? 1 - since : 0).multiplyScalar(shade);
     }
   });
 
@@ -139,14 +188,16 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
   return (
     <group ref={group}>
       {/* Base disc */}
-      <mesh position={[0, TILE_TOP + 0.02, 0]} raycast={() => null}>
-        <cylinderGeometry args={[0.38, 0.4, 0.04, 32]} />
-        <meshStandardMaterial color={baseColor} emissive={baseColor} emissiveIntensity={hovered ? 0.6 : 0.15} roughness={0.6} />
-      </mesh>
+      <group ref={base}>
+        <mesh position={[0, TILE_TOP + 0.02, 0]} raycast={() => null}>
+          <cylinderGeometry args={[0.38, 0.4, 0.04, 32]} />
+          <meshStandardMaterial color={baseColor} emissive={baseColor} emissiveIntensity={hovered ? 0.6 : 0.15} roughness={0.6} />
+        </mesh>
+      </group>
 
       {/* Standee picture */}
       <Billboard position={[0, TILE_TOP + S.footY + S.height / 2, 0]}>
-        <mesh {...handlers}>
+        <mesh {...(bare || hidden ? {} : handlers)}>
           <planeGeometry args={[S.width, S.height]} />
           <meshBasicMaterial ref={sprite} map={texture} transparent alphaTest={0.4} toneMapped={false} />
         </mesh>
@@ -161,17 +212,28 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
         </Html>
       )}
 
+      {/* Something said out loud (the wizard in the opening cutscene, or reacting to the lectern). */}
+      {speech && !hidden && (
+        <Html key={speech} position={[0, headY + 0.1, 0]} center zIndexRange={[46, 36]} style={{ pointerEvents: 'none' }}>
+          <div className={`unit-speech ${/!!|[A-Z]{4,}/.test(speech) ? 'is-shout' : ''}`}>
+            <div className="speech-body">{speech}</div>
+          </div>
+        </Html>
+      )}
+
       {/* Intents above the head */}
-      {showIntents && !unit.isPlayer && (
+      {showIntents && !unit.isPlayer && !bare && !hidden && (
         <Html position={[0, headY, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
           <IntentChips intents={unit.intents} />
         </Html>
       )}
 
       {/* HP plate under the feet */}
-      <Html position={[0, TILE_TOP, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
-        <UnitPlate unit={unit} />
-      </Html>
+      {!bare && !hidden && (
+        <Html position={[0, TILE_TOP, 0]} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
+          <UnitPlate unit={unit} />
+        </Html>
+      )}
 
       {/* Damage numbers */}
       {floats.length > 0 && (
@@ -189,7 +251,7 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
       )}
 
       {/* Hover card */}
-      {hovered && (
+      {hovered && !bare && !hidden && (
         <Html position={[0.5, TILE_TOP + BOARD_GEOMETRY.unitHeight * 0.7, 0]} zIndexRange={[60, 50]} style={{ pointerEvents: 'none' }}>
           <UnitCard unit={unit} />
         </Html>

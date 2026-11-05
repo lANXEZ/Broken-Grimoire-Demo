@@ -72,6 +72,11 @@ interface HandProps {
   /** Cards pulled up out of the fan (the "Hmmm..." line under the pointer would use them). */
   lifted: number[];
   disabled: boolean;
+  /**
+   * The opening tutorial: only the `only` cards can be picked up (they glow; the rest are dimmed), and the `tip`
+   * floats over card `tipId`.
+   */
+  tutorial?: { only: number[]; tipId: number | null; tip: string } | null;
 }
 
 /**
@@ -79,7 +84,7 @@ interface HandProps {
  * Drag a card up onto the crafting table, or click it to put it there.
  * In reroll mode, clicking marks cards to swap instead.
  */
-export function Hand({ cards, draggingId, dropHighlight, startDrag, rerollMarked, lifted, disabled }: HandProps) {
+export function Hand({ cards, draggingId, dropHighlight, startDrag, rerollMarked, lifted, disabled, tutorial = null }: HandProps) {
   const [hovered, setHovered] = useState<number | null>(null);
   const L = LAYOUT.hand;
   const n = cards.length;
@@ -91,7 +96,8 @@ export function Hand({ cards, draggingId, dropHighlight, startDrag, rerollMarked
     <div className={`hand ${dropHighlight ? 'drop-highlight' : ''} ${disabled ? 'is-disabled' : ''}`} data-drop="hand">
       {cards.map((card, i) => {
         const off = i - mid;
-        const isHover = hovered === card.id && draggingId === null && !disabled;
+        const shut = !!tutorial && !tutorial.only.includes(card.id);
+        const isHover = hovered === card.id && draggingId === null && !disabled && !shut;
         const marked = rerollMarked?.includes(card.id) ?? false;
         const pulled = lifted.includes(card.id);
         const lift = isHover ? L.hoverLift : pulled ? L.noteLift : marked ? 40 : 0;
@@ -103,12 +109,13 @@ export function Hand({ cards, draggingId, dropHighlight, startDrag, rerollMarked
         return (
           <div
             key={card.id}
-            className={`hand-card ${draggingId === card.id ? 'is-dragging' : ''} ${marked ? 'is-marked' : ''} ${pulled ? 'is-pulled' : ''} ${rerollMarked ? 'is-rerolling' : ''}`}
+            className={`hand-card ${draggingId === card.id ? 'is-dragging' : ''} ${marked ? 'is-marked' : ''} ${pulled ? 'is-pulled' : ''} ${rerollMarked ? 'is-rerolling' : ''} ${tutorial ? (shut ? 'is-shut' : 'is-tutorial') : ''}`}
             style={style}
             onPointerEnter={() => setHovered(card.id)}
             onPointerLeave={() => setHovered((h) => (h === card.id ? null : h))}
-            onPointerDown={disabled ? undefined : startDrag(card.id, { from: 'hand' })}
+            onPointerDown={disabled || shut ? undefined : startDrag(card.id, { from: 'hand' })}
           >
+            {tutorial?.tipId === card.id && <div className="tutorial-tip">{tutorial.tip}</div>}
             <FragmentCard card={card} />
             {marked && <div className="reroll-mark">↻</div>}
           </div>

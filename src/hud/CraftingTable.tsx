@@ -15,6 +15,8 @@ interface Props {
   locked: boolean;
   startDrag: (cardId: number, source: DragSource) => (e: ReactPointerEvent) => void;
   onCast: () => void;
+  /** The opening tutorial: a tip over the Cast button, which glows. */
+  tip?: string | null;
 }
 
 /** The element whose box card positions are measured against (App.tsx reads it on drop). */
@@ -32,14 +34,14 @@ export const TABLE_AREA_SELECTOR = '[data-table-area]';
  * Beams and Walls don't need the button: while one is castable the board is already aiming, and clicking a
  * direction casts it. The button then just says so.
  */
-export function CraftingTable({ cards, preview, dragOver, dragging, draggingId, locked, startDrag, onCast }: Props) {
+export function CraftingTable({ cards, preview, dragOver, dragging, draggingId, locked, startDrag, onCast, tip = null }: Props) {
   const ready = preview.status === 'ready';
   const aimOnBoard = ready && preview.needsAim;
   const accent = preview.color;
 
   return (
     <div
-      className={`crafting ${ready ? 'is-ready' : ''} ${aimOnBoard ? 'is-aiming' : ''}`}
+      className={`crafting ${ready ? 'is-ready' : ''} ${aimOnBoard ? 'is-aiming' : ''} ${tip ? 'is-tutorial' : ''}`}
       style={accent ? ({ '--spell-accent': accent } as CSSProperties) : undefined}
     >
       <div
@@ -70,6 +72,7 @@ export function CraftingTable({ cards, preview, dragOver, dragging, draggingId, 
         </div>
       </div>
 
+      {tip && <div className="tutorial-tip cast-tip">{tip}</div>}
       {aimOnBoard ? (
         <button className="cast-button is-lit is-aim" onClick={onCast} title="Click a tile on the board in the direction you want to cast">
           {preview.cost !== undefined && <span className="cast-cost">{preview.cost}</span>}

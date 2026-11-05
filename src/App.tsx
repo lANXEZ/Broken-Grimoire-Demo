@@ -14,7 +14,9 @@ import {
   freeStep,
   freeWalkPath,
   isPrologue,
+  LECTERN_ROOM,
   PROLOGUE_ROOM,
+  RUN,
   moveTarget,
   playerCast,
   playerEscape,
@@ -24,6 +26,7 @@ import {
   previewIntents,
   type CastFx,
   type Dir,
+  type EventChoice,
   type GameState,
   type Pos,
 } from './engine';
@@ -34,6 +37,9 @@ import { DIRS, aimDirection, cleanTable, placeOnTable, previewCast, removeFromTa
 import { useEnemyTurn } from './game/useEnemyTurn';
 import { noteView, type NoteLine } from './game/notes';
 import { useGame } from './game/useGame';
+import { useIntro } from './game/useIntro';
+import { introSeen, markIntroSeen, tutorialCardIds } from './game/intro';
+import { INTRO, LECTERN_OUCH } from './config/introScript';
 import { GameScene } from './scene/GameScene';
 import type { BoardOverlays } from './scene/TileOverlay';
 import { fxEventDuration, type CastEvent, type FxEvent, type RuneEvent } from './scene/SpellFx';
@@ -59,6 +65,9 @@ type UiMode =
 
 const samePos = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 let nextId = 1;
+/** The cutscene's board: no highlights, no intents. */
+const NO_OVERLAYS: BoardOverlays = { move: [], spell: [], spellFaint: [], aim: [], spellColor: '#ffffff', focus: [], marked: [], erasure: [], hover: null, hoverColor: '#ffffff' };
+const NO_INTENTS = {};
 
 /** A rune cast playing out in parts (see `castTable`). */
 interface CastPlay {
@@ -109,9 +118,20 @@ export function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   /**
    * The opening: the title screen ('title'), fading out on Continue ('leaving'), eyes closing over it on New game
-   * ('closing'), then waking in room 0 ('waking'); null once playing.
+   * ('closing'), then waking in room 0 ('waking'); null once playing. The first time on a computer, the opening
+   * cutscene and tutorial play after 'closing' ('cutscene', game/useIntro.ts), ending with the eyes closing on the
+   * mat ('dozing') before the waking.
    */
-  const [intro, setIntro] = useState<'title' | 'leaving' | 'closing' | 'fate' | 'resting' | 'waking' | null>('title');
+  const [intro, setIntro] = useState<'title' | 'leaving' | 'closing' | 'cutscene' | 'dozing' | 'fate' | 'resting' | 'waking' | null>('title');
+  /** What the wizard says out loud (a speech bubble), outside the cutscene: e.g. at the lectern. */
+  const [speech, setSpeech] = useState<{ id: number; text: string } | null>(null);
+  const sayLine = useCallback((text: string, ms: number) => {
+    const id = nextId++;
+    setSpeech({ id, text });
+    window.setTimeout(() => setSpeech((cur) => (cur?.id === id ? null : cur)), ms);
+  }, []);
+  /** The wizard just fed the lectern: its "my favorite" line and the rune wait until "Ah! How???" is said. */
+  const [ouch, setOuch] = useState(false);
   /** What the wizard is thinking (a thought cloud over their head), e.g. on waking in room 0. */
   const [thought, setThought] = useState<string | null>(null);
   const [bookOpen, setBookOpen] = useState(false);
@@ -149,7 +169,63 @@ export function App() {
   const onMat = !!state.room.mat?.some((p) => samePos(p, state.player.pos));
   const restPrompt =
     prologue && onMat && !intro && !thought && !castPlaying && !dialogOpen && walk.path.length === 0 && mode.kind === 'idle' && table.length === 0;
-  const canAct = state.phase === 'player' && !enemyTurn.playing && !castPlaying && !dialogOpen && state.actionsLeft > 0;
+  // ------------------------------------------------------------ hurt, dark rooms, the opening cutscene
+
+  // Losing HP flashes the edge of the screen red.
+  const [hurt, setHurt] = useState(0);
+  const lastHp = useRef(view.player.hp);
+  useEffect(() => {
+    if (view.player.hp < lastHp.current) setHurt((n) => n + 1);
+    lastHp.current = view.player.hp;
+  }, [view.player.hp]);
+
+  // A fight room the wizard walks into starts dark: torches out, monsters hidden. A moment later the dungeon notices
+  // the wizard and lights the torches. Once per room per run (each run walks into each room once).
+  const [reveal, setReveal] = useState<{ id: number; step: 'dark' | 'lighting' } | null>(null);
+  const lastStage = useRef(state.stage);
+  useEffect(() => {
+    if (lastStage.current === state.stage) return;
+    lastStage.current = state.stage;
+    if (RUN[state.stage]?.kind === 'room') setReveal({ id: nextId++, step: 'dark' });
+  }, [state.stage]);
+  useEffect(() => {
+    if (!reveal) return;
+    const next = () => setReveal((r) => (r?.id !== reveal.id ? r : r.step === 'dark' ? { ...r, step: 'lighting' } : null));
+    const t = window.setTimeout(next, reveal.step === 'dark' ? TIMING.roomDark : TIMING.roomLighting);
+    return () => window.clearTimeout(t);
+  }, [reveal]);
+
+  // The opening cutscene and tutorial (first time on this computer).
+  const cut = useIntro({
+    game,
+    onHurt: () => setHurt((n) => n + 1),
+    onPuff: (at) =>
+      addFx({
+        type: 'cast',
+        id: nextId++,
+        broken: [],
+        bumps: [],
+        grey: true,
+        fx: { kind: 'fizzle', runeSymbol: null, spell: null, rune: null, dir: null, origin: at, area: null, passes: 0, push: 0, hits: [] },
+      }),
+    onDone: () => {
+      setIntro('dozing');
+      window.setTimeout(() => {
+        markIntroSeen();
+        cut.stop();
+        resetCasting();
+        game.newRun();
+        wakeUp();
+      }, TIMING.introDoze);
+    },
+  });
+  /** The cutscene's own scene on the board (null in the tutorial and outside the cutscene). */
+  const cutState = cut.active ? cut.view.state : null;
+  const tutorial = cut.active && cut.view.tutorial;
+  /** The cutscene is playing (not the tutorial), or the tutorial is waiting for the wizard to finish talking. */
+  const cutLocked = cut.active && (!cut.view.tutorial || cut.view.tutorialWait);
+
+  const canAct = state.phase === 'player' && !enemyTurn.playing && !castPlaying && !dialogOpen && state.actionsLeft > 0 && !reveal && !cutLocked;
 
   const onTable = useMemo(() => tableCards(hand, table), [hand, table]);
   const tablePlaced = useMemo(
@@ -186,7 +262,11 @@ export function App() {
       // A fresh run in room 0 (the game opened on one already unless a run was saved).
       if (game.resumable || !isPrologue(game.state) || game.state.log.length > 3) game.newRun();
       resetCasting();
-      wakeUp();
+      // The very first time on this computer: the opening cutscene and tutorial instead of just waking up.
+      if (!introSeen()) {
+        setIntro('cutscene');
+        cut.start();
+      } else wakeUp();
     }, TIMING.eyesClose);
   };
   const continueGame = () => {
@@ -263,8 +343,12 @@ export function App() {
     if (state.phase !== 'event' || state.runesFound.length <= before) return;
     const fresh = state.runesFound.slice(before);
     const cards = state.cards.deck.filter((c) => c.kind === 'rune' && fresh.includes(c.rune ?? -1));
-    if (cards.length) setPickups((ps) => [...ps, { id: nextId++, cards, toHand: false, toDeck: true }]);
-  }, [state.runesFound, state.phase, state.cards.deck]);
+    if (!cards.length) return;
+    const show = () => setPickups((ps) => [...ps, { id: nextId++, cards, toHand: false, toDeck: true }]);
+    // Fed with blood: "Ah! How???" first, then the rune.
+    if (state.event?.said === LECTERN_ROOM.lines.fed) window.setTimeout(show, TIMING.lecternOuch);
+    else show();
+  }, [state.runesFound, state.phase, state.cards.deck, state.event]);
 
   // Picked-up drops: a drop that vanishes while you're still in the same room was picked up (drops never leave
   // the floor any other way). Show it, then fly it into the discard pile, which flashes as it lands.
@@ -363,7 +447,7 @@ export function App() {
       const t = window.setTimeout(() => {
         autoWalked.current.out = stage;
         latest.current.startLeaving();
-      }, state.event?.said ? TIMING.eventWalkOutDelay : TIMING.eventWalkOutDelay / 2);
+      }, state.event?.said === LECTERN_ROOM.lines.fed ? TIMING.eventWalkOutDelay + TIMING.lecternOuch : state.event?.said ? TIMING.eventWalkOutDelay : TIMING.eventWalkOutDelay / 2);
       return () => window.clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the event moves on, not on every state change
@@ -446,6 +530,7 @@ export function App() {
     resetCasting();
     if (!cast || !after) return;
     const done = after as GameState;
+    if (cut.active) cut.afterCast(done);
 
     if (cast.runeSymbol === null || !cast.spell || !cast.rune) {
       addFx({ ...castEvent(cast, done), grey: cast.runeSymbol !== null });
@@ -513,6 +598,8 @@ export function App() {
   const onTileClick = (p: Pos) => {
     // The lectern's and the camp's rooms: the wizard walks in and out by themselves; clicks don't move them.
     if (inEvent) return;
+    // The opening cutscene: the board isn't the player's. In the tutorial, a click only casts the aimed Fire Beam.
+    if (cut.active && (!tutorial || !aiming)) return;
     // In room 0 a click walks, unless a Beam or Wall is being aimed (then it casts, below).
     if (freeWalk && !dialogOpen && !(prologue && aiming)) {
       // Room cleared (or room 0): walk there for free, one step at a time. The open door means "leave".
@@ -624,7 +711,13 @@ export function App() {
     });
   };
 
-  const handLocked = !(state.phase === 'player' && !enemyTurn.playing && !castPlaying && !dialogOpen);
+  const handLocked = !(state.phase === 'player' && !enemyTurn.playing && !castPlaying && !dialogOpen) || !!reveal || cutLocked;
+  // The tutorial: only its Fire and Beam can be picked up; they glow, with a tip over the next one to place, then
+  // over the Cast button once both are on the table.
+  const tutorialIds = tutorial ? tutorialCardIds(state) : [];
+  const tutorialLeft = tutorialIds.filter((id) => !table.some((pl) => pl.id === id));
+  const tutorialHand = tutorial ? { only: tutorialIds, tipId: cutLocked ? null : tutorialLeft[0] ?? null, tip: INTRO.tipDrag } : null;
+  const tutorialCastTip = tutorial && !cutLocked && tutorialIds.length > 0 && tutorialLeft.length === 0 ? INTRO.tipAim : null;
   const { drag, startDrag } = useCardDrag({ enabled: !handLocked && mode.kind === 'idle', onDrop, onClick: onCardClick });
   const draggedCard = drag ? hand.find((c) => c.id === drag.cardId) : undefined;
   const handCards = hand.filter((c) => !table.some((pl) => pl.id === c.id));
@@ -736,6 +829,23 @@ export function App() {
     return o;
   }, [preview, enemyTurn.step, enemyTurn.playing, shown, hover, state, dialogOpen, mode, aiming, aimDir, canAct]);
 
+  // ------------------------------------------------------------ the lectern, room 0's light
+
+  /** While "Ah! How???" is said, the lectern hasn't said its "my favorite" yet. */
+  const lecternView = (s: GameState): GameState => (ouch && s.event ? { ...s, event: { ...s.event, said: null } } : s);
+  const chooseAtLectern = (c: EventChoice) => {
+    let next: GameState | null = null;
+    if (!game.run((st) => (next = eventChoice(st, c)))) return;
+    // Fed it blood: it hurts, and the wizard can't believe it (unless it killed them).
+    if (c === 'blood' && (next as GameState | null)?.phase !== 'lost') {
+      sayLine(LECTERN_OUCH, TIMING.lecternOuch);
+      setOuch(true);
+      window.setTimeout(() => setOuch(false), TIMING.lecternOuch);
+    }
+  };
+  /** Room 0 is lit by its campfire: while the fire is out, the room is dark. */
+  const roomZeroDark = isPrologue(view) && view.room.fireLit === false ? 0.92 : 0;
+
   // ------------------------------------------------------------ render
 
   const busy = !canAct || mode.kind !== 'idle';
@@ -747,24 +857,32 @@ export function App() {
     >
       <ThoughtFilters />
       <GameScene
-        state={view}
+        state={cutState ?? lecternView(view)}
         runeTint={!!castPlay?.runeTint}
         playerThought={thought}
+        playerSpeech={(cut.active ? cut.view.speech : null) ?? speech?.text ?? null}
+        dark={cutState ? cut.view.dark : reveal?.step === 'dark' ? 1 : roomZeroDark}
+        torchesLit={cutState ? cut.view.torchesLit : reveal?.step !== 'dark'}
+        enemiesHidden={cutState ? cut.view.enemiesHidden : reveal?.step === 'dark'}
+        wizardHidden={!!cutState && cut.view.wizardHidden}
+        wizardFlight={cutState ? cut.view.flight : null}
+        bare={cut.active && !tutorial}
         restPrompt={restPrompt}
         onRest={rest}
-        intents={intents}
-        overlays={overlays}
+        intents={cutState ? NO_INTENTS : intents}
+        overlays={cutState ? NO_OVERLAYS : overlays}
         fx={fx}
         hover={hover}
         pointer={pointer}
         onRightClick={cancel}
       />
 
+      {(!cut.active || tutorial) && (
       <div className="hud">
         <TopBar state={view} onGrimoire={() => setBookOpen(true)} onDeck={() => setDeckOpen(true)} onToggleLog={() => setLogOpen((o) => !o)} onMenu={() => setMenuOpen(true)} />
         {dev && <DevBar game={game} hover={hover} />}
 
-        {showNote && (
+        {showNote && !tutorial && (
           <HmmmNote view={note} tableUsed={onTable.length > 0} interactive={noteInteractive} fresh={freshCombos} onHover={(l) => setNoteHover(l?.key ?? null)} onPick={pickNote} />
         )}
         {!inEvent && <ManaOrb mana={view.player.mana} maxMana={view.player.maxMana} runeGlow={!!castPlay?.manaGlow} cost={preview.status === 'ready' || preview.status === 'blocked' ? preview.cost : undefined} />}
@@ -772,7 +890,7 @@ export function App() {
         <Pile which="draw" cards={state.cards.deck} erased={state.cards.erased} />
         <Pile which="discard" cards={state.cards.discard} flash={discardFlash} />
 
-        {!inEvent && (
+        {!inEvent && !tutorial && (
           <RerollButton
           mode={mode.kind === 'reroll'}
           marked={mode.kind === 'reroll' ? mode.marked.length : 0}
@@ -785,7 +903,7 @@ export function App() {
         {!inEvent && !prologue && (
           <EndTurnButton
           actionsLeft={state.phase === 'player' ? state.actionsLeft : 0}
-          disabled={state.phase !== 'player' || enemyTurn.playing || castPlaying || dialogOpen}
+          disabled={state.phase !== 'player' || enemyTurn.playing || castPlaying || dialogOpen || !!reveal}
           onClick={() => {
             setMode({ kind: 'idle' });
             game.run(endPlayerTurn);
@@ -805,7 +923,7 @@ export function App() {
           />
         )}
         {stuck && mode.kind !== 'reroll' && <EscapeButton stuck={state.player.status.stuck} disabled={busy} onClick={() => game.run(playerEscape)} />}
-        {state.phase === 'event' && <EventPanel state={state} onChoose={(c) => game.run((st) => eventChoice(st, c))} />}
+        {state.phase === 'event' && <EventPanel state={lecternView(state)} onChoose={chooseAtLectern} />}
         {state.phase === 'camp' && <CampPanel state={state} onChoose={(c) => game.run((st) => campChoice(st, c))} />}
         {mode.kind !== 'reroll' && state.phase !== 'cleared' && !inEvent && !stuck && (
           <CraftingTable
@@ -817,6 +935,7 @@ export function App() {
             locked={handLocked}
             startDrag={startDrag}
             onCast={onCast}
+            tip={tutorialCastTip}
           />
         )}
         {mode.kind === 'reroll' && <div className="reroll-hint">Click the cards you want to swap, then Confirm</div>}
@@ -830,6 +949,7 @@ export function App() {
           rerollMarked={mode.kind === 'reroll' ? mode.marked : null}
           lifted={lifted}
           disabled={handLocked}
+          tutorial={tutorialHand}
         />
         )}
 
@@ -840,6 +960,7 @@ export function App() {
         <Toasts toasts={toasts} onDismiss={(id) => setToasts((ts) => ts.filter((t) => t.id !== id))} />
         {logOpen && <LogDrawer state={shown} onClose={() => setLogOpen(false)} />}
       </div>
+      )}
 
       {drag && draggedCard && <FragmentCard card={draggedCard} className="drag-ghost" style={{ left: drag.x, top: drag.y }} thought="none" />}
 
@@ -871,12 +992,26 @@ export function App() {
           }}
         />
       )}
+      {hurt > 0 && <div key={hurt} className="hurt-flash" style={{ animationDuration: `${TIMING.hurtFlash}ms` }} />}
+      {cut.active && (
+        <>
+          {/* Clicks move the wizard's lines along (not in the tutorial, where the board and hand are in use). */}
+          {!tutorial && <div className="cutscene-click" onPointerDown={cut.advance} />}
+          <div className={`cutscene-black ${cut.view.black ? 'is-on' : ''}`} style={{ transitionDuration: `${TIMING.introBlackFade}ms` }} />
+          {cut.view.blink && <Blink stage="wake" />}
+          {intro === 'cutscene' && (
+            <button className="cutscene-skip" onClick={cut.skip}>
+              Skip
+            </button>
+          )}
+        </>
+      )}
       {intro === 'fate' && <FateScreen onDone={afterFate} />}
       {(intro === 'title' || intro === 'leaving' || intro === 'closing') && (
         <TitleScreen canContinue={game.resumable && !isPrologue(state)} leaving={intro !== 'title'} fading={intro === 'leaving'} onContinue={continueGame} onNewGame={startNewGame} />
       )}
-      {(intro === 'closing' || intro === 'resting' || intro === 'waking') && (
-        <Blink stage={intro === 'waking' ? 'wake' : 'close'} duration={intro === 'resting' ? TIMING.restClose : undefined} />
+      {(intro === 'closing' || intro === 'resting' || intro === 'dozing' || intro === 'waking') && (
+        <Blink stage={intro === 'waking' ? 'wake' : 'close'} duration={intro === 'resting' ? TIMING.restClose : intro === 'dozing' ? TIMING.introDoze : undefined} />
       )}
       {menuOpen && (
         <MenuDialog

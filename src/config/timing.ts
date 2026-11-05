@@ -45,6 +45,40 @@ export const TIMING = {
   fateLetterFade: 450,
   fateHold: 2800,
   fateMessageOut: 1000,
+  /**
+   * A fight room the wizard walks into: it stays dark (torches out, monsters hidden) for roomDark, then the
+   * dungeon lights the torches one after another and the light comes back over roomLighting. No input meanwhile.
+   */
+  roomDark: 1000,
+  roomLighting: 1100,
+  /** The red edge of the screen when the wizard loses HP (see .hurt-flash in hud.css for its look). */
+  hurtFlash: 500,
+  /**
+   * Lines the wizard says out loud (speech bubbles): shown for speechBase + speechPerChar per letter, between
+   * speechMin and speechMax, then a speechGap before the next. A click moves on sooner (not in the first
+   * speechMinShow, so a double click doesn't skip a line). A shouted spell puffs shoutPuff into the line.
+   */
+  speechBase: 900,
+  speechPerChar: 48,
+  speechMin: 1200,
+  speechMax: 4200,
+  speechGap: 220,
+  speechMinShow: 300,
+  shoutPuff: 550,
+  /** The Whispering Lectern: "Ah! How???" stays up this long before the rune is shown. */
+  lecternOuch: 1500,
+  /**
+   * The opening cutscene (game/useIntro.ts): a step when the wizard walks, the fall through the hole, being thrown
+   * out of the door, a fade to black (and the longer black before the campfire appears), the pause after a
+   * tutorial cast before the wizard reacts, and the eyes closing on the mat at the end.
+   */
+  introWalkStep: 300,
+  introFall: 520,
+  introThrow: 650,
+  introBlackFade: 600,
+  introCampBlack: 1000,
+  introAfterCast: 1100,
+  introDoze: 1100,
   /** Toasts (loot, errors) auto-dismiss after this. */
   toast: 3400,
 } as const;

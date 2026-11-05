@@ -2736,3 +2736,192 @@ button {
     opacity: 0;
   }
 }
+
+/* ---------------------------------------------------------------- spoken lines, hurt, the opening cutscene */
+
+/* The wizard saying something out loud: a speech bubble over their head (the cutscene, the lectern). */
+.unit-speech {
+  width: max-content;
+  max-width: 17rem;
+  transform: translateY(-75%);
+  animation: speech-in 0.18s ease-out;
+}
+.unit-speech .speech-body {
+  position: relative;
+  padding: 0.5rem 0.85rem;
+  border: 0.14rem solid #3a2a1c;
+  border-radius: 0.9rem;
+  background: #f4ead2;
+  box-shadow: 0 0.3rem 0.9rem #0009;
+  color: #2a1e14;
+  font-size: 1.02rem;
+  line-height: 1.3;
+  text-align: center;
+}
+/* The tail, pointing down at the wizard. */
+.unit-speech .speech-body::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -0.62rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  background: #f4ead2;
+  border-right: 0.14rem solid #3a2a1c;
+  border-bottom: 0.14rem solid #3a2a1c;
+  transform: translateX(-50%) rotate(45deg) skew(8deg, 8deg);
+}
+/* Shouted ("FIRE BEAM!!!", "!!!"): bigger and bolder, with a jolt. */
+.unit-speech.is-shout .speech-body {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+  animation: speech-jolt 0.32s ease-out;
+}
+@keyframes speech-in {
+  from {
+    opacity: 0;
+    transform: translateY(-65%) scale(0.85);
+  }
+}
+@keyframes speech-jolt {
+  0% {
+    transform: scale(1.25) rotate(-2deg);
+  }
+  45% {
+    transform: scale(0.96) rotate(1deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Losing HP: the edge of the screen flashes red (TIMING.hurtFlash). Over the HUD, under dialogs. */
+.hurt-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, transparent 48%, #b0101066 78%, #c01010bb 100%);
+  box-shadow: inset 0 0 7rem 1.5rem #d01818aa;
+  opacity: 0;
+  animation: hurt-flash ease-out forwards;
+}
+@keyframes hurt-flash {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The opening tutorial: the fragments to use glow, the others are shut; a tip floats over the next step. */
+.hand-card.is-tutorial .fragment-card {
+  animation: tutorial-glow 1.2s ease-in-out infinite;
+}
+.hand .hand-card.is-shut {
+  cursor: default;
+  filter: brightness(0.5) saturate(0.5);
+}
+@keyframes tutorial-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0.6rem 0.15rem #ffd36b88;
+  }
+  50% {
+    box-shadow: 0 0 1.6rem 0.5rem #ffd36bee;
+  }
+}
+.tutorial-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 1.1rem);
+  z-index: 5;
+  width: max-content;
+  max-width: 15rem;
+  padding: 0.45rem 0.8rem;
+  border: 0.14rem solid #ffd36b;
+  border-radius: 0.6rem;
+  background: #2a1e14f2;
+  box-shadow: 0 0 1rem #ffd36b66;
+  color: #fff3d6;
+  font-size: 0.95rem;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: tip-bob 1.4s ease-in-out infinite;
+}
+.tutorial-tip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -0.55rem;
+  border: 0.5rem solid transparent;
+  border-top-color: #ffd36b;
+  border-bottom: 0;
+  transform: translateX(-50%);
+}
+@keyframes tip-bob {
+  0%,
+  100% {
+    margin-bottom: 0;
+  }
+  50% {
+    margin-bottom: 0.4rem;
+  }
+}
+/* Over the Cast button (it hangs off the table's right side). */
+.tutorial-tip.cast-tip {
+  left: calc(100% + var(--cast-gap) + var(--cast-w) / 2);
+  bottom: calc(50% + var(--cast-h) / 2 + 0.9rem);
+}
+.crafting.is-tutorial .cast-button {
+  animation: tutorial-glow 1.2s ease-in-out infinite;
+}
+
+/* The opening cutscene: clicks move the lines along; fades to black; the Skip button. */
+.cutscene-click {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  cursor: pointer;
+}
+.cutscene-black {
+  position: fixed;
+  inset: 0;
+  z-index: 940;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition-property: opacity;
+  transition-timing-function: ease-in-out;
+}
+.cutscene-black.is-on {
+  opacity: 1;
+}
+.cutscene-skip {
+  position: fixed;
+  right: 1.6rem;
+  top: 5.4rem;
+  z-index: 1001;
+  padding: 0.45rem 1.3rem;
+  border: 0.12rem solid #c9b48a88;
+  border-radius: 0.5rem;
+  background: #1a120ecc;
+  color: #e8dcc0;
+  font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+.cutscene-skip:hover {
+  opacity: 1;
+  border-color: #ffd36b;
+}

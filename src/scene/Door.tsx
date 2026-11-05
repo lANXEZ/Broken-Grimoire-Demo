@@ -33,7 +33,7 @@ export const BIG_DOOR_SCALE = 1.45;
 /** Height of the open door's light column (scaled with the big door: about 2.47, reaching world y ≈ 2.61). */
 export const DOOR_BEAM_HEIGHT = 1.7;
 
-export function Door({ pos, room, open, label, big = false, pointer, unitFeet, pointerOnBoard }: {
+export function Door({ pos, room, open, label, big = false, sign = true, pointer, unitFeet, pointerOnBoard }: {
   pos: Pos;
   room: RoomSize;
   open: boolean;
@@ -41,6 +41,8 @@ export function Door({ pos, room, open, label, big = false, pointer, unitFeet, p
   big?: boolean;
   /** Where the door leads ("The Whispering Lectern"), shown on the EXIT sign while it's open. */
   label: string;
+  /** Show the EXIT sign (not in the opening cutscene). */
+  sign?: boolean;
   pointer: TilePointer;
   unitFeet: Vector3[];
   pointerOnBoard: { current: boolean };
@@ -138,7 +140,7 @@ export function Door({ pos, room, open, label, big = false, pointer, unitFeet, p
               <meshStandardMaterial color={C.exitOpen} emissive={C.exitOpen} emissiveIntensity={0.9} />
             </mesh>
           </group>
-          {signReady && <Html position={[0, TILE_TOP + SIGN_Y, 0]} center zIndexRange={[15, 5]} style={{ pointerEvents: 'none' }}>
+          {signReady && sign && <Html position={[0, TILE_TOP + SIGN_Y, 0]} center zIndexRange={[15, 5]} style={{ pointerEvents: 'none' }}>
             <div className="door-sign">
               <span className="door-sign-title">Exit</span>
               <span className="door-sign-to">{label}</span>

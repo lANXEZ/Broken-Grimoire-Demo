@@ -40,7 +40,39 @@ same fixed sequence:
   count for the Grimoire and the "Hmmm..." note; Reroll works too). **The campfire reacts to spells** that reach its
   tile: Water, Earth, Fog and Quicksand put it out; Fire, Unstable Fire and Magma light it again; Wind does nothing.
   The moonlight comes down through the hole in a "|_\\" shape (straight on the left, fanning out to the right). Click a tile to walk there; walking through the door
-  starts the run in the Cistern. Room 0 isn't one of the numbered stops.
+  starts the run in the Cistern. Room 0 isn't one of the numbered stops. **The campfire is the room's light:** while
+  it's out, room 0 is dark but for the moonlight (team decision, Nov 6).
+- **The opening cutscene and tutorial (team decision, Nov 6):** the first time **Start** is pressed on a computer
+  (saved per computer; a **Skip** button jumps straight to the game, and quitting midway plays it again next time).
+  The words are in `src/config/introScript.ts`, the order in `src/game/useIntro.ts`. The wizard speaks in speech
+  bubbles (a click moves a line along sooner):
+  1. The eyes open on room 0, dark and empty (no fire, rock or mat; a grimoire fragment lies at c1). The wizard falls
+     through the hole into the moonlight (a3): *"Ahh… What happened?"*, *"Where is this? Why is it so dark?"*,
+     *"Maybe that door leads somewhere."*, and walks through the door.
+  2. The Cistern, dark; a second later its torches catch and show **one brute** (e2; the room's rat and other brute
+     aren't in the cutscene): *"!!!"*, *"A monster??"*, *"Is that a brute?"* It walks up to the wizard step by step:
+     *"That's not good."*, *"Don't come any closer!!"*, *"HERE! ROCK BEAM!!!"* (only a puff of air), *"Huh??"*,
+     *"Wait, where the hell is my grimoire?"*, *"Hell nah."*, *"FIRE BEAM!!!"*, *"ROCK SPEAR!!"* (puffs), and it
+     stops in front of the wizard: *"Naw man."*
+  3. Back in room 0: a second later the screen's edge flashes red (hurt, off screen), and the wizard is thrown back
+     out through the door (lands on b3): *"Guess I have to make a plan first."*
+  4. Black for a second, then room 0 with the campfire (not lit), the rock and the mat: *"Now, the first problem:
+     how do I light this up?"*, *"…"*, then *"Wait, is that a…"*. The wizard walks over and picks up the fragment:
+     *"A fragment of my grimoire!!!"*, *"Why is it torn up like this?"*, *"Hmm, spells are usually just words put
+     together anyway."*, walks to the fire (b1): *"Will this work?"*
+  5. **Tutorial** (the real game, HUD back on screen, nothing else to do): the hand holds **Fire** and **Beam** (the
+     other three are random and can't be picked up). Both glow, with a tip over the next one: *"Drag the fragment and
+     place it on the crafting table"*. With both on the table the Cast button glows: *"Select a direction"*. A cast
+     that reaches the fire lights it; any other is a miss: *"Ah, missed!"*, *"One more time!"*, and the hand gets
+     Fire and Beam back.
+  6. The room fills with the fire's light: *"YESSS!! It works!!!"*, *"I can gather more fragments to fight those
+     monsters and find a way out."* One step toward the door (c1): *"When did a campfire's warmth become this
+     comfortable?"*, *"Let's rest a little before I try again, then."* Onto the mat: *"Ah, I can't wait to get out of
+     here."* The eyes close, and the game starts as usual (waking on the mat).
+- **Torches and dark rooms (team decision, Nov 6):** every pillar carries a torch. Each time a run walks into a fight
+  room, the room starts **dark** (torches out, monsters hidden, nothing can be done); a second later the dungeon
+  notices the wizard and lights the torches one after another, and the room and its monsters show as usual.
+- **Hurt (team decision, Nov 6):** whenever the wizard loses HP, the edge of the screen flashes red for half a second.
 - **The sleeping mat and the title (team decision, Nov 5):** the wizard wakes up on a rough old sleeping mat in room 0
   (two tiles, a1–b1, a small old pillow at a1; walkable). Standing on it, once the waking thought has gone, a small
   prompt floats over the pillow: *"Get some rest? (Return to menu)"*. Clicking it closes the eyes and goes back to
@@ -305,7 +337,8 @@ itself, and never says whether a note is right.
   unit stands behind them or the mouse is near them, so nothing hides behind the scenery. While faded, the mouse
   passes through them to the tiles and units behind, so the player can peek behind a pillar and spot anything placed
   there.
-- **Marked line:** pulsing red tiles. **Erasure Zone:** dark tiles.
+- **Marked line:** pulsing red tiles. **Erasure Zone:** dark violet tiles with a throbbing purple edge, drawn over
+  the move highlights (Nov 6: it used to be near-black under them and was easy to miss).
 - **Badges** beside the HP bar under each unit: the Burn icon with the turns left, the Root icon, the Stun icon;
   **⚡** = the Warden holds a charge; **🂠***n* = fragments a Scrap is carrying; purple **⛨** = the Redactor is
   protected by its Wards; orange **✸** = the Redactor is in Chaos mode. The Redactor's marks are **5 dots** under its
@@ -454,8 +487,10 @@ you've worked out enough runes.
 
 1. **Take a rune fragment** or **Leave it.** Leaving ends the event.
 2. If you took one, the lectern speaks plain words: *"…Still lost, would you? Though I am so thirsty… let me
-   taste your blood."* **Give it some blood:** lose **2 HP** (this **can kill**) and take a second rune; it answers
-   *"Hmm… my favorite."* Or **Walk away** with the one rune.
+   taste your blood."* The choices are plain on purpose (team decision, Nov 6: nothing says what they cost or give):
+   **Sate the lectern's desire.** loses **2 HP** (this **can kill**) and gives a second rune: the wizard is hurt and
+   cries *"Ah! How???"*, then the rune is shown and the lectern answers *"Hmm… my favorite."* Or **Leave** with the
+   one rune.
 
 Runes taken are shown, then go into your deck (2 at most, each a symbol you don't have yet). When the event ends, the
 wizard walks out through the door by themselves. The player never moves the wizard in this room (clicks on the board
