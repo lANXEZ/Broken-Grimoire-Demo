@@ -133,8 +133,8 @@ Wall is an attack shape, not a barrier.
 enemies hit are not burned. Immunities still apply.
 
 **The Grimoire:** the first time you cast a new element + shape combo, it's written into the reconstructed grimoire.
-Fragments are drawn as torn pages of a chant: element words highlighted in the element's colour, shape words in light
-purple. A completed grimoire becomes a readable book. Runes are never recorded.
+Fragments are torn pages of that grimoire (Art and UI). A completed grimoire becomes a readable book. Runes are never
+recorded.
 
 ## Element merges
 
@@ -339,8 +339,22 @@ written in the dungeon's own tongue. You'll have to work out what they mean your
 - **Combat HUD:** intent chips over each monster; the Warden's marked line on the floor; HP and mana; hand, crafting
   board and CAST; bobbing drops; holes, pillar HP and hazards (Fog, Magma, Quicksand); the Redactor's 5 mark dots;
   Erasure Zones; CLEARED! and Continue.
-- **Fragment cards:** torn chant pages with element words in the element's colour and shape words in light purple;
-  runes show only gibberish.
+- **Fragment cards:** each card is a torn page of your grimoire covered in unreadable gibberish. The only readable part
+  is the card's own word, highlighted inside the gibberish. Each element word is written in its element's colour and a
+  font themed on that element.
+
+  | Card | Highlight | Font (proposed) |
+  | --- | --- | --- |
+  | Fire | Red | Fiery: flame-licked letters |
+  | Water | Blue (proposed) | Flowing: rounded, dripping letters |
+  | Earth | Brown (proposed) | Stony: heavy, cracked, chiselled letters |
+  | Wind | Mint green | Airy: thin, slanted letters with trailing wisps |
+  | Beam, Cross, Wall | Purple | The grimoire's normal script |
+  | Runes | Burgundy | The rune's own symbol; stays unreadable |
+
+- **Card detail panel:** hovering a torn-page fragment in your hand shows that card's existing card asset (the card art
+  the team already has) in a panel on the right side of the screen. The torn pages are new art; the card assets are
+  reused as-is for the panel. A rune shows only its symbol there.
 
 ## Open items
 
