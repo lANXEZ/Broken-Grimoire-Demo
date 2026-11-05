@@ -2358,6 +2358,7 @@ button {
   color: #d9b3ff;
 }
 .event-runes {
+  display: block;
   font-family: 'Segoe UI Historic', 'Noto Sans Runic', serif;
   font-size: 1.35rem;
   letter-spacing: 0.12em;
@@ -2439,6 +2440,7 @@ button {
 .lectern-whispers span {
   position: absolute;
   bottom: 0;
+  left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
   font-family: 'Segoe UI Historic', 'Noto Sans Runic', serif;

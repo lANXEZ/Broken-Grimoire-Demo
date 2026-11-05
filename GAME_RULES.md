@@ -448,7 +448,9 @@ roll is written out in [DESIGN.md](DESIGN.md#cards-and-drops).
 **Event · The Whispering Lectern** (team decision, Nov 4; replaces the design's read / copy / leave). A small room
 of its own: **5×5**, empty but for a **lectern** in the middle (c3), which blocks its tile. The wizard comes in at
 a1 and walks up to it by themselves (to c2); the **door (e5) stays locked until the wizard reaches the lectern**. It
-whispers in a familiar voice, in a language you don't understand: rune words drift up off its open book.
+whispers in a familiar voice, in a language you don't understand: its line rises off its open book again and
+again, *"Hail the rune lord"* written in the rune alphabet (also shown in its choice panel), readable only once
+you've worked out enough runes.
 
 1. **Take a rune fragment** or **Leave it.** Leaving ends the event.
 2. If you took one, the lectern speaks plain words: *"…Still lost, would you? Though I am so thirsty… let me
