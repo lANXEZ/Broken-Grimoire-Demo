@@ -38,7 +38,7 @@ npm run dist       # build the portable Windows .exe into release/BrokenGrimoire
 ```
 
 The .exe needs no installer and no internet. The run is saved automatically and continues when the game reopens.
-Five things are kept per computer and survive a new run: what each rune card does and the rune alphabet (both
+Whether the opening cutscene has played is saved per computer too. Five things are kept per computer and survive a new run: what each rune card does and the rune alphabet (both
 shuffled once, on first launch, so the player's notes keep working), the player's own rune notes, the Grimoire's
 pages, and the "Hmmm..." note's card combinations.
 
@@ -46,7 +46,8 @@ pages, and the "Hmmm..." note's card combinations.
 
 | Action | How |
 |---|---|
-| Start | Title screen: **Start** (or **Continue** / **New game** when a run is saved; a run still in room 0 doesn't count). **Quit** closes the game (.exe only) |
+| Start | Title screen: **Start** (or **Continue** / **New game** when a run is saved; a run still in room 0 doesn't count). **Quit** closes the game (.exe only). The first time on a computer, Start plays the opening cutscene and tutorial |
+| Opening cutscene | A click moves the wizard's line along sooner; **Skip** (top right) jumps straight to the game |
 | Back to the title | In room 0, stand on the sleeping mat and click **Get some rest?** over the pillow |
 | Room 0 | Click any tile to walk there, click the big door to start the run. Spells are free to try: mana and actions never run out, Reroll works, and Water or Earth puts the campfire out (Fire lights it again) |
 | Move | Click a highlighted tile next to the wizard |
@@ -80,6 +81,9 @@ pages, and the "Hmmm..." note's card combinations.
 | How obstacles fade (unit behind them, mouse nearby) | `OBSTACLE_FADE` in `src/config/camera.ts`. New obstacle types go inside `<Obstacle>` (`src/scene/Obstacle.tsx`) to get the same behaviour |
 | Art (cards, units, room art) | `src/config/art.ts`. All placeholders are listed there. The title screen's photo is "Full moon behind tree silhouettes" by Aron Visuals (Unsplash, free under the Unsplash License), in `public/art/title/` |
 | Room 0's layout and the wizard's waking thought | `PROLOGUE_ROOM` in `src/engine/data.ts` |
+| The opening cutscene and tutorial | Words and places: `src/config/introScript.ts`. What happens in what order: `play` in `src/game/useIntro.ts`. Its scenes and the tutorial's set-up: `src/game/intro.ts`. Timing: `speech*` and `intro*` in `src/config/timing.ts`. To see it again, delete `broken-grimoire/intro/v1` from local storage |
+| The wizard's speech bubble, the red flash when hurt, the tutorial tips | "spoken lines, hurt, the opening cutscene" styles at the end of `src/hud/hud.css` |
+| Pillar torches and dark rooms | The torch: `src/scene/Torch.tsx` (colours `torch*` in `src/config/art.ts`). How dark a dark room is: `src/scene/Lighting.tsx`. How long it stays dark: `roomDark` / `roomLighting` in `src/config/timing.ts` |
 | Animation speeds | `src/config/timing.ts` |
 | Spell effects (timing, size, colours, camera shake on/off) | `src/config/fx.ts`; the effects themselves are in `src/scene/SpellFx.tsx` |
 | Balance numbers, enemies, rooms, the run order | `src/engine/data.ts` (`RULES`, `ENEMY_DEFS`, `ROOMS`, `RUN`) |
