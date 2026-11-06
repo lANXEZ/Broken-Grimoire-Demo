@@ -93,6 +93,13 @@ export const PLACEHOLDER_COLORS = {
   matWorn: '#5a4a31',
   matPillow: '#b9ad90',
   matStain: '#9a8a66',
+  /** The torch on every pillar (scene/Torch.tsx): iron bracket, wooden handle, oily rag, flame and its light. */
+  torchIron: '#2b2622',
+  torchWood: '#5a3d24',
+  torchRag: '#3a2a1c',
+  torchFlame: '#ff8a2a',
+  torchFlameCore: '#ffe08a',
+  torchLight: '#ffa04d',
   moonDust: '#e6eeff',
   rubble: '#7a7067',
   hole: '#060405',

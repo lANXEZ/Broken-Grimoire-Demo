@@ -7,6 +7,7 @@ import { RULES, type Pos, type RoomRuntime } from '../engine';
 import { TILE_TOP, tileToWorld } from './iso';
 import { Obstacle } from './Obstacle';
 import { Door } from './Door';
+import { Torch } from './Torch';
 
 export interface TilePointer {
   onHover: (p: Pos | null, from?: Pos) => void;
@@ -38,9 +39,14 @@ export function tileHandlers(p: Pos, pointer: TilePointer) {
  *
  * Everything that stands up off the floor (pillars, and any future obstacle) is wrapped in <Obstacle>, which
  * fades it out when a unit is behind it or the mouse is near it. A pillar down to its last HP looks cracked.
+ * Every pillar carries a torch (scene/Torch.tsx) on whichever of its two visible faces looks into the room.
  */
-export function Board({ room, exitOpen, exitLabel, pointer, unitFeet, pointerOnBoard }: {
+export function Board({ room, exitOpen, exitLabel, pointer, unitFeet, pointerOnBoard, torchesLit = true, doorSign = true }: {
   room: RoomRuntime;
+  /** The pillars' torches are burning (they're out when the wizard first walks into a dark room). */
+  torchesLit?: boolean;
+  /** The open door's EXIT sign shows (not in the opening cutscene). */
+  doorSign?: boolean;
   /** Where the door leads, for its EXIT sign. */
   exitLabel: string;
   /** The door is open (gold): the room is cleared, or its door is always open. Otherwise it's locked (barred). */
@@ -102,16 +108,19 @@ export function Board({ room, exitOpen, exitLabel, pointer, unitFeet, pointerOnB
       )}
 
       {/* The door: an archway, barred shut while locked, open with a portal, beam and EXIT sign once unlocked. */}
-      {exit && <Door pos={exit} room={room} open={exitOpen} label={exitLabel} big={!!room.bigDoor} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />}
+      {exit && <Door pos={exit} room={room} open={exitOpen} label={exitLabel} big={!!room.bigDoor} sign={doorSign} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />}
 
       {/* Pillars (2 HP; obstacles: they fade when they hide a unit or the mouse is near). */}
-      {room.pillars.map(({ pos: p, hp }) => {
+      {room.pillars.map(({ pos: p, hp }, i) => {
         const cracked = hp < RULES.pillarHp;
         const height = cracked ? G.pillarHeight * 0.82 : G.pillarHeight;
+        const at = tileToWorld(p, room, TILE_TOP);
+        // The torch goes on the visible face (-x "left" or +z "front") that points more toward the middle.
+        const side = at[0] > -at[2] ? 'left' : 'front';
         return (
           <Obstacle
             key={`pillar-${p.x},${p.y}`}
-            position={tileToWorld(p, room, TILE_TOP)}
+            position={at}
             size={{ width: G.pillarSize + 0.12, depth: G.pillarSize + 0.12, height: height + 0.1 }}
             unitFeet={unitFeet}
             pointerOnBoard={pointerOnBoard}
@@ -141,6 +150,8 @@ export function Board({ room, exitOpen, exitLabel, pointer, unitFeet, pointerOnB
                 <meshStandardMaterial color={PLACEHOLDER_COLORS.pillarCap} roughness={0.8} />
               </mesh>
             )}
+            {/* Lit one after another when the dungeon lights the room. */}
+            <Torch side={side} half={G.pillarSize / 2} y={G.pillarHeight * 0.5} lit={torchesLit} delay={0.12 + i * 0.22} seed={i * 1.7} />
           </Obstacle>
         );
       })}

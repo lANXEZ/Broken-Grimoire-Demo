@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type { MeshBasicMaterial } from 'three';
+import type { Group, Mesh, MeshBasicMaterial } from 'three';
 import type { Pos } from '../engine';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 
@@ -27,6 +27,8 @@ export interface BoardOverlays {
 }
 
 const SIZE = 0.92;
+/** The Redactor's Erasure Zone. */
+const ERASURE = { fill: '#16061f', edge: '#c45cff' };
 /** Outline drawn around each tile of the direction being aimed. */
 const AIM_FRAME = '#fff4d6';
 
@@ -53,8 +55,14 @@ function TileQuad({ p, room, color, opacity, layer = 0, pulse = false, pulseDept
   );
 }
 
-/** A square outline on a tile (hover cursor, enemy focus). */
-function TileFrame({ p, room, color, width = 0.06, layer = 5 }: { p: Pos; room: RoomSize; color: string; width?: number; layer?: number }) {
+/** A square outline on a tile (hover cursor, enemy focus). `pulse` makes it throb (the Erasure Zone's edge). */
+function TileFrame({ p, room, color, width = 0.06, layer = 5, pulse = false }: { p: Pos; room: RoomSize; color: string; width?: number; layer?: number; pulse?: boolean }) {
+  const group = useRef<Group>(null);
+  useFrame(({ clock }) => {
+    if (!pulse || !group.current) return;
+    const o = 0.55 + 0.4 * Math.sin(clock.elapsedTime * 4);
+    group.current.children.forEach((m) => (((m as Mesh).material as MeshBasicMaterial).opacity = o));
+  });
   const h = SIZE / 2 - width / 2;
   const strips: [number, number, number, number][] = [
     [0, h, SIZE, width],
@@ -63,7 +71,7 @@ function TileFrame({ p, room, color, width = 0.06, layer = 5 }: { p: Pos; room: 
     [-h, 0, width, SIZE],
   ];
   return (
-    <group position={tileToWorld(p, room, TILE_TOP + 0.004 + layer * 0.002)} rotation={[-Math.PI / 2, 0, 0]}>
+    <group ref={group} position={tileToWorld(p, room, TILE_TOP + 0.004 + layer * 0.002)} rotation={[-Math.PI / 2, 0, 0]}>
       {strips.map(([x, y, w, hh], i) => (
         <mesh key={i} position={[x, y, 0]} raycast={() => null}>
           <planeGeometry args={[w, hh]} />
@@ -99,14 +107,17 @@ export function TileOverlay({ room, overlays }: { room: RoomSize; overlays: Boar
   };
   return (
     <group>
-      {o.erasure.map((p) => <TileQuad key={`er-${k(p)}`} p={p} room={room} color="#050304" opacity={0.72} layer={0} />)}
       {o.marked.map((p) => <TileQuad key={`mk-${k(p)}`} p={p} room={room} color="#ff2a1f" opacity={0.75} layer={1} pulse />)}
       {o.move.map((p) => <TileQuad key={`mv-${k(p)}`} p={p} room={room} color="#8fd4ff" opacity={0.42} layer={2} />)}
+      {/* The Erasure Zone: a dark violet stain with a throbbing purple edge, over the move highlights so it can't be
+          mistaken for a shadow (tiles you can step to still show a little blue through it). */}
+      {o.erasure.map((p) => <TileQuad key={`er-${k(p)}`} p={p} room={room} color={ERASURE.fill} opacity={0.72} layer={2.5} pulse pulseDepth={0.12} />)}
       {/* While aiming, the other directions dim right down so the aimed one stands out. */}
       {o.spellFaint.map((p) => <TileQuad key={`sf-${k(p)}`} p={p} room={room} color={o.spellColor} opacity={o.aim.length ? 0.2 : 0.38} layer={3} />)}
       {o.spell.map((p) => <TileQuad key={`sp-${k(p)}`} p={p} room={room} color={o.spellColor} opacity={0.78} layer={4} pulse />)}
       {o.aim.map((p) => <TileQuad key={`am-${k(p)}`} p={p} room={room} color={o.spellColor} opacity={1} layer={4} pulse pulseDepth={0.1} />)}
       {o.aim.map((p) => <TileFrame key={`af-${k(p)}`} p={p} room={room} color={AIM_FRAME} width={0.05} layer={5} />)}
+      {o.erasure.map((p) => <TileFrame key={`ef-${k(p)}`} p={p} room={room} color={ERASURE.edge} width={0.07} layer={5} pulse />)}
       {o.focus.map((p) => <TileFrame key={`fc-${k(p)}`} p={p} room={room} color="#ffd36b" width={0.07} layer={6} />)}
       {o.hover && <TileFrame p={o.hover} room={room} color={o.hoverColor} />}
     </group>

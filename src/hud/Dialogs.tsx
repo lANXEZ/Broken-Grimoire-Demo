@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import {
   GRIMOIRE_PAGES,
-  RULES,
   campError,
   stageName,
   cardName,
@@ -116,8 +115,6 @@ export function LeaveEarlyDialog({ state, onLeave, onStay }: { state: GameState;
 export function EventPanel({ state, onChoose }: { state: GameState; onChoose: (c: EventChoice) => void }) {
   const ev = state.event;
   if (!ev) return null;
-  const hp = state.player.hp;
-  const cost = RULES.eventBloodCost;
   return (
     <div className="cleared-panel event-panel">
       <div className="event-title">The Whispering Lectern</div>
@@ -141,16 +138,13 @@ export function EventPanel({ state, onChoose }: { state: GameState; onChoose: (c
       {ev.step === 'blood' && (
         <>
           <div className="event-said">&ldquo;{ev.said}&rdquo;</div>
+          {/* Plain choices on purpose: the player isn't told what feeding it costs or gives. */}
           <div className="choice-list">
-            <button className={`choice ${hp <= cost ? 'is-deadly' : ''}`} onClick={() => onChoose('blood')}>
-              <b>Give it some blood</b>
-              <span>
-                Another rune fragment. Lose {cost} HP (you have {hp}).{hp <= cost && ' This will kill you.'}
-              </span>
+            <button className="choice" onClick={() => onChoose('blood')}>
+              <b>Sate the lectern&rsquo;s desire.</b>
             </button>
             <button className="choice" onClick={() => onChoose('walk')}>
-              <b>Walk away</b>
-              <span>Keep the rune you took and go.</span>
+              <b>Leave</b>
             </button>
           </div>
         </>

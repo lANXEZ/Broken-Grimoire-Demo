@@ -165,6 +165,14 @@ function useFxClock(t0: MutableRefObject<number | null>, fn: (t: number) => void
 
 const shake = { start: 0, time: 0, strength: 0 };
 
+/** Shake the camera (the opening cutscene's falls and hits). A stronger shake takes over a weaker one. */
+export function shakeCamera(strength: number, time: number) {
+  if (!FX.shake.enabled) return;
+  const now = performance.now() / 1000;
+  if (shake.start + shake.time - now > 0 && shake.strength > strength) return;
+  Object.assign(shake, { start: now, time, strength });
+}
+
 function requestShake(kind: keyof typeof FX.shake) {
   const s = FX.shake[kind];
   if (!FX.shake.enabled || typeof s === 'boolean') return;
