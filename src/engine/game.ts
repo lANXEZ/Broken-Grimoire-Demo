@@ -302,7 +302,7 @@ function eraseFragment(s: GameState): void {
 // After a room is cleared: free walking, then on through the run
 // ---------------------------------------------------------------------------
 
-/** The tiles the wizard would walk through to reach `to` after the room is cleared (null if unreachable). */
+/** The tiles the mage would walk through to reach `to` after the room is cleared (null if unreachable). */
 /** Room 0, the prologue (before the run's first stop). */
 export const isPrologue = (state: GameState) => state.room.id === PROLOGUE_ROOM.id;
 
@@ -335,7 +335,7 @@ export function freeStep(state: GameState, to: Pos): GameState {
 
 /**
  * Continue: leave the room through its door (anything still on the floor is left behind) for the next stop on the
- * run. The wizard must be standing on the door (the app walks them there first). Normally the room must be cleared;
+ * run. The mage must be standing on the door (the app walks them there first). Normally the room must be cleared;
  * through a door that's always open (the Cistern) you may also leave mid-fight, on your turn, and every enemy still
  * alive keeps what it would have dropped.
  */
@@ -454,7 +454,7 @@ function loadFeatureRoom(s: GameState, R: typeof LECTERN_ROOM | typeof CAMP_ROOM
  */
 export type EventChoice = 'take' | 'leave' | 'blood' | 'walk';
 
-/** Give the wizard `n` runes (into the deck). */
+/** Give the mage `n` runes (into the deck). */
 function grantRunes(s: GameState, n: number): void {
   for (let i = 0; i < n; i++) {
     const card = newRuneCard(s);
@@ -474,7 +474,7 @@ export function eventError(state: GameState, choice: EventChoice): string | null
   return null;
 }
 
-/** The Whispering Lectern. The wizard stays in the room afterwards; Continue (the door) moves on. */
+/** The Whispering Lectern. The mage stays in the room afterwards; Continue (the door) moves on. */
 export function eventChoice(state: GameState, choice: EventChoice): GameState {
   const err = eventError(state, choice);
   if (err) throw new RuleError(err);
@@ -518,7 +518,7 @@ export function campError(state: GameState, choice: CampChoice): string | null {
 }
 
 /**
- * The camp: rest (heal to full) or tear a page out (remove one fragment from your deck for good). The wizard stays
+ * The camp: rest (heal to full) or tear a page out (remove one fragment from your deck for good). The mage stays
  * in the room afterwards; the app walks them out through the door (Continue).
  */
 export function campChoice(state: GameState, choice: CampChoice): GameState {
@@ -541,7 +541,7 @@ export function campChoice(state: GameState, choice: CampChoice): GameState {
   return s;
 }
 
-/** True if the wizard stands on a tile with this hazard. */
+/** True if the mage stands on a tile with this hazard. */
 export function playerInHazard(state: GameState): string | null {
   return hazardAt(state, state.player.pos)?.kind ?? null;
 }

@@ -5,13 +5,13 @@
 export const FX = {
   /** How long one tile's effect plays. */
   tileTime: 0.6,
-  /** Delay between neighbouring tiles as a bolt or wave travels outward from the wizard. */
+  /** Delay between neighbouring tiles as a bolt or wave travels outward from the mage. */
   stepDelay: 0.07,
-  /** The bolt leaves the wizard this long before the first tile erupts. */
+  /** The bolt leaves the mage this long before the first tile erupts. */
   lead: 0.08,
   /** Wall: extra delay before the second row. */
   wallRowDelay: 0.12,
-  /** Siphon motes take this long to drift back to the wizard. */
+  /** Siphon motes take this long to drift back to the mage. */
   siphonTime: 0.55,
 
   /**
@@ -36,7 +36,7 @@ export const FX = {
     rune: '#b05cff',
     runeLight: '#e4c8ff',
     siphon: '#7dffa0',
-    /** Sparks on the wizard for Volatile and Free. */
+    /** Sparks on the mage for Volatile and Free. */
     selfHurt: '#ff4a3a',
     fizzle: '#8f7fb0',
     /** A rune on a table that makes no spell: the cards failed, so grey smoke, no purple. */

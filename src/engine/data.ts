@@ -74,9 +74,9 @@ export const RULES = {
 } as const;
 
 /**
- * The Whispering Lectern's room (team decision, Nov 4): 5x5 and empty but for the lectern in the middle. The wizard
+ * The Whispering Lectern's room (team decision, Nov 4): 5x5 and empty but for the lectern in the middle. The mage
  * comes in at `start`, walks up to `read` (in front of the lectern), and leaves by `exit`, which stays locked until
- * the wizard has reached the lectern. `lines` is what it says in plain words.
+ * the mage has reached the lectern. `lines` is what it says in plain words.
  */
 export const LECTERN_ROOM = {
   id: 'lectern',
@@ -113,18 +113,18 @@ export const PROLOGUE_ROOM = {
   seats: ['a2'],
   moonlight: ['a3', 'a4'],
   /**
-   * The sleeping mat the wizard wakes up on: two tiles, pillow end first (walkable). Standing on it offers
+   * The sleeping mat the mage wakes up on: two tiles, pillow end first (walkable). Standing on it offers
    * "Get some rest?" (back to the title).
    */
   mat: ['a1', 'b1'],
   exit: 'c4',
-  /** What the wizard thinks on waking (shown in a thought cloud). */
+  /** What the mage thinks on waking (shown in a thought cloud). */
   wakeThought: 'Dream of outside again… How long have I been stuck here…',
 } as const;
 
 /**
  * The camp's room (team decision, Nov 4): like the lectern's, but built around a campfire with logs to sit on (the
- * logs block their tiles). The wizard walks up to the fire, rests or tears out a page, and walks out.
+ * logs block their tiles). The mage walks up to the fire, rests or tears out a page, and walks out.
  */
 export const CAMP_ROOM = {
   id: 'camp',
@@ -240,7 +240,7 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     size: 'massive',
     theme: null,
     attackText: 'No normal attack. A marked 5 dmg line on charged turns that hits every unit on it.',
-    notes: 'Massive: can’t be pushed. Hunts for a clear line to you.',
+    notes: 'Massive: only Wind can push it, and it’s too big to fall into a hole. Hunts for a clear line to you.',
     behavior:
       'Walks the shortest path to a tile where it can see you (straight or diagonal; pillars and fog block), then holds still. On its 2nd, 4th, 6th… turn, once it sees you it marks a line through you to the wall or the first pillar, and its turn ends. The first action of its next turn fires 5 dmg at every unit on that line. Stun cancels the line. An unused charge is lost.',
     drop: '1 rune',
@@ -293,7 +293,7 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     theme: null,
     attackText: 'Explodes for 3 dmg on all 8 tiles around it (at most 2 explosions a turn).',
     notes:
-      'Massive and tall: can’t be pushed, and its head stays above the fog. Immune while any Page Ward stands (2 actions). Gains marks (max 5) from Page Scraps that bring it a stolen fragment. After all Wards fall: spends 1 mark per turn for Chaos mode (4 actions, each explosion followed by a cooldown); when out of marks, 3 actions.',
+      'Massive and tall: only Wind can push it, it’s too big to fall into a hole, and its head stays above the fog. Immune while any Page Ward stands (2 actions). Gains marks (max 5) from Page Scraps that bring it a stolen fragment. After all Wards fall: spends 1 mark per turn for Chaos mode (4 actions, each explosion followed by a cooldown); when out of marks, 3 actions.',
     behavior:
       'Walks toward you and explodes whenever you are in the 8 tiles around it, at most twice a turn. In Chaos mode the action after an explosion is a cooldown, and each explosion leaves an Erasure Zone on the 9 tiles around it (its own tile included): end your next turn there and you lose a fragment for good.',
     drop: null,

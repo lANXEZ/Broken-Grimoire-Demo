@@ -144,8 +144,8 @@ export function spokenTimeline(text: string): { delays: number[]; total: number 
 
 /**
  * After a defeat: everything fades to black, then the rune message (config/runeMessages.ts FATE_MESSAGE, in this
- * computer's rune alphabet) appears in the middle of the screen from left to right, the way the wizard hears it
- * (spokenTimeline), stays, and fades out. Then `onDone`: the wizard wakes up in room 0 (App.tsx). Once it's fully
+ * computer's rune alphabet) appears in the middle of the screen from left to right, the way the mage hears it
+ * (spokenTimeline), stays, and fades out. Then `onDone`: the mage wakes up in room 0 (App.tsx). Once it's fully
  * shown, a click (or Space / Enter) moves on to the fade-out. Timing: TIMING.fate*.
  */
 export function FateScreen({ onDone }: { onDone: () => void }) {

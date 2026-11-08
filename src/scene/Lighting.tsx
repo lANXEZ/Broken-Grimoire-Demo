@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import type { DirectionalLight, HemisphereLight } from 'three';
 
 /**
- * The room's light: the sky light and the sun-like key light, dimmed down when the room is dark (a room the wizard
+ * The room's light: the sky light and the sun-like key light, dimmed down when the room is dark (a room the mage
  * walks into for the first time before its torches are lit, room 0 while its fire is out, the opening cutscene).
  * Torches, the campfire and the moonlight have their own lights and glows, so they still show in the dark.
  *

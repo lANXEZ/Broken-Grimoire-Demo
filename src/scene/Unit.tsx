@@ -43,7 +43,7 @@ export interface UnitView {
 
 /**
  * A unit flying onto its tile instead of walking (the opening cutscene): dropping in from `height` tiles above it
- * (`from` null: the wizard falling through room 0's hole), or thrown from the `from` tile along an arc `height`
+ * (`from` null: the mage falling through room 0's hole), or thrown from the `from` tile along an arc `height`
  * tiles high. Plays once per `id`, over `ms`.
  */
 export interface Flight {
@@ -79,9 +79,9 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
   showIntents: boolean;
   /** HP changes now come from a rune: show them in purple. */
   runeTint?: boolean;
-  /** The wizard's thought, in a thought cloud over their head. */
+  /** The mage's thought, in a thought cloud over their head. */
   thought?: string | null;
-  /** What the wizard says out loud, in a speech bubble over their head. */
+  /** What the mage says out loud, in a speech bubble over their head. */
   speech?: string | null;
   /** Not seen: hiding in a dark room (fades back in when it turns false), or off stage in a cutscene. */
   hidden?: boolean;
@@ -203,7 +203,7 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
         </mesh>
       </Billboard>
 
-      {/* A thought over the head (the wizard waking in room 0). */}
+      {/* A thought over the head (the mage waking in room 0). */}
       {thought && (
         <Html position={[0, headY + 0.15, 0]} center zIndexRange={[45, 35]} style={{ pointerEvents: 'none' }}>
           <div className="unit-thought">
@@ -212,7 +212,7 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
         </Html>
       )}
 
-      {/* Something said out loud (the wizard in the opening cutscene, or reacting to the lectern). */}
+      {/* Something said out loud (the mage in the opening cutscene, or reacting to the lectern). */}
       {speech && !hidden && (
         <Html key={speech} position={[0, headY + 0.1, 0]} center zIndexRange={[46, 36]} style={{ pointerEvents: 'none' }}>
           <div className={`unit-speech ${/!!|[A-Z]{4,}/.test(speech) ? 'is-shout' : ''}`}>

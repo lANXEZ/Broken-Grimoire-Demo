@@ -1501,7 +1501,7 @@ button {
 
 /* ------------------------------------------------------------------ climb out  [UI-PLACEMENT] LAYOUT.craftingTable */
 
-/* Takes the crafting table's box while the wizard is stuck in quicksand. */
+/* Takes the crafting table's box while the mage is stuck in quicksand. */
 .escape-panel {
   position: absolute;
   left: calc(50% + var(--table-offset-x));
@@ -1847,7 +1847,7 @@ button {
   }
 }
 
-/* ------------------------------------------------------------------ the wizard's thoughts (hud/Thought.tsx) */
+/* ------------------------------------------------------------------ the mage's thoughts (hud/Thought.tsx) */
 
 /* PLACEHOLDER look: a twisted, foggy, blurry cloud. Sized in em, so it scales with the text inside it. */
 .thought {
@@ -2717,7 +2717,7 @@ button {
   }
 }
 
-/* The wizard's thought over their head (room 0 on waking). */
+/* The mage's thought over their head (room 0 on waking). */
 .unit-thought {
   width: 15rem;
   transform: translateY(-60%);
@@ -2739,7 +2739,7 @@ button {
 
 /* ---------------------------------------------------------------- spoken lines, hurt, the opening cutscene */
 
-/* The wizard saying something out loud: a speech bubble over their head (the cutscene, the lectern). */
+/* The mage saying something out loud: a speech bubble over their head (the cutscene, the lectern). */
 .unit-speech {
   width: max-content;
   max-width: 17rem;
@@ -2758,7 +2758,7 @@ button {
   line-height: 1.3;
   text-align: center;
 }
-/* The tail, pointing down at the wizard. */
+/* The tail, pointing down at the mage. */
 .unit-speech .speech-body::after {
   content: '';
   position: absolute;
@@ -2903,6 +2903,45 @@ button {
 }
 .cutscene-black.is-on {
   opacity: 1;
+}
+/* "Space to continue" under the board while a line is waiting. */
+.cutscene-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 2.2rem;
+  z-index: 945;
+  transform: translateX(-50%);
+  color: #e8dcc0;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0.1rem 0.4rem #000;
+  pointer-events: none;
+  animation: hint-pulse 1.6s ease-in-out infinite;
+}
+.cutscene-hint kbd {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.1rem 0.55rem;
+  border: 0.1rem solid #c9b48a;
+  border-bottom-width: 0.22rem;
+  border-radius: 0.35rem;
+  background: #2a1e14;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+/* In the tutorial the hand is at the bottom: up under the top bar instead. */
+.cutscene-hint.is-high {
+  bottom: auto;
+  top: 5.6rem;
+}
+@keyframes hint-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 .cutscene-skip {
   position: fixed;

@@ -5,9 +5,9 @@ import { PLACEHOLDER_COLORS } from '../config/art';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 
 /**
- * PLACEHOLDER: room 0's sleeping mat, where the wizard wakes up. A rough, worn straw mat two tiles long (woven
+ * PLACEHOLDER: room 0's sleeping mat, where the mage wakes up. A rough, worn straw mat two tiles long (woven
  * bands, dark worn patches, frayed ends) with a small old pillow at the head end (`tiles[0]`). It lies flat and
- * doesn't block its tiles. While the wizard stands on it, a small prompt floats over the pillow, "Get some rest?":
+ * doesn't block its tiles. While the mage stands on it, a small prompt floats over the pillow, "Get some rest?":
  * clicking it goes back to the title screen (App.tsx).
  */
 const noRaycast = () => null;
