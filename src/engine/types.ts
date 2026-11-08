@@ -50,7 +50,10 @@ export interface Statuses {
 
 export type RedactorMode = 'guarded' | 'chaos' | 'spent';
 
-/** How the board treats a unit: floating units ignore holes, pushes and hazards; massive ones can't be pushed. */
+/**
+ * How the board treats a unit: floating units ignore holes, pushes and hazards; massive ones are pushed only by Wind
+ * (not by arrows) and are too big to fall into a hole.
+ */
 export type UnitSize = 'normal' | 'float' | 'massive';
 
 export interface Enemy {

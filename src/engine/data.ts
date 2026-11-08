@@ -240,7 +240,7 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     size: 'massive',
     theme: null,
     attackText: 'No normal attack. A marked 5 dmg line on charged turns that hits every unit on it.',
-    notes: 'Massive: can’t be pushed. Hunts for a clear line to you.',
+    notes: 'Massive: only Wind can push it, and it’s too big to fall into a hole. Hunts for a clear line to you.',
     behavior:
       'Walks the shortest path to a tile where it can see you (straight or diagonal; pillars and fog block), then holds still. On its 2nd, 4th, 6th… turn, once it sees you it marks a line through you to the wall or the first pillar, and its turn ends. The first action of its next turn fires 5 dmg at every unit on that line. Stun cancels the line. An unused charge is lost.',
     drop: '1 rune',
@@ -293,7 +293,7 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     theme: null,
     attackText: 'Explodes for 3 dmg on all 8 tiles around it (at most 2 explosions a turn).',
     notes:
-      'Massive and tall: can’t be pushed, and its head stays above the fog. Immune while any Page Ward stands (2 actions). Gains marks (max 5) from Page Scraps that bring it a stolen fragment. After all Wards fall: spends 1 mark per turn for Chaos mode (4 actions, each explosion followed by a cooldown); when out of marks, 3 actions.',
+      'Massive and tall: only Wind can push it, it’s too big to fall into a hole, and its head stays above the fog. Immune while any Page Ward stands (2 actions). Gains marks (max 5) from Page Scraps that bring it a stolen fragment. After all Wards fall: spends 1 mark per turn for Chaos mode (4 actions, each explosion followed by a cooldown); when out of marks, 3 actions.',
     behavior:
       'Walks toward you and explodes whenever you are in the 8 tiles around it, at most twice a turn. In Chaos mode the action after an explosion is a cooldown, and each explosion leaves an Erasure Zone on the 9 tiles around it (its own tile included): end your next turn there and you lose a fragment for good.',
     drop: null,

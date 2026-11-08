@@ -394,13 +394,13 @@ function decideArcher(s: GameState, e: Enemy, ctx: TurnCtx): Decision {
           return;
         }
         log(s, 'enemy', `${enemyName(e)} shoots at YOU, but ${enemyName(blocker)} is in the way: friendly fire!`);
-        if (!damageEnemy(s, blocker, dmg, `${enemyName(e)}'s arrow`, 'enemy')) pushUnit(s, blocker.id, d, RULES.archerPush, 'enemy');
+        if (!damageEnemy(s, blocker, dmg, `${enemyName(e)}'s arrow`, 'enemy')) pushUnit(s, blocker.id, d, RULES.archerPush, 'enemy', 'arrow');
       });
     }
     return act({ kind: 'shoot', value: dmg }, [s.player.pos], () => {
       ctx.attacked = true;
       damagePlayer(s, dmg, `${enemyName(e)} (arrow)`);
-      if (s.phase === 'enemy') pushUnit(s, 'player', d, RULES.archerPush, 'enemy');
+      if (s.phase === 'enemy') pushUnit(s, 'player', d, RULES.archerPush, 'enemy', 'arrow');
     });
   }
   return approach(s, e, archerFiringTiles(s));

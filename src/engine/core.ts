@@ -237,13 +237,14 @@ export function enterTile(state: GameState, ref: UnitRef, side: LogSide): boolea
  * Push a unit `dist` tiles along `dir`. It slides until something stops it:
  * - the room's wall: it takes 1;
  * - a pillar or a unit: it and what it hit each take 1 (immunities apply), and it stays put;
- * - a hole: it falls in and dies (the mage too: game over);
+ * - a hole: it falls in and dies (the mage too: game over). A massive unit is too big to fall in: the hole stops
+ *   it at its edge like the wall (it takes 1);
  * - Quicksand: it's caught there. Magma burns it on the way.
- * Floating and massive units can't be pushed.
+ * Floating units can't be pushed. Massive units (the Warden, the Redactor) only by Wind (`by`), not by arrows.
  */
-export function pushUnit(state: GameState, ref: UnitRef, dir: Pos, dist: number, side: LogSide): void {
+export function pushUnit(state: GameState, ref: UnitRef, dir: Pos, dist: number, side: LogSide, by: 'wind' | 'arrow'): void {
   const u = unitInfo(state, ref);
-  if (u.size !== 'normal' || dist <= 0) return;
+  if (u.size === 'float' || (u.size === 'massive' && by !== 'wind') || dist <= 0) return;
   const dmg = RULES.collisionDamage;
   for (let i = 0; i < dist; i++) {
     if (!unitAlive(state, ref)) return;
@@ -266,6 +267,11 @@ export function pushUnit(state: GameState, ref: UnitRef, dir: Pos, dist: number,
       damagePillar(state, to, dmg, 'The collision', side);
       return;
     }
+    if (u.size === 'massive' && isHole(state, to)) {
+      log(state, side, `${u.name} is pushed to the edge of the hole at ${coordLabel(to)}, too big to fall in.`);
+      hurtUnit(state, ref, dmg, 'The collision', side);
+      return;
+    }
     const other: UnitRef | null = samePos(state.player.pos, to) ? 'player' : enemyAt(state, to)?.id ?? null;
     if (other) {
       log(state, side, `${u.name} ${ref === 'player' ? 'are' : 'is'} pushed into ${unitInfo(state, other).name}.`);
@@ -276,6 +282,12 @@ export function pushUnit(state: GameState, ref: UnitRef, dir: Pos, dist: number,
     if (ref === 'player') state.player.pos = to;
     else u.enemy!.pos = to;
     log(state, side, `${u.name} ${ref === 'player' ? 'are' : 'is'} pushed ${coordLabel(from)} → ${coordLabel(to)}.`);
+    if (u.enemy?.markedLine) {
+      // The Warden's line starts where it stood: pushed off that tile, it loses the line (like a Stun).
+      u.enemy.markedLine = null;
+      u.enemy.markedPillar = null;
+      log(state, side, `${u.name} is knocked off its spot: its marked line is cancelled.`);
+    }
     if (isHole(state, to)) {
       if (ref === 'player') lose(state, 'hole', 'YOU fall into the hole. Game over.');
       else killEnemy(state, u.enemy!, true);

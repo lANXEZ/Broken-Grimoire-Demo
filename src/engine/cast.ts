@@ -275,7 +275,7 @@ function applyElement(s: GameState, ref: UnitRef, spell: Extract<Spell, { kind: 
       break;
     }
     case 'wind':
-      if (pushDir) pushUnit(s, ref, pushDir, push, 'player');
+      if (pushDir) pushUnit(s, ref, pushDir, push, 'player', 'wind');
       break;
   }
 }

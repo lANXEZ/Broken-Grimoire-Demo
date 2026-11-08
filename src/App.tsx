@@ -493,7 +493,7 @@ export function App() {
       for (const h of cast.hits) {
         const tile = cast.area.tiles.find((t) => samePos(t.pos, h.pos));
         const e = done.enemies.find((x) => x.id === h.id);
-        if (h.immune || !tile?.push || !e || ENEMY_DEFS[e.kind].size !== 'normal') continue;
+        if (h.immune || !tile?.push || !e || ENEMY_DEFS[e.kind].size === 'float') continue;
         const goal = { x: h.pos.x + tile.push.x * cast.push, y: h.pos.y + tile.push.y * cast.push };
         if (!samePos(e.pos, goal) && !done.room.hazards.some((z) => z.kind === 'quicksand' && samePos(z.pos, e.pos))) bumps.push({ at: e.pos, dir: tile.push });
       }

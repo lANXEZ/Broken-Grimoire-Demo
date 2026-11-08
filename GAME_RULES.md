@@ -312,13 +312,14 @@ itself, and never says whether a note is right.
 | Element | Meaning |
 |---|---|
 | **Pillar** | **2 HP.** Any hit or collision removes 1; a destroyed pillar becomes open floor. Blocks movement, line of sight, Archer shots, the Warden's line and spells. |
-| **Hole** | No unit walks into one. A unit **pushed** into a hole dies instantly (you included: game over), and its loot is lost. |
+| **Hole** | No unit walks into one. A unit **pushed** into a hole dies instantly (you included: game over), and its loot is lost. The Warden and the Redactor are too big to fall in: the hole stops them at its edge like the wall (1 damage). |
 | **Drops** | Every monster that dies, whoever killed it, leaves a small bobbing item icon on its tile. Walk onto it to pick it up: a fragment goes to your discard pile; a Scrap's carried cards go back to your hand. |
 | **Marked line** | The Warden's line, which fires 5 dmg at the start of its next turn. |
 | <a id="erasure-zone"></a>**Erasure Zone** | Left by the Redactor's Chaos-mode explosions: the 3×3 block around it, its own tile included. Several zones add up. If you end your turn inside one, a random fragment from your hand is erased: gone for good, not discarded (the top card of your deck if your hand is empty). Then the zones fade. |
 | **Hazards** | Fog, Magma and Quicksand from [merges](#element-merges). There are no separate traps in the demo. |
 
 - **Pushes** come from Wind spells and Archer shots. A pushed unit slides the full distance unless something stops it.
+  Massive units (the Warden, the Redactor) are pushed by Wind only, never by an arrow.
 - **Collisions:** a push stopped by a unit or a pillar: the pushed unit and what it hit each take 1 damage, and the
   pushed unit stays put. Stopped by the room's wall: only the pushed unit takes 1.
 
@@ -328,8 +329,8 @@ itself, and never says whether a note is right.
 |---|---|---|---|---|---|
 | Normal monsters (and you) | — | Affected | Affected | Affected | Affected (you: no) |
 | Page Wards | Float | Immune | Immune | Immune | Immune |
-| Warden | Massive | Immune | Affected | Affected | Affected |
-| The Redactor | Massive, tall | Immune | Affected | Affected | Immune (its head stays above the fog) |
+| Warden | Massive | Wind pushes it (arrows don't); a hole stops it like the wall | Affected | Affected | Affected |
+| The Redactor | Massive, tall | Wind pushes it (arrows don't); a hole stops it like the wall | Affected | Affected | Immune (its head stays above the fog) |
 
 ### On screen
 
@@ -386,7 +387,8 @@ It has no normal attack. Each action, it checks these in order:
   any distance.
 - **Charges** come on its own turns 2, 4, 6…. A charge it doesn't use that turn is lost.
 - **The shot** always comes at the start of its next turn, so you get exactly one turn to step off the red line.
-- **Stun** cancels a marked line. **Root** stops it walking, but it can still mark and fire.
+- **Stun** cancels a marked line, and so does a **Wind push** that moves it off its tile. **Root** stops it walking,
+  but it can still mark and fire.
 - **Death:** it drops **1 rune**.
 
 ## Boss room
@@ -572,6 +574,7 @@ section wins.
 | The lectern's and the camp's rooms | Team decision (Nov 4), not in the design: see [Event and camp](#event-and-camp). Layouts (and the lectern's lines) are `LECTERN_ROOM` and `CAMP_ROOM` in `src/engine/data.ts`. |
 | Hmmm... and rune notes | Team decisions (Nov 4), not in the design: see ["Hmmm..."](#hmmm-the-spell-note) and [Runes](#runes). The Grimoire is unchanged (pages per element + shape). |
 | Stronger Wind | **Team decision (Nov 4), not in the design** (which had push 1 / push 2): Wind pushes 2 tiles, and doubled Wind pushes until the target hits something, taking the usual 1 collision damage. |
+| Wind pushes the Warden and the Redactor | **Team decision (Nov 8), not in the design** (where massive units can't be pushed): Wind pushes them like any monster; Archer arrows still can't. They're too big to fall into a hole: it stops them at its edge like the wall (1 damage). Pushing the Warden off its tile cancels its marked line. |
 | Magma burns on landing | **Team decision (Nov 4), not in the design:** units the Magma cast hits gain Burn 3 right away (after its 2 damage, if they survive), not only units that step onto it later. Page Wards stay fully immune. On screen, every unit that catches fire shows a flame burst and a *Burn 3* pop-up, and each Burn tick shows its damage with the Burn icon. |
 
 > **Note for the team:** Erasure Zones fade at the end of your turn and Page Scraps act before the Redactor, so a
@@ -601,7 +604,7 @@ What the Nov 3 design changed compared with the previous rules. All of it is bui
 | Holes | None | Holes in every room (proposed positions); pushed in = dies, you included |
 | Pushes and collisions | None | Wind and Archer shots push; collisions deal 1 damage |
 | Pillars | Indestructible | 2 HP; destroyed pillars become floor |
-| Unit types | — | Float (Wards) and Massive (Warden, Redactor) are immune to holes and pushes |
+| Unit types | — | Float (Wards) are immune to holes and pushes; Massive (Warden, Redactor) can't fall into holes and only Wind pushes them |
 | Archer shot | Range 4; pillars block it | 8 directions, no range limit, hits the first unit or pillar; +push 1; a pillar takes 1 damage |
 | Warden wave | Hits only you | Hits every unit on the line, monsters included; 1 damage to the pillar that stops it |
 | Warden sight | Blocked by pillars | Blocked by pillars and fog |
