@@ -12,8 +12,10 @@ import { MAP_LAYER_KINDS, buildMapGraph, colX, type MapNodeKind } from '../confi
  * As in Slay the Spire, from where you stand you may step only to a node the path actually connects to; tapping one
  * calls `onEnter`, which just lifts the overlay to reveal the stop the engine already loaded. No engine logic here.
  *
- * `stage` is the player's position in the run (GameState.stage). Lower layers (nearer the bottom) are travelled, the
- * layer at `stage` is live, higher layers are still ahead.
+ * `stage` is the stop the engine has just loaded (GameState.stage), which the player hasn't entered yet. So the map
+ * opens with the player still standing on the node they picked on the layer below (none at the first stop), the road
+ * lit only up to there, and the nodes on layer `stage` joined to it glowing to be picked. Picking one lights the
+ * step to it, then the map lifts. The picks are saved (local storage) so the road stays the same between stops.
  */
 
 /** One drawn node with its place on the board and the path segments leaving it (upward), in overlay fractions. */
@@ -116,64 +118,81 @@ function useMapModel(): MapModel {
   }, []);
 }
 
+/** Where the player's picks are kept, so the road survives the map closing between stops and a reload. */
+const ROUTE_KEY = 'broken-grimoire/map-route/v1';
+
+function loadRoute(): number[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ROUTE_KEY) ?? '[]');
+    return Array.isArray(raw) ? raw.filter((n): n is number => Number.isInteger(n)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRoute(route: number[]): void {
+  try {
+    localStorage.setItem(ROUTE_KEY, JSON.stringify(route));
+  } catch {
+    // Storage blocked: the road just won't survive a reload.
+  }
+}
+
+/** How long the newly lit step shows before the map lifts, so the player sees their pick land. */
+const PICK_HOLD_MS = 550;
+
 export function WorldMap({ stage, onEnter }: { stage: number; onEnter: () => void }) {
   const { placed, nodes, edges, rows, rowY } = useMapModel();
-  // Which node the player picked on each layer they've reached, so the lit "road" follows real edges.
-  const [picked, setPicked] = useState<Record<number, number>>({});
 
-  const current = Math.min(Math.max(stage, 0), rows - 1);
+  /** The layer the player now chooses a node on: the stop the engine has just loaded. */
+  const next = Math.min(Math.max(stage, 0), rows - 1);
 
-  // The start node nearest the centre, used until the player taps a different entry.
-  const defaultStart = useMemo(() => {
-    const layer0 = nodes[0] ?? [];
-    const mid = (Math.min(...layer0) + Math.max(...layer0)) / 2;
-    let best = 0;
-    layer0.forEach((c, i) => {
-      if (Math.abs(c - mid) < Math.abs(layer0[best] - mid)) best = i;
-    });
-    return best;
-  }, [nodes]);
-
-  const firstChild = (layer: number, nodeIndex: number) => edges[layer]?.[nodeIndex]?.[0] ?? 0;
-
-  // The route the player is on: their picks where made, otherwise following the first edge up from the last node.
-  const route = useMemo(() => {
+  /**
+   * The nodes picked so far, one per layer, always along real edges. A new run's map opens at stage 0 and starts
+   * empty. Layers before `next` with no saved pick (an old save) fall back to the first edge up, so the road is
+   * never broken.
+   */
+  const [route] = useState<number[]>(() => {
+    const saved = next === 0 ? [] : loadRoute();
     const r: number[] = [];
-    r[0] = picked[0] ?? defaultStart;
-    for (let l = 1; l < rows; l++) {
-      const parent = r[l - 1];
-      const children = edges[l - 1]?.[parent] ?? [];
-      r[l] = picked[l] != null && children.includes(picked[l]) ? picked[l] : (children[0] ?? firstChild(l - 1, parent));
+    for (let l = 0; l < next; l++) {
+      const options = l === 0 ? (nodes[0] ?? []).map((_, i) => i) : (edges[l - 1]?.[r[l - 1]] ?? []);
+      r[l] = options.includes(saved[l]) ? saved[l] : (options[0] ?? 0);
     }
     return r;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picked, defaultStart, rows]);
+  });
+  /** The node just picked on `next`, while it lights up before the map lifts. */
+  const [pick, setPick] = useState<number | null>(null);
 
-  // On the live layer you may step only to a node the path connects to from where you stand (Slay-the-Spire rule).
-  const tappableSet = useMemo(() => {
-    if (current === 0) return new Set((nodes[0] ?? []).map((_, i) => i));
-    return new Set(edges[current - 1]?.[route[current - 1]] ?? []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, route]);
+  /** Where the player stands: the node they picked on the layer before, or nowhere yet at the first stop. */
+  const here = next > 0 ? route[next - 1] : null;
+  /** On `next` you may step only to a node joined to where you stand (Slay-the-Spire rule); at the start, any. */
+  const options = useMemo(
+    () => new Set(here == null ? (nodes[0] ?? []).map((_, i) => i) : (edges[next - 1]?.[here] ?? [])),
+    [here, next, nodes, edges],
+  );
 
   const nodeXY = (layer: number, index: number) => {
     const p = placed.find((q) => q.layer === layer && q.index === index);
     return p ? { x: p.x, y: p.y } : { x: 0.5, y: rowY(layer) };
   };
 
-  // The lit road already walked: route[0] → route[1] → … → route[current], all along real edges.
-  const roadSegments = useMemo(() => {
-    const segs: { x1: number; y1: number; x2: number; y2: number }[] = [];
-    for (let l = 0; l < current; l++) {
-      const a = nodeXY(l, route[l]);
-      const b = nodeXY(l + 1, route[l + 1]);
-      segs.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
-    }
-    return segs;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route, current]);
+  // The lit road: the steps already taken, plus the step just picked once the player picks it. Nothing is lit
+  // toward a node the player hasn't chosen.
+  const walked = pick == null ? route.slice(0, next) : [...route.slice(0, next), pick];
+  const road = walked.slice(1).map((index, i) => {
+    const a = nodeXY(i, walked[i]);
+    const b = nodeXY(i + 1, index);
+    return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+  });
 
-  const enter = () => onEnter();
+  const choose = (index: number) => {
+    if (pick != null || !options.has(index)) return;
+    setPick(index);
+    saveRoute([...route.slice(0, next), index]);
+    window.setTimeout(onEnter, PICK_HOLD_MS);
+  };
+
   const pct = (v: number) => `${v * 100}%`;
 
   return (
@@ -181,58 +200,48 @@ export function WorldMap({ stage, onEnter }: { stage: number; onEnter: () => voi
       <div className="map-vignette" />
       <div className="map-head">
         <div className="map-title">The Broken Grimoire</div>
-        <div className="map-sub">Choose your path — {stageName(current)}</div>
+        <div className="map-sub">{pick == null ? 'Choose your path' : stageName(next)}</div>
       </div>
 
       <div className="map-board">
-        {/* Dashed paths behind the nodes. The whole set is faint; the road already walked is lit gold. */}
+        {/* Dashed paths behind the nodes. The whole set is faint; the road taken is lit gold. */}
         <svg className="map-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
           {placed.flatMap((p) =>
             p.links.map((l, i) => (
               <line key={`l-${p.layer}-${p.index}-${i}`} className="map-line" x1={p.x * 100} y1={p.y * 100} x2={l.x * 100} y2={l.y * 100} />
             )),
           )}
-          {roadSegments.map((s, i) => (
+          {road.map((s, i) => (
             <line key={`road-${i}`} className="map-line taken" x1={s.x1 * 100} y1={s.y1 * 100} x2={s.x2 * 100} y2={s.y2 * 100} />
           ))}
         </svg>
 
         {/* Nodes. */}
         {placed.map((p) => {
-          const onRoute = route[p.layer] === p.index;
-          const tappable = p.layer === current && tappableSet.has(p.index);
-          const base = p.layer < current ? 'done' : p.layer === current ? (tappable ? 'current' : 'locked') : 'locked';
+          const picked = p.layer === next && pick === p.index;
+          const tappable = p.layer === next && pick == null && options.has(p.index);
+          const state = p.layer < next ? 'done' : picked || tappable ? 'current' : 'locked';
+          const chosen = (p.layer < next && route[p.layer] === p.index) || picked;
+          const standing = pick == null ? p.layer === next - 1 && p.index === here : picked;
           return (
             <button
               key={`n-${p.layer}-${p.index}`}
-              className={`map-node ${p.kind} ${base}${onRoute && base !== 'locked' ? ' chosen' : ''}`}
+              className={`map-node ${p.kind} ${state}${chosen ? ' chosen' : ''}`}
               style={{ left: pct(p.x), top: pct(p.y) }}
               disabled={!tappable}
-              onClick={() => {
-                if (!tappable) return;
-                setPicked((prev) => ({ ...prev, [current]: p.index }));
-                enter();
-              }}
+              onClick={() => choose(p.index)}
               title={stageName(p.layer)}
             >
               <span className="map-node-ring" />
               <NodeGlyph kind={p.kind} />
-              {onRoute && p.layer === current && <span className="map-here">You are here</span>}
+              {standing && <span className="map-here">You are here</span>}
             </button>
           );
         })}
       </div>
 
       <div className="map-foot">
-        <button
-          className="hud-button primary"
-          onClick={() => {
-            setPicked((prev) => (prev[current] != null ? prev : { ...prev, [current]: route[current] }));
-            enter();
-          }}
-        >
-          Enter {stageName(current)}
-        </button>
+        <div className="map-hint">{pick == null ? 'Pick a glowing node to go on.' : `Entering ${stageName(next)}…`}</div>
       </div>
     </div>
   );

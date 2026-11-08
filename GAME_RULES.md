@@ -24,6 +24,10 @@ which replaced the paper-kit rules. If this file and the PDF disagree, this file
 The map is drawn like Slay the Spire's branching graph (6 layers deep, start included), but every path leads to the
 same fixed sequence:
 
+The map shows each time you go through a door. You stand on the node you picked last time (nothing lit ahead
+yet), and the nodes on the next layer joined to it glow. Pick one: the step to it lights up and you go on. Whichever
+you pick, it's the next stop below. Your picks are kept for the whole run, so the lit road is the one you chose.
+
 1. **Start** — in the build: the title screen, then **room 0** (see below)
 2. **Room 1 · The Cistern** (6×6, teaching room)
 3. **Event · The Whispering Lectern** (fixed, never random)

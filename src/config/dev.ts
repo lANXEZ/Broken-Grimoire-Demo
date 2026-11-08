@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * Dev mode: the dev toolbar (cheats like Clear room, Next room), undo/redo with Ctrl+Z / Ctrl+Y, and K to kill the
+ * Dev mode: the dev toolbar (cheats like Clear room, Next stop), undo/redo with Ctrl+Z / Ctrl+Y, and K to kill the
  * enemy under the pointer.
  *
  * It's switched on and off in the game's Menu (⚙, "Dev mode"), and the choice is saved on the computer. Until

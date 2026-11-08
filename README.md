@@ -70,7 +70,7 @@ pages, and the "Hmmm..." note's card combinations.
 | Combat log | L, or the Log button |
 | Menu | Esc |
 | Dev mode on / off | Menu (Esc or ⚙) → Settings → **Dev mode** switch. Saved on the computer |
-| Dev mode only | Ctrl+Z / Ctrl+Y undo and redo, K kills the enemy under the pointer, plus the DEV toolbar (Clear room, Next room, …, and **Forget everything**: wipes the Grimoire and the "Hmmm..." note, on the computer too; click twice to confirm. Rune notes stay; and **New account**: play as a brand-new player, wiping everything saved on the computer but the dev mode switch, so the title offers Start, the opening cutscene plays and the rune meanings are new; click twice) |
+| Dev mode only | Ctrl+Z / Ctrl+Y undo and redo, K kills the enemy under the pointer, plus the DEV toolbar (Clear room, Next stop, …, and **Forget everything**: wipes the Grimoire and the "Hmmm..." note, on the computer too; click twice to confirm. Rune notes stay; and **New account**: play as a brand-new player, wiping everything saved on the computer but the dev mode switch, so the title offers Start, the opening cutscene plays and the rune meanings are new; click twice) |
 
 ## Where to change things
 

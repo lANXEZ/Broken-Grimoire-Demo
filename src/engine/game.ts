@@ -356,6 +356,14 @@ export function continueRun(state: GameState): GameState {
   return s;
 }
 
+/**
+ * Dev ("Next stop"): go on to the next stop on the run as if through the door, one stop at a time (so the run map
+ * steps one layer too), without clearing the room or walking to the door. Past the last stop the run is won.
+ */
+export function enterNextStop(s: GameState): void {
+  enterStage(s, s.stage + 1);
+}
+
 function enterStage(s: GameState, stage: number): void {
   const next = RUN[stage];
   if (!next) {

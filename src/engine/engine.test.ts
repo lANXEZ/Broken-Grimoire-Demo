@@ -4,6 +4,7 @@ import {
   actionsNextTurn,
   campChoice,
   continueRun,
+  enterNextStop,
   eventChoice,
   freeStep,
   freeWalkPath,
@@ -1044,6 +1045,23 @@ describe('spell effects (castFx)', () => {
     giveRune(f, 'echo');
     expect(castFx(f, idsFor(f, ['fire', 'water', 'rune']), null)).toMatchObject({ kind: 'fizzle', area: null });
     expect(castFx(f, idsFor(f, ['fire', 'water']), null)).toBeNull();
+  });
+});
+
+describe('dev: next stop', () => {
+  it('steps one stop at a time from room 0, through the event and the camp, to the boss', () => {
+    const s = createGame(5, { prologue: true });
+    expect(s.stage).toBe(-1);
+    const stops: number[] = [];
+    const phases: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      enterNextStop(s);
+      stops.push(s.stage);
+      phases.push(s.phase);
+    }
+    expect(stops).toEqual([0, 1, 2, 3, 4]);
+    expect(phases).toEqual(['player', 'event', 'player', 'camp', 'player']);
+    expect(s.room.name).toBe('The Redactor');
   });
 });
 

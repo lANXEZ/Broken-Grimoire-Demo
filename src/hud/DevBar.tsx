@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ROOMS, devEdit, enemyAt, killEnemy, loadRoom, type GameState, type Pos } from '../engine';
+import { RUN, devEdit, enemyAt, enterNextStop, killEnemy, stageName, type GameState, type Pos } from '../engine';
 import type { GameApi } from '../game/useGame';
 import { newAccount } from '../game/account';
 
@@ -49,11 +49,13 @@ export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
       >
         Clear room
       </button>
+      {/* One stop at a time, like going through the door, so the run map shows and steps one layer. */}
       <button
-        disabled={s.roomIndex + 1 >= ROOMS.length || s.phase !== 'player'}
-        onClick={() => cheat(`skip to room ${s.roomIndex + 2}`, (d) => loadRoom(d, d.roomIndex + 1))}
+        disabled={s.stage + 1 >= RUN.length || !['player', 'cleared', 'event', 'camp'].includes(s.phase)}
+        title={`Go on to ${stageName(s.stage + 1)} as if through the door (the map shows)`}
+        onClick={() => cheat(`skipped to ${stageName(s.stage + 1)}`, enterNextStop)}
       >
-        Next room
+        Next stop
       </button>
       <button
         className={confirmForget ? 'is-danger' : ''}
