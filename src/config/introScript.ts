@@ -12,7 +12,7 @@ export const INTRO = {
    */
   waking: ['Ahh… What happened?', 'Where is this? Why is it so dark?', 'Maybe that door leads somewhere.'],
   /** The Cistern, the moment the torches light up and show the brute. */
-  spotted: ['!!!', 'A monster??', 'Is that a brute?'],
+  spotted: ['!!!', 'A monster??'],
   /** The brute's first step toward the mage. */
   panic: ['That’s not good.', 'Don’t come any closer!!'],
   /** Long spells shouted from memory: without the grimoire only a puff of air comes out after each. */
@@ -41,6 +41,17 @@ export const INTRO = {
   /** A cast that didn't light the fire; then the hand gets Fire and Beam back and it starts again. */
   missed: ['Ah, missed!', 'One more time!'],
   lit: ['YESSS!! It works!!!', 'I can gather more fragments to fight those monsters and find a way out.'],
+  /**
+   * Still at the fire: the mage counts the fragments they have (the starting deck, engine/cards.ts STARTING_DECK; a test
+   * checks these numbers match it) and gets ready to head out, then takes a step toward the door.
+   */
+  takeStock: [
+    'Let’s check first: how many fragments have I got?',
+    'Three Fire, two Water, two Earth and two Wind…',
+    'Two Beams, two Crosses and one Wall.',
+    'Fourteen fragments. Not much of a grimoire, but it’s a start.',
+    'That should be enough to fight my way out of here.',
+  ],
   /** After one step toward the door. */
   warmth: ['When did a campfire’s warmth become this comfortable?', 'Let’s rest a little before I try again, then.'],
   /** On the mat, just before the eyes close and the game starts. */

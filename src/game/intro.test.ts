@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { coordLabel, createGame, playerCast, type GameState } from '../engine';
-import { INTRO_PLACES } from '../config/introScript';
+import { STARTING_DECK, coordLabel, createGame, playerCast, type GameState } from '../engine';
+import { INTRO, INTRO_PLACES } from '../config/introScript';
 import { introCistern, introRoom0, tutorialCardIds, tutorialState, withInHand } from './intro';
 
 const room0 = () => createGame(7, { prologue: true });
@@ -29,6 +29,18 @@ describe('the opening cutscene', () => {
     const s = introCistern(room0());
     expect(s.room.id).toBe('cistern');
     expect(s.enemies.map((e) => [e.kind, coordLabel(e.pos)])).toEqual([['brute', INTRO_PLACES.bruteFrom]]);
+  });
+});
+
+describe('the mage counting their fragments', () => {
+  it('says the real starting deck: how many of each kind, and the total', () => {
+    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen'];
+    const said = INTRO.takeStock.join(' ').toLowerCase();
+    for (const kind of new Set(STARTING_DECK)) {
+      const n = STARTING_DECK.filter((k) => k === kind).length;
+      expect(said).toContain(`${words[n]} ${kind}`);
+    }
+    expect(said).toContain(`${words[STARTING_DECK.length]} fragments`);
   });
 });
 

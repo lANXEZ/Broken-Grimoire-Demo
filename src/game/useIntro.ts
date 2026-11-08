@@ -294,6 +294,7 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   // 7. It worked: the room fills with the fire's light. A step toward the door, then a rest on the mat.
   patch({ tutorial: false, tutorialWait: false, dark: 0 });
   for (const line of INTRO.lit) await say(line);
+  for (const line of INTRO.takeStock) await say(line);
   patch({ state: cloneState(latest.current.game.state) });
   await walk(INTRO_PLACES.stepToDoor);
   for (const line of INTRO.warmth) await say(line);
