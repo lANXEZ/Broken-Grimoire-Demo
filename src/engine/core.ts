@@ -2,7 +2,7 @@ import { cardsLabel, grimoireBroken, newCard, rollDrop } from './cards';
 import { ENEMY_DEFS, PROLOGUE_ROOM, RULES, coordLabel } from './data';
 import { addPos, enemyAt, hazardAt, inBounds, isHole, isLockedExit, pillarAt, samePos } from './grid';
 import { pick } from './rng';
-import { runeName } from './runes';
+import { RUNE_SYMBOLS, runeName } from './runes';
 import { HAZARD_INFO } from './spells';
 import type { Card, Element, Enemy, GameState, HazardKind, LogSide, LostReason, Pos, Statuses, UnitSize } from './types';
 
@@ -108,7 +108,7 @@ function addDrop(state: GameState, e: Enemy, cards: Card[], toHand: boolean): vo
 
 /** Give the mage a rune symbol they don't hold yet this run (null if they have them all). */
 export function newRuneCard(state: GameState): Card | null {
-  const free = [0, 1, 2, 3, 4, 5, 6, 7].filter((n) => !state.runesFound.includes(n));
+  const free = RUNE_SYMBOLS.map((_, n) => n).filter((n) => !state.runesFound.includes(n));
   if (free.length === 0) return null;
   const symbol = pick(state, free);
   state.runesFound.push(symbol);

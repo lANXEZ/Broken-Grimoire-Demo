@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Html, useTexture } from '@react-three/drei';
-import { Color, SRGBColorSpace, Vector3, type Group, type MeshBasicMaterial } from 'three';
+import { Color, DoubleSide, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Texture } from 'three';
 import type { Element, EnemyKind, Intent, Pos, RedactorMode, Statuses } from '../engine';
-import { ELEMENT_COLOR, PLACEHOLDER_COLORS, STATUS_ART, UNIT_SPRITE } from '../config/art';
+import { ELEMENT_COLOR, MAGE_POSES, PLACEHOLDER_COLORS, STATUS_ART, UNIT_SPRITE, type MagePose } from '../config/art';
 import { BOARD_GEOMETRY } from '../config/camera';
 import { TIMING } from '../config/timing';
 import { IntentChips, describeIntents } from '../hud/intents';
@@ -26,7 +26,12 @@ export interface UnitView {
   hp: number;
   maxHp: number;
   status: Statuses;
+  /** The drawing (the mage: their idle pose). */
   art: string;
+  /** The mage: a drawing per pose (config/art.ts MAGE_ART). */
+  poses?: Record<MagePose, string>;
+  /** How tall the figure stands, in tiles (config/art.ts UNIT_HEIGHT). */
+  height: number;
   intents?: Intent[];
   /** Plain-language behaviour for the hover card. */
   behavior?: string;
@@ -56,6 +61,54 @@ export interface Flight {
 /** How dim a unit's picture gets in a pitch-dark room (1 = not at all). */
 const DARK_SHADE = 0.42;
 
+/** The part of a drawing the figure fills (texture coordinates, 0-1; v up), and the drawing's width / height. */
+interface Trim {
+  u0: number;
+  u1: number;
+  v0: number;
+  v1: number;
+  aspect: number;
+}
+const TRIMS = new Map<string, Trim>();
+
+/**
+ * Crop a unit drawing to its figure: the art comes on big transparent squares. Measured once per picture (on a small
+ * copy), then the texture shows just that part.
+ */
+function trimTexture(t: Texture): Trim {
+  const img = t.image as HTMLImageElement;
+  const key = img.src ?? t.uuid;
+  let trim = TRIMS.get(key);
+  if (!trim) {
+    const W = 256;
+    const H = Math.max(1, Math.round((W * img.height) / img.width));
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    let [x0, y0, x1, y1] = [0, 0, W - 1, H - 1];
+    if (ctx) {
+      ctx.drawImage(img, 0, 0, W, H);
+      const data = ctx.getImageData(0, 0, W, H).data;
+      [x0, y0, x1, y1] = [W, H, -1, -1];
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++)
+          if (data[(y * W + x) * 4 + 3] > 24) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+      if (x1 < 0) [x0, y0, x1, y1] = [0, 0, W - 1, H - 1];
+    }
+    trim = { u0: x0 / W, u1: (x1 + 1) / W, v0: 1 - (y1 + 1) / H, v1: 1 - y0 / H, aspect: img.width / img.height };
+    TRIMS.set(key, trim);
+  }
+  t.repeat.set(trim.u1 - trim.u0, trim.v1 - trim.v0);
+  t.offset.set(trim.u0, trim.v0);
+  return trim;
+}
+
 const FLOAT_ID = { n: 0 };
 interface FloatNum {
   id: number;
@@ -69,9 +122,10 @@ interface FloatNum {
 /**
  * One unit: a coloured base disc and a standee picture that always faces the camera, like the sprites in
  * Into the Breach. HTML plates float with it: HP and statuses under its feet, intents above its head.
- * PLACEHOLDER picture: the paper token (config/art.ts).
+ * The mage switches poses (config/art.ts MAGE_ART): running while moving, casting or meditating when the scene says
+ * so, idle otherwise; and turns to face the way they walk or cast.
  */
-export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = false, thought = null, speech = null, hidden = false, bare = false, flight = null }: {
+export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = false, thought = null, speech = null, hidden = false, bare = false, flight = null, pose = null, face = null }: {
   unit: UnitView;
   room: RoomSize;
   pointer: TilePointer;
@@ -88,11 +142,28 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
   /** Cutscene: just the picture (no HP plate, hover card or intents). */
   bare?: boolean;
   flight?: Flight | null;
+  /** The mage: a pose the scene asks for (casting, meditating); running and idle come from moving or not. */
+  pose?: 'casting' | 'meditating' | null;
+  /** The mage: face right (1) or left (-1) on screen, e.g. toward the spell being cast; null = the way they last walked. */
+  face?: 1 | -1 | null;
 }) {
   const group = useRef<Group>(null);
   const sprite = useRef<MeshBasicMaterial>(null);
-  const texture = useTexture(unit.art);
-  texture.colorSpace = SRGBColorSpace;
+  const picture = useRef<Mesh>(null);
+  const urls = unit.poses ? MAGE_POSES.map((p) => unit.poses![p]) : [unit.art];
+  const textures = useTexture(urls) as Texture[];
+  const trims = useMemo(
+    () =>
+      textures.map((t) => {
+        t.colorSpace = SRGBColorSpace;
+        return trimTexture(t);
+      }),
+    [textures],
+  );
+  // Tiles per unit of texture height: the first picture (idle) is `unit.height` tall; the other poses keep its scale.
+  const scale = unit.height / (trims[0].v1 - trims[0].v0);
+  const shownPose = useRef(0);
+  const facing = useRef<1 | -1>(1);
 
   const target = useMemo(() => new Vector3(...tileToWorld(unit.pos, room)), [unit.pos, room]);
   const firstFrame = useRef(true);
@@ -145,6 +216,7 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
     shown.current = flight && u < 1 ? 1 : shown.current + ((hidden ? 0 : 1) - shown.current) * Math.min(1, dt * (hidden ? 30 : 3));
     const vis = shown.current;
     g.visible = vis > 0.01;
+    if (flight && u < 1) placePicture();
     if (base.current) base.current.visible = vis > 0.6;
     if (sprite.current) {
       sprite.current.opacity = vis;
@@ -164,6 +236,18 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
     // Glide toward the tile with a little hop in the middle of the move.
     const flat = new Vector3(g.position.x, 0, g.position.z);
     const dist = flat.distanceTo(new Vector3(target.x, 0, target.z));
+    // The mage's pose and which way they face (screen right is world +x +z).
+    const moving = dist > 0.04;
+    if (moving) {
+      const sx = target.x - g.position.x + (target.z - g.position.z);
+      if (Math.abs(sx) > 0.02) facing.current = sx > 0 ? 1 : -1;
+    }
+    if (face) facing.current = face;
+    if (unit.poses) {
+      const want: MagePose = pose === 'casting' ? 'casting' : moving ? 'running' : pose === 'meditating' ? 'meditating' : 'idle';
+      shownPose.current = MAGE_POSES.indexOf(want);
+    }
+    placePicture();
     const a = 1 - Math.exp(-dt * TIMING.unitMoveRate);
     g.position.x += (target.x - g.position.x) * a;
     g.position.z += (target.z - g.position.z) * a;
@@ -176,13 +260,27 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
     }
   });
 
+  /** Show the current pose's picture, sized from its trim, feet on the tile, facing the current way. */
+  function placePicture() {
+    const m = picture.current;
+    if (!m) return;
+    const i = shownPose.current;
+    const t = trims[i];
+    const h = (t.v1 - t.v0) * scale;
+    const w = (t.u1 - t.u0) * t.aspect * scale;
+    // Facing left mirrors the picture (the material is double-sided, so the mirrored plane still shows).
+    m.scale.set(w * facing.current, h, 1);
+    m.position.y = h / 2;
+    if (sprite.current && sprite.current.map !== textures[i]) sprite.current.map = textures[i];
+  }
+
   const baseColor = unit.isPlayer
     ? PLACEHOLDER_COLORS.unitBase.player
     : unit.element
       ? ELEMENT_COLOR[unit.element]
       : PLACEHOLDER_COLORS.unitBase.enemy;
   const S = UNIT_SPRITE;
-  const headY = TILE_TOP + S.footY + S.height + 0.1;
+  const headY = TILE_TOP + S.footY + unit.height + 0.1;
   const handlers = tileHandlers(unit.pos, pointer);
 
   return (
@@ -195,11 +293,11 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
         </mesh>
       </group>
 
-      {/* Standee picture */}
-      <Billboard position={[0, TILE_TOP + S.footY + S.height / 2, 0]}>
-        <mesh {...(bare || hidden ? {} : handlers)}>
-          <planeGeometry args={[S.width, S.height]} />
-          <meshBasicMaterial ref={sprite} map={texture} transparent alphaTest={0.4} toneMapped={false} />
+      {/* Standee picture: its feet on the tile (sized and posed in placePicture). */}
+      <Billboard position={[0, TILE_TOP + S.footY, 0]}>
+        <mesh ref={picture} position={[0, unit.height / 2, 0]} scale={[unit.height, unit.height, 1]} {...(bare || hidden ? {} : handlers)}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial ref={sprite} map={textures[0]} side={DoubleSide} transparent alphaTest={0.4} toneMapped={false} />
         </mesh>
       </Billboard>
 
@@ -237,7 +335,7 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
 
       {/* Damage numbers */}
       {floats.length > 0 && (
-        <Html position={[0, TILE_TOP + S.footY + S.height * 0.6, 0]} center zIndexRange={[40, 30]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, TILE_TOP + S.footY + unit.height * 0.6, 0]} center zIndexRange={[40, 30]} style={{ pointerEvents: 'none' }}>
           <div className="float-stack">
             {igniting && <div className="ignite-burst" />}
             {floats.map((f) => (

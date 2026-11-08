@@ -3,9 +3,10 @@ import type { Card, Element, EnemyKind, FragmentKind, HazardKind } from '../engi
 /**
  * [ART] Every picture the game uses, in one place, so the commissioned art can be swapped in one line at a time.
  *
- * Files live in public/art/ and are served next to the page. The current pictures are PLACEHOLDERS cut from the
- * paper print-and-cut kit (cards, unit tokens, status icons). The board itself has no pictures yet: it is plain
- * 3D blocks coloured with `PLACEHOLDER_COLORS` below.
+ * Files live in public/art/ and are served next to the page. From the art team: the fragments in hand, the info
+ * cards, the mage and the monsters. Still PLACEHOLDERS from the paper print-and-cut kit: the piles' card backs, the
+ * small fragment icons and the status icons. The board itself has no pictures yet: it is plain 3D blocks coloured
+ * with `PLACEHOLDER_COLORS` below.
  */
 export const artUrl = (path: string) => `${import.meta.env.BASE_URL}art/${path}`;
 
@@ -18,20 +19,59 @@ export const TITLE_ART = artUrl('title/moon-forest.jpg');
 // ---------------------------------------------------------------- units
 
 /**
- * Unit pictures, drawn standing on their tile and always facing the camera (scene/Unit.tsx).
- * PLACEHOLDER: round paper tokens. When the artist's isometric unit drawings arrive, point these at the new files
- * and set `UNIT_SPRITE` to match how the drawings are framed.
+ * Unit pictures: the art team's full-body drawings, standing on their tile and always facing the camera
+ * (scene/Unit.tsx). Each drawing sits on a big transparent square; the game trims it to the figure when it loads, so
+ * only `UNIT_HEIGHT` decides how big a unit looks.
  */
-export const PLAYER_ART = artUrl('tokens/you.png');
+export type MagePose = 'idle' | 'running' | 'casting' | 'meditating';
 
+/**
+ * The mage's poses (public/art/mc/): idle; running while walking a tile; casting while their spell plays out;
+ * meditating for a moment after Meditate and while on the sleeping mat. The drawings face right; the picture flips
+ * to face the way the mage walks or casts.
+ */
+export const MAGE_ART: Record<MagePose, string> = {
+  idle: artUrl('mc/idle.png'),
+  running: artUrl('mc/running.png'),
+  casting: artUrl('mc/casting.png'),
+  meditating: artUrl('mc/meditating.png'),
+};
+export const MAGE_POSES = Object.keys(MAGE_ART) as MagePose[];
+
+const SPRITE_FILE: Record<Exclude<EnemyKind, 'ward'>, string> = {
+  rat: 'Rat',
+  archer: 'archer',
+  brute: 'Brute',
+  leech: 'Leech',
+  warden: 'Warden',
+  scrap: 'Scrap',
+  redactor: 'Redactor',
+};
+const WARD_FILE: Record<Element, string> = { fire: 'Fward', water: 'Wward', earth: 'Eward', wind: 'Fward' };
+
+/** A monster's drawing (public/art/sprites/). Page Wards have one per element (no Wind Ward exists). */
 export function unitArt(kind: EnemyKind, element?: Element): string {
-  // The kit's Earth ward token is still called "rock" (Earth was Rock in the paper kit).
-  const ward = element === 'earth' ? 'rock' : element ?? 'fire';
-  return artUrl(`tokens/${kind === 'ward' ? `ward-${ward}` : kind}.png`);
+  return artUrl(`sprites/${kind === 'ward' ? WARD_FILE[element ?? 'fire'] : SPRITE_FILE[kind]}.png`);
 }
 
-/** How a unit picture sits on its tile: `width`/`height` in tiles, `footY` = how far its bottom edge sits above the tile. */
-export const UNIT_SPRITE = { width: 0.86, height: 0.86, footY: 0.12 } as const;
+/**
+ * How tall each unit stands, in tiles (its trimmed figure; the width follows the drawing). The mage's other poses keep
+ * the idle pose's scale, so crouching to meditate makes them shorter, not bigger.
+ */
+export const UNIT_HEIGHT: Record<EnemyKind | 'mage', number> = {
+  mage: 1.0,
+  rat: 0.48,
+  archer: 1.02,
+  brute: 1.25,
+  leech: 0.62,
+  warden: 1.42,
+  ward: 1.12,
+  scrap: 0.6,
+  redactor: 1.5,
+};
+
+/** A typical unit's box (for spell effects aimed at a unit's middle and for fading obstacles in front of units). */
+export const UNIT_SPRITE = { width: 0.8, height: 1.05, footY: 0.03 } as const;
 
 // ---------------------------------------------------------------- board
 
@@ -121,23 +161,25 @@ export const PLACEHOLDER_COLORS = {
 // ---------------------------------------------------------------- cards & icons
 
 /**
- * Kit card art that exists for each fragment kind. Kinds missing here are drawn in code until the artist delivers
- * them: Wind and Wall in the kit's card layout (hud/KitCard.tsx), runes as plain cards (hud/Hand.tsx).
+ * The fragments in hand (and on the crafting table, the piles' pop-ups and so on): torn grimoire pages from the art
+ * team, public/art/spell_fragments/. Each rune card has its own page, rune1-rune6 (rune card `symbol` + 1). The art
+ * team's rune symbols aren't the rune alphabet the hidden messages use (engine/cipher.ts); for the demo a rune card
+ * simply shows its page, and the alphabet stays as it is for the messages.
  */
-const CARD_IMAGE: Partial<Record<FragmentKind, string>> = { fire: 'fire', water: 'water', earth: 'rock', beam: 'beam', cross: 'cross' };
-/** Kinds whose loot version (with the wax seal printed on) exists in public/art/cards/. The kit has no Cross loot card. */
-const LOOT_IMAGE: ReadonlySet<FragmentKind> = new Set<FragmentKind>(['fire', 'water', 'earth', 'beam']);
+export function fragmentArt(card: Pick<Card, 'kind' | 'rune'>): string {
+  return artUrl(`spell_fragments/${card.kind === 'rune' ? `rune${(card.rune ?? 0) + 1}` : card.kind}.png`);
+}
 
 /**
- * Fragment card face (null = no art yet). Loot cards use their own art (`-loot`, with the wax seal printed on);
- * where that doesn't exist, the normal art is used and `seal` asks for a drawn wax seal on top.
+ * The full card for a fragment kind, shown big beside the board while a fragment is hovered (hud/CardPreview.tsx):
+ * public/art/info_cards/. Runes have no info card (null).
  */
-export function cardArt(card: Pick<Card, 'kind' | 'loot'>): { src: string; seal: boolean } | null {
-  const name = CARD_IMAGE[card.kind];
-  if (!name) return null;
-  const lootArt = !!card.loot && LOOT_IMAGE.has(card.kind);
-  return { src: artUrl(`cards/${name}${lootArt ? '-loot' : ''}.jpg`), seal: !!card.loot && !lootArt };
+export function infoCardArt(kind: FragmentKind): string | null {
+  return kind === 'rune' ? null : artUrl(`info_cards/${kind}.png`);
 }
+
+/** The paper kit's fragment pictures without the card frame, still used on the piles and small badges. */
+const CARD_IMAGE: Partial<Record<FragmentKind, string>> = { fire: 'fire', water: 'water', earth: 'rock', beam: 'beam', cross: 'cross' };
 
 export const CARD_BACK_ART = artUrl('cards/back.jpg');
 

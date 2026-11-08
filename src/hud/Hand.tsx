@@ -1,15 +1,15 @@
 import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { RUNE_SYMBOLS, cardName, isShapeKind, type Card } from '../engine';
 import { RuneLetter } from './RuneLetter';
-import { FRAGMENT_COLOR, cardArt } from '../config/art';
+import { FRAGMENT_COLOR, fragmentArt } from '../config/art';
 import { LAYOUT } from '../config/layout';
-import { KitCard, hasKitCard } from './KitCard';
 import { RuneThought } from './Thought';
+import { CardPreview } from './CardPreview';
 import type { DragSource } from './useCardDrag';
 
 /**
- * A fragment card face. PLACEHOLDER art: the printed kit cards (config/art.ts). Wind and Wall, which the kit never
- * had, are drawn in the kit's layout (hud/KitCard.tsx); runes are plain cards with their gibberish symbol.
+ * A fragment: a torn grimoire page from the art team (config/art.ts `fragmentArt`), with a wax seal on loot. Its full
+ * card shows beside the board while it's hovered (hud/CardPreview.tsx).
  *
  * A rune card also wears the mage's thought bubble with the player's note on it (hud/Thought.tsx):
  * `thought` = 'edit' (default: the pencil works), 'show' (read only, e.g. on buttons) or 'none' (tiny copies).
@@ -32,19 +32,17 @@ export function FragmentCard({ card, className = '', style, thought = 'edit' }: 
 }
 
 function CardFace({ card, className = '', style }: { card: Card; className?: string; style?: CSSProperties }) {
-  const art = cardArt(card);
+  const src = fragmentArt(card);
   // If a picture fails to load (a missing or renamed file), fall back to the drawn placeholder card below.
   const [failed, setFailed] = useState<string | null>(null);
-  if (art && failed !== art.src) {
+  if (failed !== src) {
     return (
-      <div className={`fragment-card has-art ${card.loot ? 'is-loot' : ''} ${className}`} style={style}>
-        <img src={art.src} alt={`${cardName(card)} fragment`} draggable={false} onError={() => setFailed(art.src)} />
-        {art.seal && <div className="kit-seal" />}
+      <div className={`fragment-card is-fragment ${card.loot ? 'is-loot' : ''} ${className}`} style={style}>
+        <img src={src} alt={`${cardName(card)} fragment`} draggable={false} onError={() => setFailed(src)} />
+        {card.loot && <div className="kit-seal" />}
       </div>
     );
   }
-  // Wind and Wall: drawn in the kit's card layout (hud/KitCard.tsx).
-  if (hasKitCard(card.kind)) return <KitCard card={card} className={className} style={style} />;
   const rune = card.kind === 'rune' ? RUNE_SYMBOLS[card.rune ?? 0] : null;
   const kind = rune ? 'rune' : isShapeKind(card.kind) ? 'shape' : 'element';
   return (
@@ -80,9 +78,9 @@ interface HandProps {
 }
 
 /**
- * [UI-PLACEMENT] The hand: fanned cards at the bottom centre, Slay the Spire style (LAYOUT.hand).
- * Drag a card up onto the crafting table, or click it to put it there.
- * In reroll mode, clicking marks cards to swap instead.
+ * [UI-PLACEMENT] The hand: fanned fragments at the bottom centre, Slay the Spire style (LAYOUT.hand).
+ * Drag a fragment up onto the crafting table, or click it to put it there. Hovering one shows its card beside the
+ * board (hud/CardPreview.tsx). In reroll mode, clicking marks fragments to swap instead.
  */
 export function Hand({ cards, draggingId, dropHighlight, startDrag, rerollMarked, lifted, disabled, tutorial = null }: HandProps) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -91,9 +89,11 @@ export function Hand({ cards, draggingId, dropHighlight, startDrag, rerollMarked
   // Squeeze the fan when the hand grows past 5 (Page Scraps can give stolen cards back).
   const spacing = Math.min(L.spacing, 820 / Math.max(1, n));
   const mid = (n - 1) / 2;
+  const previewed = draggingId === null ? cards.find((c) => c.id === hovered) ?? null : null;
 
   return (
     <div className={`hand ${dropHighlight ? 'drop-highlight' : ''} ${disabled ? 'is-disabled' : ''}`} data-drop="hand">
+      <CardPreview card={previewed} />
       {cards.map((card, i) => {
         const off = i - mid;
         const shut = !!tutorial && !tutorial.only.includes(card.id);

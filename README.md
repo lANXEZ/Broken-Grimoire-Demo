@@ -70,7 +70,7 @@ pages, and the "Hmmm..." note's card combinations.
 | Combat log | L, or the Log button |
 | Menu | Esc |
 | Dev mode on / off | Menu (Esc or ⚙) → Settings → **Dev mode** switch. Saved on the computer |
-| Dev mode only | Ctrl+Z / Ctrl+Y undo and redo, K kills the enemy under the pointer, plus the DEV toolbar (Clear room, Next room, …, and **Forget everything**: wipes the Grimoire and the "Hmmm..." note, on the computer too; click twice to confirm. Rune notes stay) |
+| Dev mode only | Ctrl+Z / Ctrl+Y undo and redo, K kills the enemy under the pointer, plus the DEV toolbar (Clear room, Next room, …, and **Forget everything**: wipes the Grimoire and the "Hmmm..." note, on the computer too; click twice to confirm. Rune notes stay; and **New account**: play as a brand-new player, wiping everything saved on the computer but the dev mode switch, so the title offers Start, the opening cutscene plays and the rune meanings are new; click twice) |
 
 ## Where to change things
 
@@ -79,7 +79,7 @@ pages, and the "Hmmm..." note's card combinations.
 | Where a HUD piece sits on screen | `src/config/layout.ts`. Every placement is tagged `[UI-PLACEMENT]` in the code, so search for that tag |
 | Camera angle, tilt, board size on screen | `src/config/camera.ts` (`elevationDeg` must match the artist's isometric angle, see the note there) |
 | How obstacles fade (unit behind them, mouse nearby) | `OBSTACLE_FADE` in `src/config/camera.ts`. New obstacle types go inside `<Obstacle>` (`src/scene/Obstacle.tsx`) to get the same behaviour |
-| Art (cards, units, room art) | `src/config/art.ts`. All placeholders are listed there. The title screen's photo is "Full moon behind tree silhouettes" by Aron Visuals (Unsplash, free under the Unsplash License), in `public/art/title/` |
+| Art (fragments, info cards, units, room art) | `src/config/art.ts`: fragments in hand `fragmentArt`, the hover card `infoCardArt`, the mage's poses `MAGE_ART`, monsters `unitArt`, each unit's size `UNIT_HEIGHT`. Placeholders are listed there. The title screen's photo is "Full moon behind tree silhouettes" by Aron Visuals (Unsplash, free under the Unsplash License), in `public/art/title/` |
 | Room 0's layout and the mage's waking thought | `PROLOGUE_ROOM` in `src/engine/data.ts` |
 | The opening cutscene and tutorial | Words and places: `src/config/introScript.ts`. What happens in what order: `play` in `src/game/useIntro.ts`. Its scenes and the tutorial's set-up: `src/game/intro.ts`. Timing: `speechGap`, `speechMinShow`, `shoutPuff` and `intro*` in `src/config/timing.ts`. To see it again, delete `broken-grimoire/intro/v1` from local storage |
 | The mage's speech bubble, the red flash when hurt, the tutorial tips | "spoken lines, hurt, the opening cutscene" styles at the end of `src/hud/hud.css` |
@@ -93,7 +93,9 @@ pages, and the "Hmmm..." note's card combinations.
 | Hidden messages' English text (e.g. the line after a defeat) | `src/config/runeMessages.ts`; the black screen after a defeat is `FateScreen` in `src/hud/TitleScreen.tsx`, its timing `fate*` in `src/config/timing.ts` |
 | Write a hidden message in runes | `<RuneText text="..." />` from `src/hud/RuneLetter.tsx` (or `inRunes(text)` from `src/game/runeMap.ts`): write English, it shows in that computer's runes |
 | The "Hmmm..." note | Logic in `src/game/notes.ts`, panel in `src/hud/HmmmNote.tsx`, position `LAYOUT.hmmm`. The thought-cloud look (and the rune bubbles) is `src/hud/Thought.tsx` plus the "mage's thoughts" styles in `hud.css` |
-| Card art for kinds without art yet (Wind, Wall, runes) | Wind and Wall are drawn in the kit's card layout in `src/hud/KitCard.tsx` (text, pictures, colours); runes are plain cards in `FragmentCard` (`src/hud/Hand.tsx`). To use real art instead, add the kind to `CARD_IMAGE` in `src/config/art.ts` |
+| The fragments in hand and the hovered fragment's card | The fragment: `FragmentCard` in `src/hud/Hand.tsx`; the card beside the board: `src/hud/CardPreview.tsx`, placed by `LAYOUT.cardPreview`; their looks are the "fragments" styles in `hud.css` |
+| When the mage shows which pose | `magePose` in `src/scene/GameScene.tsx`; the pose switching and facing in `src/scene/Unit.tsx`; how long the meditating pose lasts: `meditatePose` in `src/config/timing.ts` |
+| Play as a brand-new player (the cutscene again, new rune meanings, nothing remembered) | Dev toolbar: **New account** (click twice). What it wipes: `src/game/account.ts` |
 | Dev mode on or off | In the game: the **Dev mode** switch in the Menu. Its starting value before anyone flips it (on for `npm run dev`, off in builds) is in `src/config/dev.ts` |
 
 ## Project layout

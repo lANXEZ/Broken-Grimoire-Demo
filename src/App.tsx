@@ -171,6 +171,17 @@ export function App() {
     prologue && onMat && !intro && !thought && !castPlaying && !dialogOpen && walk.path.length === 0 && mode.kind === 'idle' && table.length === 0;
   // ------------------------------------------------------------ hurt, dark rooms, the opening cutscene
 
+  // After Meditate the mage shows their meditating pose for a moment (scene/Unit.tsx).
+  const [meditating, setMeditating] = useState(0);
+  useEffect(() => {
+    if (!meditating) return;
+    const t = window.setTimeout(() => setMeditating(0), TIMING.meditatePose);
+    return () => window.clearTimeout(t);
+  }, [meditating]);
+  const meditate = () => {
+    if (game.run(playerMeditate)) setMeditating((n) => n + 1);
+  };
+
   // Losing HP flashes the edge of the screen red.
   const [hurt, setHurt] = useState(0);
   const lastHp = useRef(view.player.hp);
@@ -564,10 +575,8 @@ export function App() {
     const targets = cast.hits
       .filter((h) => !h.immune)
       .flatMap((h) => from.enemies.filter((e) => e.id === h.id).map((e) => e.pos));
-    const baseTiles = baseFx?.area?.tiles ?? [];
-    const extra = (cast.area?.tiles ?? []).map((x) => x.pos).filter((p) => !baseTiles.some((b) => samePos(b.pos, p)));
     const broken = from.room.pillars.filter((p) => !done.room.pillars.some((q) => samePos(q.pos, p.pos))).map((p) => p.pos);
-    const runePart: RuneEvent = { type: 'rune', id: nextId++, effect: cast.rune, fx: cast, base: baseFx, targets, extra, broken };
+    const runePart: RuneEvent = { type: 'rune', id: nextId++, effect: cast.rune, fx: cast, base: baseFx, targets, broken };
     at(t, () => {
       play.shown = null;
       play.runeTint = true;
@@ -868,6 +877,7 @@ export function App() {
         mageFlight={cutState ? cut.view.flight : null}
         bare={cut.active && !tutorial}
         restPrompt={restPrompt}
+        meditating={meditating > 0}
         onRest={rest}
         intents={cutState ? NO_INTENTS : intents}
         overlays={cutState ? NO_OVERLAYS : overlays}
@@ -886,7 +896,7 @@ export function App() {
           <HmmmNote view={note} tableUsed={onTable.length > 0} interactive={noteInteractive} fresh={freshCombos} onHover={(l) => setNoteHover(l?.key ?? null)} onPick={pickNote} />
         )}
         {!inEvent && <ManaOrb mana={view.player.mana} maxMana={view.player.maxMana} runeGlow={!!castPlay?.manaGlow} cost={preview.status === 'ready' || preview.status === 'blocked' ? preview.cost : undefined} />}
-        {!inEvent && !prologue && <MeditateButton disabled={busy} full={state.player.mana >= state.player.maxMana} onClick={() => game.run(playerMeditate)} />}
+        {!inEvent && !prologue && <MeditateButton disabled={busy} full={state.player.mana >= state.player.maxMana} onClick={meditate} />}
         <Pile which="draw" cards={state.cards.deck} erased={state.cards.erased} />
         <Pile which="discard" cards={state.cards.discard} flash={discardFlash} />
 

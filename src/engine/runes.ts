@@ -2,12 +2,14 @@ import type { RuneEffect } from './types';
 
 /**
  * Runes: fragments written in the dungeon's gibberish. The player sees a rune letter and a made-up name; what each
- * one does is never shown. Which of the 8 rune cards does what is shuffled once per computer, and so is the rune
- * alphabet the letters come from (engine/cipher.ts); the app saves both (game/runeMap.ts).
+ * one does is never shown. Which of the 6 rune cards does what is shuffled once per computer, and so is the rune
+ * alphabet used for the hidden messages (engine/cipher.ts); the app saves both (game/runeMap.ts).
+ *
+ * Six runes, one per rune fragment the art team drew (team decision, Nov 9: Widen and Backfire were cut).
  */
-export const RUNE_EFFECTS: RuneEffect[] = ['echo', 'amplify', 'widen', 'siphon', 'volatile', 'free', 'backfire', 'fizzle'];
+export const RUNE_EFFECTS: RuneEffect[] = ['echo', 'amplify', 'siphon', 'volatile', 'free', 'fizzle'];
 
-/** The 8 rune cards' made-up names. A name stays with its card, so it says nothing about what the rune does. */
+/** The 6 rune cards' made-up names. A name stays with its card, so it says nothing about what the rune does. */
 export const RUNE_SYMBOLS: { name: string }[] = [
   { name: 'Vreth' },
   { name: 'Ulmo' },
@@ -15,8 +17,6 @@ export const RUNE_SYMBOLS: { name: string }[] = [
   { name: 'Azzri' },
   { name: 'Rhoun' },
   { name: 'Kesh' },
-  { name: 'Gyvel' },
-  { name: 'Zhoth' },
 ];
 
 export function runeName(symbol: number): string {
@@ -33,7 +33,7 @@ export function randomRuneMap(rand: () => number): RuneEffect[] {
   return map;
 }
 
-/** True if `map` is a valid mapping (each of the 8 effects exactly once). */
+/** True if `map` is a valid mapping (each of the 6 effects exactly once). */
 export function isRuneMap(map: unknown): map is RuneEffect[] {
   return Array.isArray(map) && map.length === RUNE_EFFECTS.length && RUNE_EFFECTS.every((e) => map.includes(e));
 }

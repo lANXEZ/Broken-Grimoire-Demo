@@ -126,14 +126,6 @@ describe('spell areas', () => {
     expect(labels(area.pillars)).toEqual(['c4']);
   });
 
-  it('widen: beam gets side lanes, cross the diagonals, wall 5 wide', () => {
-    const s = board({ player: 'c1' });
-    expect(labels(spellArea(s, basic('fire', 1, 'beam'), 'up', 'widen').tiles.map((t) => t.pos))).toEqual(['b2', 'b3', 'c2', 'c3', 'd2', 'd3']);
-    const c = board({ player: 'c3' });
-    expect(spellArea(c, basic('fire', 1, 'cross'), null, 'widen').tiles).toHaveLength(8);
-    expect(spellArea(c, basic('fire', 1, 'wall'), 'up', 'widen').tiles).toHaveLength(5);
-  });
-
   it('Unstable Fire hits the 3×3 around you; pillars there count as hit', () => {
     const s = board({ player: 'b2', pillars: ['c3'] });
     const area = spellArea(s, { kind: 'unstable' }, null);
@@ -384,7 +376,8 @@ describe('merges and hazards', () => {
   });
 
   it('a monster in fog wanders at random (checked every action)', () => {
-    const s = board({ player: 'a1', enemies: [{ kind: 'rat', at: 'd4' }] });
+    // A seed where the rat's random step out of the fog doesn't lead it straight back in.
+    const s = board({ seed: 1, player: 'a1', enemies: [{ kind: 'rat', at: 'd4' }] });
     hazard(s, 'd4', 'fog');
     const intents = previewIntents(s)['1a'];
     expect(intents[0].kind).toBe('wander');
@@ -783,15 +776,6 @@ describe('runes', () => {
     expect(after.player.hp).toBe(18);
   });
 
-  it('Backfire hits you too', () => {
-    const s = brute();
-    giveRune(s, 'backfire');
-    const after = cast(s, ['water', 'beam', 'rune'], 'up');
-    expect(hp(after, '3a')).toBe(4);
-    expect(after.player.hp).toBe(18);
-    expect(after.player.status.root).toBe(2);
-  });
-
   it('Fizzle: nothing happens, mana and cards are spent', () => {
     const s = brute();
     giveRune(s, 'fizzle');
@@ -1044,18 +1028,15 @@ describe('previews and determinism', () => {
 
 describe('spell effects (castFx)', () => {
   it('reports the real area: runes included, and which enemies can be touched', async () => {
-    const s = board({ player: 'c1', enemies: [{ kind: 'brute', at: 'b2' }, { kind: 'ward', at: 'c2', element: 'fire' }] });
-    giveRune(s, 'widen');
+    const s = board({ player: 'c1', enemies: [{ kind: 'brute', at: 'c3' }, { kind: 'ward', at: 'c2', element: 'fire' }] });
+    giveRune(s, 'amplify');
     const fx = castFx(s, idsFor(s, ['water', 'beam', 'rune']), 'up')!;
     expect(fx.kind).toBe('spell');
-    expect(fx.area!.tiles).toHaveLength(6); // Widen's side lanes are part of the effect
+    expect(fx.area!.tiles).toHaveLength(2);
     expect(fx.hits.map((h) => `${h.id}:${h.immune}`).sort()).toEqual(['3a:false', '6a:true']);
   });
 
-  it('Backfire includes your own tile; Echo plays twice; a rune on a bad table only fizzles', async () => {
-    const s = board({ player: 'a1', enemies: [dummy()] });
-    giveRune(s, 'backfire');
-    expect(castFx(s, idsFor(s, ['fire', 'beam', 'rune']), 'up')!.area!.self).not.toBeNull();
+  it('Echo plays twice; a rune on a bad table only fizzles', async () => {
     const e = board({ player: 'a1', enemies: [dummy()] });
     giveRune(e, 'echo');
     expect(castFx(e, idsFor(e, ['fire', 'beam', 'rune']), 'up')!.passes).toBe(2);

@@ -8,8 +8,8 @@ import { FX } from '../config/fx';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 
 /**
- * [FX] Spell effects. Each cast plays on exactly the tiles it really hit (engine `castFx`: Widen's lanes and
- * Backfire's own tile included), shaped by how the spell travels and coloured by what it is:
+ * [FX] Spell effects. Each cast plays on exactly the tiles it really hit (engine `castFx`), shaped by how the spell
+ * travels and coloured by what it is:
  * - Beam and Cross: a bolt runs out from the mage and each tile erupts as it passes. Wall: the front row
  *   erupts from its centre outwards, then the back row. Unstable Fire: a ring blast over the 3×3, with a shake.
  * - Fire: flame column, rising embers, a scorch mark. Water: splash and ripples. Earth: rock spikes and dust.
@@ -19,8 +19,8 @@ import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
  * - A cast with a rune plays in two parts (App.tsx runs the timeline): first the spell itself, exactly like a cast
  *   without the rune (`cast` event); then the rune's symbol glows purple on the 3×3 floor around the mage
  *   (`sigil`); then the rune's own part, in purple (`rune`): Echo replays the spell, Amplify strikes each target,
- *   Widen hits the extra tiles, Siphon draws wisps back to you, Volatile blasts the targets again and lashes back,
- *   Free gives the mana back, Backfire hits your own tile, Fizzle smokes. A rune on a table that makes no spell
+ *   Siphon draws wisps back to you, Volatile blasts the targets again and lashes back, Free gives the mana back,
+ *   Fizzle smokes. A rune on a table that makes no spell
  *   just puffs grey smoke (no sigil: the cards failed, not the rune).
  * Purely visual: the board shows the matching game state for each part.
  * PLACEHOLDER looks, all drawn in code. Timing and colours live in config/fx.ts.
@@ -57,8 +57,6 @@ export interface RuneEvent {
   base: CastFx | null;
   /** Where the enemies the rune acts on stand after the spell part (Amplify, Volatile, Siphon). */
   targets: Pos[];
-  /** Widen: the tiles the rune added. */
-  extra: Pos[];
   /** Pillars the rune's part broke. */
   broken: Pos[];
 }
@@ -103,7 +101,6 @@ function tileDelay(fx: CastFx, p: Pos): number {
   const s = fx.spell!;
   const dx = p.x - fx.origin.x;
   const dy = p.y - fx.origin.y;
-  if (dx === 0 && dy === 0) return FX.lead; // Backfire: your own tile
   if (s.kind === 'unstable') return FX.lead;
   const d = fx.dir ? DIR_VECTORS[fx.dir] : null;
   if (s.shape === 'wall' && d) {
@@ -112,14 +109,14 @@ function tileDelay(fx: CastFx, p: Pos): number {
     return FX.lead + side * FX.stepDelay * 1.4 + (row - 1) * FX.wallRowDelay;
   }
   if (s.shape === 'beam' && d) return FX.lead + (dx * d.x + dy * d.y - 1) * FX.stepDelay;
-  // Cross: outward along each arm (Widen's diagonals with the first ring).
-  return FX.lead + (Math.max(Math.abs(dx), Math.abs(dy)) - 1) * FX.stepDelay + (dx && dy ? FX.stepDelay * 0.5 : 0);
+  // Cross: outward along each arm.
+  return FX.lead + (Math.max(Math.abs(dx), Math.abs(dy)) - 1) * FX.stepDelay;
 }
 
 /** How long one pass takes, until its last tile has finished. */
 function passTime(fx: CastFx): number {
   if (!fx.area) return 0;
-  const all = [...fx.area.tiles.map((t) => t.pos), ...fx.area.pillars, ...(fx.area.self ? [fx.area.self.pos] : [])];
+  const all = [...fx.area.tiles.map((t) => t.pos), ...fx.area.pillars];
   return Math.max(FX.lead, ...all.map((p) => tileDelay(fx, p))) + FX.tileTime;
 }
 
@@ -129,8 +126,6 @@ function runeTime(e: RuneEvent): number {
   switch (e.effect) {
     case 'echo':
       return e.base ? passTime(e.base) + FX.tileTime : R.time;
-    case 'widen':
-      return e.base ? Math.max(0, ...e.extra.map((p) => tileDelay(e.fx, p) - FX.lead)) + FX.tileTime * 1.6 : R.time;
     case 'siphon':
       return R.strike + FX.siphonTime + 0.35;
     default:
@@ -727,7 +722,7 @@ function ShakeAt({ t0, delay, kind }: { t0: MutableRefObject<number | null>; del
 // ---------------------------------------------------------------------------------------------------------------
 // One cast
 
-/** Lanes a bolt runs down: Beam lanes (Widen adds two) and Cross arms. Each runs from the mage to its far end. */
+/** Lanes a bolt runs down: the Beam's lane or the Cross's arms. Each runs from the mage to its far end. */
 function lanes(fx: CastFx): { from: Pos; to: Pos; steps: number }[] {
   const s = fx.spell!;
   if (!fx.area || s.kind === 'unstable' || s.shape === 'wall') return [];
@@ -781,7 +776,7 @@ function CastEffect({ event, room, tint }: { event: CastEvent; room: RoomSize; t
   const color = tint ?? colorOf(fx);
   const unstable = fx.spell.kind === 'unstable';
   const pass = passTime(fx);
-  const tiles = [...fx.area.tiles, ...(fx.area.self ? [fx.area.self] : [])];
+  const tiles = fx.area.tiles;
   const Tile = TILE_LOOK[look];
   const toWorldDir = (p: Pos | null): [number, number] | null => (p ? [p.x, -p.y] : null);
 
@@ -806,7 +801,6 @@ function CastEffect({ event, room, tint }: { event: CastEvent; room: RoomSize; t
       {fx.hits.map((h) => (
         <Spark key={h.id} t0={t0} at={world(h.pos, UNIT_MID)} delay={tileDelay(fx, h.pos) + 0.1} color={h.immune ? '#9a9a9a' : color} small={h.immune} />
       ))}
-      {fx.area.self && <Spark t0={t0} at={world(fx.origin, UNIT_MID)} delay={FX.lead + 0.1} color={color} />}
       {/* Damaging spells chip the pillars in their way. */}
       {spellDamage(fx.spell) > 0 &&
         fx.area.pillars.map((p, j) => {
@@ -950,7 +944,7 @@ function Strike({ t0, at, delay }: { t0: MutableRefObject<number | null>; at: [n
   );
 }
 
-/** A purple ring blasting out from a point (Volatile's second blast, Backfire). */
+/** A purple ring blasting out from a point (Volatile's second blast, Siphon, Free). */
 function Ring({ t0, at, delay, size = 1 }: { t0: MutableRefObject<number | null>; at: [number, number, number]; delay: number; size?: number }) {
   const ring = useRef<Mesh>(null);
   return (
@@ -993,32 +987,6 @@ function RuneFx({ event, room }: { event: RuneEvent; room: RoomSize }) {
           <ShakeAt t0={t0} delay={S} kind="amplify" />
         </group>
       );
-
-    case 'widen': {
-      if (!fx.spell) return null;
-      const Tile = TILE_LOOK[lookOf(fx)];
-      const pushOf = (p: Pos) => fx.area?.tiles.find((t) => t.pos.x === p.x && t.pos.y === p.y)?.push ?? null;
-      const first = Math.min(...event.extra.map((p) => tileDelay(fx, p)));
-      return (
-        <group>
-          {event.extra.map((p, j) => {
-            const d = tileDelay(fx, p) - first + 0.05;
-            const push = pushOf(p);
-            return (
-              <group key={j}>
-                <TileFlash t0={t0} at={world(p)} delay={d} color={purple} span={0.5} />
-                <Tile t0={t0} at={world(p)} delay={d} color={purple} scale={1} seed={event.id * 17 + j} push={push ? [push.x, -push.y] : null} />
-              </group>
-            );
-          })}
-          {fx.hits
-            .filter((h) => event.extra.some((p) => p.x === h.pos.x && p.y === h.pos.y))
-            .map((h) => (
-              <Spark key={h.id} t0={t0} at={world(h.pos, UNIT_MID)} delay={tileDelay(fx, h.pos) - first + 0.15} color={h.immune ? '#9a9a9a' : purple} small={h.immune} />
-            ))}
-        </group>
-      );
-    }
 
     case 'siphon':
       return (
@@ -1063,21 +1031,6 @@ function RuneFx({ event, room }: { event: RuneEvent; room: RoomSize }) {
           <Spark t0={t0} at={me} delay={0.62} color={FX.colors.selfHurt} />
         </group>
       );
-
-    case 'backfire': {
-      if (!fx.spell) return null;
-      const Tile = TILE_LOOK[lookOf(fx)];
-      const back = fx.area?.self?.push ?? null;
-      return (
-        <group>
-          <TileFlash t0={t0} at={world(fx.origin)} delay={S} color={purple} span={0.5} />
-          <Tile t0={t0} at={world(fx.origin)} delay={S} color={purple} scale={1.1} seed={event.id * 7} push={back ? [back.x, -back.y] : null} />
-          <Ring t0={t0} at={world(fx.origin)} delay={S + 0.05} />
-          <Spark t0={t0} at={me} delay={S + 0.12} color={purple} />
-          <ShakeAt t0={t0} delay={S} kind="volatile" />
-        </group>
-      );
-    }
 
     default:
       // Fizzle: the gathered magic collapses into purple smoke.

@@ -29,7 +29,7 @@ describe('cards', () => {
   it('the same seed deals the same hand and the same rune mapping', () => {
     expect(createGame(9).cards.hand).toEqual(createGame(9).cards.hand);
     expect(createGame(9).runeMap).toEqual(createGame(9).runeMap);
-    expect(new Set(createGame(9).runeMap).size).toBe(8);
+    expect(new Set(createGame(9).runeMap).size).toBe(6);
   });
 
   it('casting moves the cards used from the hand to the discard pile', () => {

@@ -89,7 +89,7 @@ describe('crafting table', () => {
 
   it('a rune keeps Cast lit even on a table that makes nothing, and never changes the preview', () => {
     const s = open();
-    const rune: Card = { id: nextId++, kind: 'rune', rune: s.runeMap.indexOf('widen') };
+    const rune: Card = { id: nextId++, kind: 'rune', rune: s.runeMap.indexOf('amplify') };
     const odd = [card('fire'), card('water'), rune];
     s.cards.hand = odd;
     expect(previewCast(s, odd).status).toBe('ready');
@@ -97,7 +97,7 @@ describe('crafting table', () => {
     s.cards.hand = beam;
     const p = previewCast(s, beam);
     expect(p.cost).toBe(3);
-    expect(p.aimTiles!.up).toHaveLength(2); // Widen isn't shown
+    expect(p.aimTiles!.up).toHaveLength(2); // the rune never changes the aim
   });
 
   it('the table forgets cards that left the hand and keeps the pile order', () => {

@@ -33,8 +33,8 @@ export const BOARD_GEOMETRY = {
   /** Pillar footprint and height. */
   pillarSize: 0.72,
   pillarHeight: 1.35,
-  /** Height of a unit standee (its picture is this tall). */
-  unitHeight: 1.05,
+  /** Height of a tall unit standee, so the camera keeps their heads in view (config/art.ts UNIT_HEIGHT). */
+  unitHeight: 1.35,
 } as const;
 
 /**

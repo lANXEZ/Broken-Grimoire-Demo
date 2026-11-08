@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ROOMS, devEdit, devRemoveEnemy, enemyAt, killEnemy, loadRoom, type GameState, type Pos } from '../engine';
 import type { GameApi } from '../game/useGame';
+import { newAccount } from '../game/account';
 
 /**
  * Dev toolbar: only rendered in dev mode (config/dev.ts), never in the built game or the .exe.
- * Undo/redo (also Ctrl+Z / Ctrl+Y) plus a few cheats to reach later rooms quickly, and "Forget everything" to wipe
- * the Grimoire and the "Hmmm..." note (it asks once more first: click again within a few seconds).
+ * Undo/redo (also Ctrl+Z / Ctrl+Y) plus a few cheats to reach later rooms quickly, "Forget everything" to wipe
+ * the Grimoire and the "Hmmm..." note, and "New account" to play as a brand-new player (game/account.ts). The last two
+ * ask once more first: click again within a few seconds.
  */
 export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
   const s = game.state;
@@ -17,6 +19,12 @@ export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
     const t = window.setTimeout(() => setConfirmForget(false), 3000);
     return () => window.clearTimeout(t);
   }, [confirmForget]);
+  const [confirmNew, setConfirmNew] = useState(false);
+  useEffect(() => {
+    if (!confirmNew) return;
+    const t = window.setTimeout(() => setConfirmNew(false), 3000);
+    return () => window.clearTimeout(t);
+  }, [confirmNew]);
   const known = s.grimoire.length + s.combos.length;
   return (
     <div className="dev-bar">
@@ -61,6 +69,13 @@ export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
         }}
       >
         {confirmForget ? 'Really forget?' : 'Forget everything'}
+      </button>
+      <button
+        className={confirmNew ? 'is-danger' : ''}
+        title="Play as a brand-new player: wipe everything saved on this computer (run, Grimoire, Hmmm..., rune notes, rune meanings, the cutscene) and go back to the title. Dev mode stays on."
+        onClick={() => (confirmNew ? newAccount() : setConfirmNew(true))}
+      >
+        {confirmNew ? 'Really start over?' : 'New account'}
       </button>
     </div>
   );

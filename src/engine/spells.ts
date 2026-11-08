@@ -100,20 +100,16 @@ export interface SpellArea {
   tiles: AreaTile[];
   /** Pillars inside the area or stopping it (a damaging spell chips each one). */
   pillars: Pos[];
-  /** Backfire: the caster's own tile is hit too. */
-  self: AreaTile | null;
 }
 
 /**
  * The area a spell covers.
  * - Beam: a line in the cast direction. Cross: the 4 lines around you. Pillars stop each line.
  * - Wall: rows across the cast direction, directly in front of you. A pillar shields the tile behind it.
- * - Widen (rune): Beam gets two side lanes, Cross gets the diagonals, Wall gets 1 more tile at each end.
- * - Backfire (rune): your own tile is hit too.
+ * No rune changes the area.
  */
-export function spellArea(state: GameState, spell: Spell, dir: Dir | null, rune: RuneEffect | null = null): SpellArea {
+export function spellArea(state: GameState, spell: Spell, dir: Dir | null): SpellArea {
   const origin = state.player.pos;
-  const widen = rune === 'widen';
   const tiles: AreaTile[] = [];
   const pillars: Pos[] = [];
   const d = dir ? DIR_VECTORS[dir] : null;
@@ -140,30 +136,14 @@ export function spellArea(state: GameState, spell: Spell, dir: Dir | null, rune:
   } else if (spell.shape === 'beam') {
     if (d) {
       const len = spellShapeCount(spell) === 2 ? RULES.doubledBeamLength : RULES.beamLength;
-      const side = perpendicular(d);
-      for (const k of widen ? [0, -1, 1] : [0]) {
-        const start = addPos(origin, scalePos(side, k));
-        if (k !== 0 && !inBounds(state, start)) continue;
-        lane(start, d, len);
-      }
+      lane(origin, d, len);
     }
   } else if (spell.shape === 'cross') {
     const reach = spellShapeCount(spell) === 2 ? RULES.doubledCrossReach : RULES.crossReach;
     for (const v of DIRS4) lane(origin, v, reach);
-    if (widen) {
-      // The diagonals: the full ring for a plain Cross, the 5×5 minus its corners for a doubled one.
-      for (let dx = -reach; dx <= reach; dx++)
-        for (let dy = -reach; dy <= reach; dy++) {
-          if (!dx || !dy || (Math.abs(dx) === reach && Math.abs(dy) === reach && reach > 1)) continue;
-          const p = { x: origin.x + dx, y: origin.y + dy };
-          if (!inBounds(state, p)) continue;
-          if (isPillar(state, p)) pillars.push(p);
-          else tiles.push({ pos: p, push: { x: Math.sign(dx), y: Math.sign(dy) } });
-        }
-    }
   } else if (d) {
     // Wall
-    const half = (RULES.wallWidth + (widen ? 2 : 0) - 1) / 2;
+    const half = (RULES.wallWidth - 1) / 2;
     const rows = spellShapeCount(spell) === 2 ? 2 : 1;
     const side = perpendicular(d);
     for (let k = -half; k <= half; k++) {
@@ -179,8 +159,7 @@ export function spellArea(state: GameState, spell: Spell, dir: Dir | null, rune:
     }
   }
 
-  const self = rune === 'backfire' ? { pos: { ...origin }, push: spell.kind !== 'unstable' && spell.shape !== 'cross' ? d : null } : null;
-  return { tiles, pillars, self };
+  return { tiles, pillars };
 }
 
 function spellShapeCount(spell: Spell): 1 | 2 {

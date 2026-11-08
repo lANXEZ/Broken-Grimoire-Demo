@@ -1,7 +1,8 @@
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Card } from '../engine';
 import type { CastPreview, TablePlacement } from '../game/casting';
 import { FragmentCard } from './Hand';
+import { CardPreview } from './CardPreview';
 import type { DragSource } from './useCardDrag';
 
 interface Props {
@@ -32,12 +33,14 @@ export const TABLE_AREA_SELECTOR = '[data-table-area]';
  * button lights up only when the cards make a castable spell (2–3 cards, enough mana, an action left), or when
  * a rune is on the table (so the button never gives a rune away).
  * Beams and Walls don't need the button: while one is castable the board is already aiming, and clicking a
- * direction casts it. The button then just says so.
+ * direction casts it. The button then just says so. Hovering a fragment on the table shows its card beside the board.
  */
 export function CraftingTable({ cards, preview, dragOver, dragging, draggingId, locked, startDrag, onCast, tip = null }: Props) {
   const ready = preview.status === 'ready';
   const aimOnBoard = ready && preview.needsAim;
   const accent = preview.color;
+  const [hovered, setHovered] = useState<number | null>(null);
+  const previewed = draggingId === null && !dragging ? cards.find((c) => c.card.id === hovered)?.card ?? null : null;
 
   return (
     <div
@@ -65,6 +68,8 @@ export function CraftingTable({ cards, preview, dragOver, dragging, draggingId, 
                 zIndex: i + 1,
               }}
               onPointerDown={locked ? undefined : startDrag(card.id, { from: 'table' })}
+              onPointerEnter={() => setHovered(card.id)}
+              onPointerLeave={() => setHovered((h) => (h === card.id ? null : h))}
             >
               <FragmentCard card={card} />
             </div>
@@ -72,6 +77,7 @@ export function CraftingTable({ cards, preview, dragOver, dragging, draggingId, 
         </div>
       </div>
 
+      <CardPreview card={previewed} />
       {tip && <div className="tutorial-tip cast-tip">{tip}</div>}
       {aimOnBoard ? (
         <button className="cast-button is-lit is-aim" onClick={onCast} title="Click a tile on the board in the direction you want to cast">

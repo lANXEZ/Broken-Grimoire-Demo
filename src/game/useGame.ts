@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createGame, restartStage, type GameState } from '../engine';
+import { RUNE_SYMBOLS, createGame, restartStage, type GameState } from '../engine';
 import { runeMap } from './runeMap';
 import { isDevMode, useDevMode } from '../config/dev';
 
@@ -65,12 +65,24 @@ function isUsableSave(s: unknown): s is GameState {
   return !!g && !!g.room && !!g.cards && Array.isArray(g.enemies) && typeof g.phase === 'string' && Array.isArray(g.grimoire);
 }
 
+/**
+ * Saves from when there were 8 runes (before Nov 9): rune cards 7 and 8 become runes still in the game, so every
+ * rune card has a picture and an effect.
+ */
+function fitRunes(s: GameState): void {
+  const n = RUNE_SYMBOLS.length;
+  const piles = [s.cards.deck, s.cards.hand, s.cards.discard, s.cards.erased ?? [], ...s.room.drops.map((d) => d.cards), ...s.enemies.map((e) => e.carried ?? [])];
+  for (const c of piles.flat()) if (c.kind === 'rune' && (c.rune ?? 0) >= n) c.rune = (c.rune ?? 0) % n;
+  s.runesFound = [...new Set((s.runesFound ?? []).map((r) => r % n))];
+}
+
 function load(): GameState {
   const saved = readJson(SAVE_KEY);
   // A run always uses this computer's rune mapping, even one saved before the mapping existed.
   // Saves from before the "Hmmm..." note existed get this computer's note.
   if (isUsableSave(saved)) {
     const s: GameState = { ...saved, runeMap: runeMap(), combos: Array.isArray(saved.combos) ? saved.combos : savedCombos(), event: saved.event ?? null };
+    fitRunes(s);
     // Saved at the lectern or the camp before they had rooms of their own, or in room 0 before it had its sealed
     // door: start that stop again.
     const stale = ((s.phase === 'event' || s.phase === 'camp') && (!s.event || !s.room.feature)) || (s.room.id === 'prologue' && !s.room.sealedDoor);

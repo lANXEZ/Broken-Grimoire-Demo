@@ -1,8 +1,8 @@
 import { Suspense, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Vector3 } from 'three';
-import { ENEMY_DEFS, RULES, exitOpen, stageName, wardsStanding, type GameState, type Intent, type Pos } from '../engine';
-import { PLAYER_ART, unitArt } from '../config/art';
+import { DIR_VECTORS, ENEMY_DEFS, RULES, exitOpen, samePos, stageName, wardsStanding, type GameState, type Intent, type Pos } from '../engine';
+import { MAGE_ART, UNIT_HEIGHT, unitArt } from '../config/art';
 import { Board, type TilePointer } from './Board';
 import { CameraRig } from './CameraRig';
 import { TileOverlay, type BoardOverlays } from './TileOverlay';
@@ -44,6 +44,8 @@ interface Props {
   bare?: boolean;
   /** Room 0: the mage is on the mat and can go back to the title ("Get some rest?"). */
   restPrompt?: boolean;
+  /** The mage just meditated: they show their meditating pose for a moment. */
+  meditating?: boolean;
   onRest?: () => void;
   hover: Pos | null;
   pointer: TilePointer;
@@ -62,7 +64,9 @@ function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitVie
       hp: p.hp,
       maxHp: p.maxHp,
       status: p.status,
-      art: PLAYER_ART,
+      art: MAGE_ART.idle,
+      poses: MAGE_ART,
+      height: UNIT_HEIGHT.mage,
       mana: p.mana,
       maxMana: p.maxMana,
       behavior: 'You. Move, craft spells from your fragments, meditate for mana, reroll your hand. 3 actions per turn.',
@@ -85,6 +89,7 @@ function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitVie
       maxHp: e.maxHp,
       status: e.status,
       art: unitArt(e.kind, e.element),
+      height: UNIT_HEIGHT[e.kind],
       intents: intents[e.id],
       behavior: def.behavior,
       marks: e.kind === 'redactor' ? e.marks ?? 0 : undefined,
@@ -114,6 +119,7 @@ export function GameScene({
   mageFlight = null,
   bare = false,
   restPrompt = false,
+  meditating = false,
   onRest = () => {},
   hover,
   pointer,
@@ -125,6 +131,13 @@ export function GameScene({
   const unitFeet = useMemo(() => units.map((u) => new Vector3(...tileToWorld(u.pos, room, TILE_TOP))), [units, room]);
   const pointerOnBoard = useRef(false);
   const showIntents = state.phase === 'player' && !enemiesHidden;
+  // The mage's pose: casting while one of their spells plays (facing its direction), meditating after Meditate or
+  // while on the sleeping mat.
+  const casting = fx.length > 0;
+  const castDir = [...fx].reverse().flatMap((e) => ('fx' in e && e.fx.dir ? [e.fx.dir] : []))[0] ?? null;
+  const castFace = castDir ? (DIR_VECTORS[castDir].x - DIR_VECTORS[castDir].y >= 0 ? 1 : -1) : null;
+  const onMat = (room.mat ?? []).some((p) => samePos(p, state.player.pos));
+  const magePose = casting ? 'casting' : meditating || onMat ? 'meditating' : null;
   // (After CLEARED! there are no enemies left, so no intents either.)
 
   return (
@@ -194,6 +207,8 @@ export function GameScene({
               hidden={u.isPlayer ? mageHidden : enemiesHidden}
               bare={bare}
               flight={u.isPlayer ? mageFlight : null}
+              pose={u.isPlayer ? magePose : null}
+              face={u.isPlayer && casting ? castFace : null}
             />
           ))}
         </Suspense>
