@@ -53,7 +53,7 @@ same fixed sequence:
      *"Where is this? Why is it so dark?"*,
      *"Maybe that door leads somewhere."*, and walks through the door.
   2. The Cistern, dark; a second later its torches catch and show **one brute** (e2; the room's rat and other brute
-     aren't in the cutscene): *"!!!"*, *"A monster??"*, *"Is that a brute?"* It walks up to the mage step by step:
+     aren't in the cutscene): *"!!!"*, *"A monster??"* It walks up to the mage step by step:
      *"That's not good."*, *"Don't come any closer!!"*, then long spells from memory that only puff out without the
      grimoire: *"SUPREME CRIMSON INFERNO DRAGON-SPIRAL NOVA!!!"* (puff), *"Huh??"*, *"Wait, where the hell is my
      grimoire?"*, *"Hell nah."*, *"GRAND TERRA COLOSSUS EARTHSHATTER FIST!!"*, *"ETERNAL ABYSSAL TIDE-SERPENT
@@ -71,7 +71,10 @@ same fixed sequence:
      that reaches the fire lights it; any other is a miss: *"Ah, missed!"*, *"One more time!"*, and the hand gets
      Fire and Beam back.
   6. The room fills with the fire's light: *"YESSS!! It works!!!"*, *"I can gather more fragments to fight those
-     monsters and find a way out."* One step toward the door (c1): *"When did a campfire's warmth become this
+     monsters and find a way out."* The mage counts their fragments: *"Let's check first: how many fragments have I
+     got?"*, *"Three Fire, two Water, two Earth and two Wind…"*, *"Two Beams, two Crosses and one Wall."*,
+     *"Fourteen fragments. Not much of a grimoire, but it's a start."*, *"That should be enough to fight my way out of
+     here."* (the numbers are the starting deck; a test keeps them in step). One step toward the door (c1): *"When did a campfire's warmth become this
      comfortable?"*, *"Let's rest a little before I try again, then."* Onto the mat: *"Ah, I can't wait to get out of
      here."* The eyes close, and the game starts as usual (waking on the mat).
 - **Torches and dark rooms (team decision, Nov 6):** every pillar carries a torch. Each time a run walks into a fight
