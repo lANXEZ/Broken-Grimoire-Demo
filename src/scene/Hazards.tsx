@@ -1,16 +1,38 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type { Group, Mesh, MeshBasicMaterial, MeshStandardMaterial } from 'three';
-import type { Drop, Hazard } from '../engine';
-import { FRAGMENT_COLOR, HAZARD_COLOR } from '../config/art';
+import { Html } from '@react-three/drei';
+import { AdditiveBlending, CanvasTexture, type Group, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type PointLight } from 'three';
+import { HAZARD_INFO, RULES, type Drop, type Hazard, type HazardKind, type Pos } from '../engine';
+import { FRAGMENT_COLOR, HAZARD_COLOR, RUNE_DROP_GLOW } from '../config/art';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 
 /**
  * PLACEHOLDER merge hazards and floor drops. None of these catch the mouse: clicks go to the tile underneath.
  * - Magma: a glowing orange pool. Quicksand: a sandy, slowly swirling puddle. Fog: a low translucent cloud.
- * - Drops: a small gem bobbing over the tile, in the colour of the card it holds (purple-grey for a rune).
+ *   Hovering a hazard's tile shows a card saying what it does and when it fades (left of the tile, so it doesn't cover
+ *   the card of a unit standing in it).
+ * - Drops: a small gem bobbing over the tile, in the colour of the card it holds. A drop holding a rune glows bright
+ *   purple (RUNE_DROP_GLOW): a glowing gem in a pulsing halo, a purple pool of light on the floor and a purple light.
  */
 const noRaycast = () => null;
+const glow = { transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false } as const;
+
+/** A white spot fading out to its edge: the rune drop's pool of light on the floor (tinted by the material). */
+let softSpot: CanvasTexture | null = null;
+function softSpotTexture(): CanvasTexture {
+  if (softSpot) return softSpot;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d')!;
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.4, 'rgba(255,255,255,0.55)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  softSpot = new CanvasTexture(c);
+  return softSpot;
+}
 
 function Magma({ hazard, room }: { hazard: Hazard; room: RoomSize }) {
   const mat = useRef<MeshStandardMaterial>(null);
@@ -58,9 +80,45 @@ function Fog({ hazard, room }: { hazard: Hazard; room: RoomSize }) {
   );
 }
 
-export function Hazards({ hazards, room }: { hazards: Hazard[]; room: RoomSize }) {
+/** [TEXT] What each hazard does, on its hover card. */
+const HAZARD_HOVER_TEXT: Record<HazardKind, string> = {
+  fog: 'Blocks sight: Archers and the Warden can’t see or shoot through it. A monster inside wanders at random and doesn’t attack. Doesn’t affect you. Wind blows it away.',
+  magma: `A unit that steps onto it catches Burn (1 damage at the start of each of its next ${RULES.burnTicks} turns). Monsters avoid it. Water turns it back to floor.`,
+  quicksand: `A unit in it can’t move, attack or cast until it spends ${RULES.quicksandEscape} actions to climb out, which clears it. Monsters avoid stepping in.`,
+};
+
+function fadesText(hazard: Hazard, turn: number): string {
+  const left = hazard.until - turn;
+  if (left <= 0) return 'Fades at the end of this turn.';
+  if (left === 1) return 'Fades at the end of your next turn.';
+  return `Fades at the end of your turn ${hazard.until}.`;
+}
+
+function HazardCard({ hazard, room, turn }: { hazard: Hazard; room: RoomSize; turn: number }) {
+  return (
+    <Html position={tileToWorld(hazard.pos, room, TILE_TOP + 0.45)} zIndexRange={[60, 50]} style={{ pointerEvents: 'none' }}>
+      <div className={`unit-card hazard-card is-${hazard.kind}`}>
+        <div className="unit-card-title">{HAZARD_INFO[hazard.kind].name}</div>
+        <p className="unit-card-text">{HAZARD_HOVER_TEXT[hazard.kind]}</p>
+        <p className="hazard-card-fades">{fadesText(hazard, turn)}</p>
+      </div>
+    </Html>
+  );
+}
+
+export function Hazards({ hazards, room, hover = null, turn = 0, cards = true }: {
+  hazards: Hazard[];
+  room: RoomSize;
+  /** The tile under the mouse: a hazard there shows its card. */
+  hover?: Pos | null;
+  turn?: number;
+  /** false hides the hover card (cutscenes). */
+  cards?: boolean;
+}) {
+  const hovered = cards && hover ? hazards.find((h) => h.pos.x === hover.x && h.pos.y === hover.y) : undefined;
   return (
     <group>
+      {hovered && <HazardCard hazard={hovered} room={room} turn={turn} />}
       {hazards.map((h, i) => {
         // The index keeps keys unique even if a tile were ever listed twice (a repeated key leaves a mesh behind).
         const key = `${h.kind}-${h.pos.x},${h.pos.y}-${i}`;
@@ -74,24 +132,63 @@ export function Hazards({ hazards, room }: { hazards: Hazard[]; room: RoomSize }
 
 function DropGem({ drop, room }: { drop: Drop; room: RoomSize }) {
   const g = useRef<Group>(null);
+  const halo = useRef<Mesh>(null);
+  const pool = useRef<MeshBasicMaterial>(null);
+  const light = useRef<PointLight>(null);
+  const rune = drop.cards.some((c) => c.kind === 'rune');
   useFrame(({ clock }) => {
-    if (!g.current) return;
-    g.current.position.y = TILE_TOP + 0.35 + 0.08 * Math.sin(clock.elapsedTime * 2.5 + drop.id);
-    g.current.rotation.y = clock.elapsedTime * 1.2;
+    const t = clock.elapsedTime;
+    if (g.current) {
+      g.current.position.y = TILE_TOP + 0.35 + 0.08 * Math.sin(t * 2.5 + drop.id);
+      g.current.rotation.y = t * 1.2;
+    }
+    if (!rune) return;
+    // The rune's glow breathes: halo, floor pool and light swell together.
+    const pulse = 0.5 + 0.5 * Math.sin(t * 3 + drop.id);
+    if (halo.current) {
+      halo.current.scale.setScalar(1 + 0.18 * pulse);
+      (halo.current.material as MeshBasicMaterial).opacity = 0.35 + 0.25 * pulse;
+    }
+    if (pool.current) pool.current.opacity = 0.45 + 0.3 * pulse;
+    if (light.current) light.current.intensity = 2.2 + 1.4 * pulse;
   });
   const [x, , z] = tileToWorld(drop.pos, room);
-  const color = FRAGMENT_COLOR[drop.cards[0]?.kind ?? 'rune'];
+  const color = rune ? RUNE_DROP_GLOW : FRAGMENT_COLOR[drop.cards[0]?.kind ?? 'rune'];
+  const shine = rune ? 2.2 : 0.55;
   return (
-    <group ref={g} position={[x, TILE_TOP + 0.35, z]}>
-      <mesh castShadow raycast={noRaycast}>
-        <octahedronGeometry args={[0.15]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.55} roughness={0.35} metalness={0.2} />
-      </mesh>
-      {drop.cards.length > 1 && (
-        <mesh position={[0.16, -0.06, 0]} raycast={noRaycast}>
-          <octahedronGeometry args={[0.08]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.55} />
+    <group>
+      <group ref={g} position={[x, TILE_TOP + 0.35, z]}>
+        <mesh castShadow raycast={noRaycast}>
+          <octahedronGeometry args={[0.15]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={shine} roughness={0.35} metalness={0.2} toneMapped={!rune} />
         </mesh>
+        {drop.cards.length > 1 && (
+          <mesh position={[0.16, -0.06, 0]} raycast={noRaycast}>
+            <octahedronGeometry args={[0.08]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={shine} toneMapped={!rune} />
+          </mesh>
+        )}
+        {rune && (
+          <>
+            <mesh ref={halo} raycast={noRaycast}>
+              <sphereGeometry args={[0.3, 16, 12]} />
+              <meshBasicMaterial color={RUNE_DROP_GLOW} {...glow} opacity={0.45} />
+            </mesh>
+            <mesh raycast={noRaycast}>
+              <sphereGeometry args={[0.19, 16, 12]} />
+              <meshBasicMaterial color={RUNE_DROP_GLOW} {...glow} opacity={0.5} />
+            </mesh>
+          </>
+        )}
+      </group>
+      {rune && (
+        <>
+          <mesh position={[x, TILE_TOP + 0.014, z]} rotation={[-Math.PI / 2, 0, 0]} raycast={noRaycast}>
+            <planeGeometry args={[1.1, 1.1]} />
+            <meshBasicMaterial ref={pool} color={RUNE_DROP_GLOW} map={softSpotTexture()} {...glow} opacity={0.55} />
+          </mesh>
+          <pointLight ref={light} position={[x, TILE_TOP + 0.5, z]} color={RUNE_DROP_GLOW} intensity={2.8} distance={2.6} decay={1.6} />
+        </>
       )}
     </group>
   );

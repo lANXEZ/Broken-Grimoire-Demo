@@ -60,7 +60,9 @@ export function RuneThought({ symbol, editable }: { symbol: number; editable: bo
     setDraft(null);
   };
   return (
-    <div className={`rune-thought ${draft !== null ? 'is-editing' : ''}`} onPointerDown={stop}>
+    // Only the pencil and the text box keep the press to themselves: a press anywhere else on the bubble (it catches
+    // the mouse on a popped-up hand card) picks the card up like a press on the card.
+    <div className={`rune-thought ${draft !== null ? 'is-editing' : ''}`}>
       <ThoughtCloud tail>
         {draft !== null ? (
           <textarea
@@ -68,6 +70,7 @@ export function RuneThought({ symbol, editable }: { symbol: number; editable: bo
             value={draft}
             maxLength={RUNE_NOTE_MAX}
             autoFocus
+            onPointerDown={stop}
             placeholder="What does it do?"
             onChange={(e) => setDraft(e.target.value)}
             onFocus={(e) => e.target.select()}
@@ -90,6 +93,7 @@ export function RuneThought({ symbol, editable }: { symbol: number; editable: bo
           <button
             className="rune-thought-edit"
             title="Write what you think this rune does"
+            onPointerDown={stop}
             onClick={(e) => {
               e.stopPropagation();
               setDraft(note);

@@ -8,7 +8,8 @@ import { inRunes } from '../game/runeMap';
  * [UI-PLACEMENT] The title screen, shown when the game opens: a night forest under the moon (PLACEHOLDER photo, see
  * config/art.ts TITLE_ART), the game's name big across the top, and the buttons on the right. With a run saved
  * from last time: Continue, or New game (which asks once, since it drops that run). Otherwise just Start. A run
- * still in room 0 doesn't count as saved (App.tsx). Quit closes the game (the .exe only: a browser tab can't).
+ * still in room 0 doesn't count as saved (App.tsx). Quit closes the game. In a browser, a page usually isn't allowed to
+ * close its own tab: then Quit puts up a goodbye screen instead (close the tab, or go back to the title).
  */
 export function TitleScreen({ canContinue, leaving, fading = false, onContinue, onNewGame }: {
   canContinue: boolean;
@@ -20,6 +21,28 @@ export function TitleScreen({ canContinue, leaving, fading = false, onContinue, 
   onNewGame: () => void;
 }) {
   const [confirm, setConfirm] = useState(false);
+  const [goodbye, setGoodbye] = useState(false);
+  const quit = () => {
+    if (window.grimoire) return window.grimoire.quit();
+    window.close();
+    // Still here a moment later: the browser kept the tab open.
+    window.setTimeout(() => {
+      if (!window.closed) setGoodbye(true);
+    }, 150);
+  };
+  if (goodbye) {
+    return (
+      <div className="title-screen" style={{ backgroundImage: `url(${TITLE_ART})` }}>
+        <div className="title-goodbye">
+          <p>Thanks for playing.</p>
+          <p className="title-goodbye-hint">You can close this tab now.</p>
+          <button className="title-button is-secondary" onClick={() => setGoodbye(false)} autoFocus>
+            Back to the title
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`title-screen ${fading ? 'is-leaving' : ''}`} style={{ backgroundImage: `url(${TITLE_ART})` }}>
       <div className="title-stars" />
@@ -55,8 +78,8 @@ export function TitleScreen({ canContinue, leaving, fading = false, onContinue, 
             </button>
           </div>
         )}
-        {window.grimoire?.isDesktop && !confirm && (
-          <button className="title-button is-secondary" onClick={() => window.grimoire?.quit()} disabled={leaving}>
+        {!confirm && (
+          <button className="title-button is-secondary" onClick={quit} disabled={leaving}>
             Quit
           </button>
         )}
