@@ -32,8 +32,8 @@ function Modal({ children, className = '' }: { children: ReactNode; className?: 
 }
 
 /**
- * [UI-PLACEMENT] CLEARED!: every enemy is down (LAYOUT.cleared). Not a modal: the wizard keeps walking around the
- * board (click a tile) to pick up drops. Continue (or clicking the open door) walks the wizard to the door and on
+ * [UI-PLACEMENT] CLEARED!: every enemy is down (LAYOUT.cleared). Not a modal: the mage keeps walking around the
+ * board (click a tile) to pick up drops. Continue (or clicking the open door) walks the mage to the door and on
  * to the next stop, asking once if items would be left on the floor.
  */
 export function ClearedPanel({ state, itemsLeft, asking, leaving, onContinue, onConfirm, onStay }: {
@@ -110,7 +110,7 @@ export function LeaveEarlyDialog({ state, onLeave, onStay }: { state: GameState;
 /**
  * [UI-PLACEMENT] The Whispering Lectern's choices, in the crafting table's place (LAYOUT.cleared). The board stays in
  * view: the lectern whispers in runes over its stand, and what it says in plain words floats over it too
- * (scene/Lectern.tsx). After the last choice the wizard walks out by themselves.
+ * (scene/Lectern.tsx). After the last choice the mage walks out by themselves.
  */
 export function EventPanel({ state, onChoose }: { state: GameState; onChoose: (c: EventChoice) => void }) {
   const ev = state.event;
@@ -161,7 +161,7 @@ export function EventPanel({ state, onChoose }: { state: GameState; onChoose: (c
 
 /**
  * [UI-PLACEMENT] The camp's choices, in the crafting table's place (LAYOUT.cleared), while the board shows the
- * campfire. Rest, or tear out a page (the pages to pick from open over the board). After the choice the wizard
+ * campfire. Rest, or tear out a page (the pages to pick from open over the board). After the choice the mage
  * walks out by themselves.
  */
 export function CampPanel({ state, onChoose }: { state: GameState; onChoose: (c: CampChoice) => void }) {
@@ -270,7 +270,7 @@ export function GrimoireBook({ pages, onClose }: { pages: string[]; onClose: () 
 }
 
 /**
- * [UI-PLACEMENT] The Deck (top bar button): every card the wizard owns right now (draw pile, hand, crafting table
+ * [UI-PLACEMENT] The Deck (top bar button): every card the mage owns right now (draw pile, hand, crafting table
  * and discard pile), sorted into elements, shapes and runes. Rune cards keep their thought bubble here, and the
  * player can write or change their notes on them.
  */
@@ -318,7 +318,7 @@ export function DeckView({ state, onClose }: { state: GameState; onClose: () => 
 
 /**
  * The end of a run. Victory: New run. Defeat: Continue, which goes dark and shows the rune message before the
- * wizard wakes up in room 0 again (App.tsx, hud/TitleScreen.tsx FateScreen).
+ * mage wakes up in room 0 again (App.tsx, hud/TitleScreen.tsx FateScreen).
  */
 export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun: () => void }) {
   const won = state.phase === 'won';
@@ -331,8 +331,8 @@ export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun
           : state.lostReason === 'grimoire'
             ? 'Your grimoire is broken: your cards can no longer make a spell.'
             : state.lostReason === 'hole'
-              ? 'The wizard fell into a hole.'
-              : 'The wizard has fallen.'}
+              ? 'The mage fell into a hole.'
+              : 'The mage has fallen.'}
       </p>
       <button className="hud-button primary" onClick={onNewRun} autoFocus>
         {won ? 'New run' : 'Continue'}

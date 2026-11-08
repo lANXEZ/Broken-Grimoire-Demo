@@ -22,7 +22,7 @@ export interface IntroView {
   dark: number;
   torchesLit: boolean;
   enemiesHidden: boolean;
-  wizardHidden: boolean;
+  mageHidden: boolean;
   flight: Flight | null;
   /** The screen is faded to black. */
   black: boolean;
@@ -30,7 +30,7 @@ export interface IntroView {
   blink: 'wake' | null;
   /** The tutorial is on: the real game and its HUD are showing. */
   tutorial: boolean;
-  /** Tutorial: the wizard is talking (after a miss, or once it worked), so the hand and board wait. */
+  /** Tutorial: the mage is talking (after a miss, or once it worked), so the hand and board wait. */
   tutorialWait: boolean;
 }
 
@@ -40,7 +40,7 @@ const START: IntroView = {
   dark: 1,
   torchesLit: true,
   enemiesHidden: false,
-  wizardHidden: true,
+  mageHidden: true,
   flight: null,
   black: false,
   blink: null,
@@ -68,23 +68,18 @@ class Cancelled extends Error {}
 interface Run {
   cancelled: boolean;
   timers: number[];
-  /** Ends the line being said (a click). */
+  /** Ends the line being said (Space, Enter or a click). */
   advance: (() => void) | null;
   lineShownAt: number;
   /** Tutorial: waiting for a cast. */
   cast: ((after: GameState) => void) | null;
 }
 
-/** How long a line stays up: longer lines stay longer. */
-function speechTime(text: string): number {
-  return Math.min(TIMING.speechMax, Math.max(TIMING.speechMin, TIMING.speechBase + text.length * TIMING.speechPerChar));
-}
-
 export function useIntro({ game, onHurt, onPuff, onDone }: {
   game: GameApi;
-  /** The wizard is hurt (the red edge of the screen). */
+  /** The mage is hurt (the red edge of the screen). */
   onHurt: () => void;
-  /** A puff of air where the wizard stands (a spell that doesn't work, a landing). */
+  /** A puff of air where the mage stands (a spell that doesn't work, a landing). */
   onPuff: (at: Pos) => void;
   /** The last line is said, or Skip: App closes the eyes and starts the game. */
   onDone: () => void;
@@ -126,6 +121,18 @@ export function useIntro({ game, onHurt, onPuff, onDone }: {
     if (r?.advance && performance.now() - r.lineShownAt > TIMING.speechMinShow) r.advance();
   }, []);
 
+  // Space (or Enter) moves on to the next line. Holding the key down doesn't race through them.
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      e.preventDefault();
+      if (!e.repeat) advance();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [active, advance]);
+
   const afterCast = useCallback((after: GameState) => run.current?.cast?.(after), []);
 
   const stop = useCallback(() => {
@@ -155,20 +162,16 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
     new Promise<void>((resolve) => {
       r.timers.push(window.setTimeout(resolve, ms));
     }).then(check);
-  /** A line over the wizard's head, for its time or until a click. */
+  /** A line over the mage's head. It stays until the player presses Space (or Enter, or clicks). */
   const say = async (text: string, during?: () => void) => {
     patch({ speech: text });
     r.lineShownAt = performance.now();
     if (during) r.timers.push(window.setTimeout(() => !r.cancelled && during(), TIMING.shoutPuff));
     await new Promise<void>((resolve) => {
-      const t = window.setTimeout(done, speechTime(text));
-      r.timers.push(t);
-      r.advance = done;
-      function done() {
-        window.clearTimeout(t);
+      r.advance = () => {
         r.advance = null;
         resolve();
-      }
+      };
     });
     check();
     patch({ speech: null });
@@ -176,7 +179,7 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   };
   const scene = () => cur.state!;
   const setScene = (s: GameState) => patch({ state: s });
-  const wizardAt = () => scene().player.pos;
+  const mageAt = () => scene().player.pos;
   /** Walk to a tile, one step at a time. */
   const walk = async (to: string) => {
     for (const p of freeWalkPath(scene(), parseCoord(to)) ?? []) {
@@ -191,8 +194,8 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
     s.enemies.forEach((e) => (e.pos = parseCoord(to)));
     setScene(s);
   };
-  const puff = () => latest.current.onPuff(wizardAt());
-  const fly = (from: Pos | null, height: number, ms: number) => patch({ wizardHidden: false, flight: { id: ++flights, from, height, ms } });
+  const puff = () => latest.current.onPuff(mageAt());
+  const fly = (from: Pos | null, height: number, ms: number) => patch({ mageHidden: false, flight: { id: ++flights, from, height, ms } });
   const fadeToBlack = async (hold: number) => {
     patch({ black: true });
     await sleep(TIMING.introBlackFade + hold);
@@ -206,15 +209,10 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   const base = createGame(Date.now(), { prologue: true, runeMap: latest.current.game.state.runeMap });
   const empty = introRoom0(base, { camp: false });
 
-  // 1. Room 0, dark and empty. The eyes open, and the wizard falls in through the hole into the moonlight.
-  patch({ state: empty, dark: 1, wizardHidden: true, blink: 'wake' });
-  await sleep(TIMING.wakeBlink * 0.45);
-  fly(null, 3.4, TIMING.introFall);
-  await sleep(TIMING.introFall);
-  shakeCamera(0.09, 0.3);
-  puff();
-  await sleep(TIMING.wakeBlink * 0.55);
-  patch({ blink: null, flight: null });
+  // 1. Room 0, dark and empty. The mage comes to in front of the door they sealed (the last spell knocked them out).
+  patch({ state: empty, dark: 1, mageHidden: false, blink: 'wake' });
+  await sleep(TIMING.wakeBlink);
+  patch({ blink: null });
   await sleep(700);
   for (const line of INTRO.waking) await say(line);
 
@@ -245,9 +243,9 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   await sleep(700);
   await say(INTRO.doomed);
 
-  // 4. Back in room 0: a moment later the wizard is hurt (off screen) and thrown back out through the door.
+  // 4. Back in room 0: a moment later the mage is hurt (off screen) and thrown back out through the door.
   await fadeToBlack(150);
-  patch({ state: empty, dark: 1, torchesLit: true, wizardHidden: true });
+  patch({ state: empty, dark: 1, torchesLit: true, mageHidden: true });
   await fadeIn();
   await sleep(900);
   latest.current.onHurt();
@@ -263,7 +261,7 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   await sleep(900);
   await say(INTRO.thrownOut);
 
-  // 5. Black, then the campfire (not lit) and the mat are there. The grimoire fragment on the floor.
+  // 5. Black, then the campfire (not lit) and the mat are there. The mage calms down and finds the fragments on them.
   await fadeToBlack(TIMING.introCampBlack);
   const camp = introRoom0(base, { camp: true });
   camp.player.pos = parseCoord(INTRO_PLACES.thrown);
@@ -272,11 +270,7 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   await sleep(400);
   for (const line of INTRO.campMade) await say(line);
   await sleep(1000);
-  await say(INTRO.noticeItem);
-  await walk(INTRO_PLACES.item);
-  setScene({ ...scene(), room: { ...scene().room, drops: [] } });
-  await sleep(350);
-  for (const line of INTRO.pickUp) await say(line);
+  for (const line of INTRO.checkPockets) await say(line);
   await walk(INTRO_PLACES.atFire);
   await say(INTRO.atFire);
 

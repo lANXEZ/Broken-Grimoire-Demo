@@ -123,22 +123,22 @@ export function App() {
    * mat ('dozing') before the waking.
    */
   const [intro, setIntro] = useState<'title' | 'leaving' | 'closing' | 'cutscene' | 'dozing' | 'fate' | 'resting' | 'waking' | null>('title');
-  /** What the wizard says out loud (a speech bubble), outside the cutscene: e.g. at the lectern. */
+  /** What the mage says out loud (a speech bubble), outside the cutscene: e.g. at the lectern. */
   const [speech, setSpeech] = useState<{ id: number; text: string } | null>(null);
   const sayLine = useCallback((text: string, ms: number) => {
     const id = nextId++;
     setSpeech({ id, text });
     window.setTimeout(() => setSpeech((cur) => (cur?.id === id ? null : cur)), ms);
   }, []);
-  /** The wizard just fed the lectern: its "my favorite" line and the rune wait until "Ah! How???" is said. */
+  /** The mage just fed the lectern: its "my favorite" line and the rune wait until "Ah! How???" is said. */
   const [ouch, setOuch] = useState(false);
-  /** What the wizard is thinking (a thought cloud over their head), e.g. on waking in room 0. */
+  /** What the mage is thinking (a thought cloud over their head), e.g. on waking in room 0. */
   const [thought, setThought] = useState<string | null>(null);
   const [bookOpen, setBookOpen] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
   /**
    * After CLEARED!: the tiles still to walk through (one free step every TIMING.freeWalkStep). `leave` = this is
-   * the walk to the door: when it ends, the wizard goes on to the next stop.
+   * the walk to the door: when it ends, the mage goes on to the next stop.
    */
   const [walk, setWalk] = useState<{ path: Pos[]; leave: boolean }>({ path: [], leave: false });
   /** "You left n items behind. Leave anyway?" is showing. */
@@ -158,7 +158,7 @@ export function App() {
 
   const finished = state.phase === 'won' || state.phase === 'lost';
   // The camp is a screen between rooms; the lectern's event is a small room of its own (walk around, no combat).
-  /** In the lectern's or the camp's room: no combat; the wizard walks in, the player chooses, the wizard walks out. */
+  /** In the lectern's or the camp's room: no combat; the mage walks in, the player chooses, the mage walks out. */
   const inEvent = state.phase === 'event' || state.phase === 'camp';
   /** Room 0: no enemies; click anywhere to walk, the door starts the run, spells are free to try. */
   const prologue = isPrologue(state) && state.phase === 'player';
@@ -179,8 +179,8 @@ export function App() {
     lastHp.current = view.player.hp;
   }, [view.player.hp]);
 
-  // A fight room the wizard walks into starts dark: torches out, monsters hidden. A moment later the dungeon notices
-  // the wizard and lights the torches. Once per room per run (each run walks into each room once).
+  // A fight room the mage walks into starts dark: torches out, monsters hidden. A moment later the dungeon notices
+  // the mage and lights the torches. Once per room per run (each run walks into each room once).
   const [reveal, setReveal] = useState<{ id: number; step: 'dark' | 'lighting' } | null>(null);
   const lastStage = useRef(state.stage);
   useEffect(() => {
@@ -222,7 +222,7 @@ export function App() {
   /** The cutscene's own scene on the board (null in the tutorial and outside the cutscene). */
   const cutState = cut.active ? cut.view.state : null;
   const tutorial = cut.active && cut.view.tutorial;
-  /** The cutscene is playing (not the tutorial), or the tutorial is waiting for the wizard to finish talking. */
+  /** The cutscene is playing (not the tutorial), or the tutorial is waiting for the mage to finish talking. */
   const cutLocked = cut.active && (!cut.view.tutorial || cut.view.tutorialWait);
 
   const canAct = state.phase === 'player' && !enemyTurn.playing && !castPlaying && !dialogOpen && state.actionsLeft > 0 && !reveal && !cutLocked;
@@ -248,7 +248,7 @@ export function App() {
 
   // ------------------------------------------------------------ the opening: title screen, waking up in room 0
 
-  /** Open your eyes in room 0 (a new run): blink awake, then the wizard thinks out loud. */
+  /** Open your eyes in room 0 (a new run): blink awake, then the mage thinks out loud. */
   const wakeUp = useCallback(() => {
     setIntro('waking');
     window.setTimeout(() => {
@@ -401,7 +401,7 @@ export function App() {
     if (!inOpenDoor) setEarlyAsk(false);
   }, [inOpenDoor, enemyTurn.playing]);
 
-  // Leaving a cleared room: Continue (or clicking the open door) walks the wizard to the door, then on.
+  // Leaving a cleared room: Continue (or clicking the open door) walks the mage to the door, then on.
   const exit = state.room.exit;
   const doorPath = freeWalk && exit ? freeWalkPath(state, exit) : null;
   const itemsLeft = state.room.drops
@@ -425,11 +425,11 @@ export function App() {
     else startLeaving();
   };
 
-  // The lectern's and the camp's rooms: on arrival the wizard walks up to the lectern / fire by themselves; once it's over they
+  // The lectern's and the camp's rooms: on arrival the mage walks up to the lectern / fire by themselves; once it's over they
   // walk out (after a moment to read what it said). Each happens once per visit, so a click can still override.
   const eventStep = inEvent ? state.event?.step ?? null : null;
   const autoWalked = useRef({ in: -1, out: -1 });
-  // The timers read the latest state and leave function when they fire (the wizard may have moved meanwhile).
+  // The timers read the latest state and leave function when they fire (the mage may have moved meanwhile).
   const latest = useRef({ state, startLeaving });
   latest.current = { state, startLeaving };
   useEffect(() => {
@@ -493,7 +493,7 @@ export function App() {
       for (const h of cast.hits) {
         const tile = cast.area.tiles.find((t) => samePos(t.pos, h.pos));
         const e = done.enemies.find((x) => x.id === h.id);
-        if (h.immune || !tile?.push || !e || ENEMY_DEFS[e.kind].size !== 'normal') continue;
+        if (h.immune || !tile?.push || !e || ENEMY_DEFS[e.kind].size === 'float') continue;
         const goal = { x: h.pos.x + tile.push.x * cast.push, y: h.pos.y + tile.push.y * cast.push };
         if (!samePos(e.pos, goal) && !done.room.hazards.some((z) => z.kind === 'quicksand' && samePos(z.pos, e.pos))) bumps.push({ at: e.pos, dir: tile.push });
       }
@@ -517,7 +517,7 @@ export function App() {
    *
    * A cast with a rune on a real spell plays in two parts, so the player can see what the rune did:
    * 1. the spell itself: the board shows the cast resolved as if the rune did nothing (engine `ignoreRune`);
-   * 2. the rune's symbol glows purple on the floor around the wizard;
+   * 2. the rune's symbol glows purple on the floor around the mage;
    * 3. the rune's part: the board shows the real result, with a purple effect and purple numbers.
    * The Fizzle rune skips part 1 (nothing happened). A rune on a table that makes no spell just puffs grey smoke.
    */
@@ -596,7 +596,7 @@ export function App() {
   lastAim.current = aimDir;
 
   const onTileClick = (p: Pos) => {
-    // The lectern's and the camp's rooms: the wizard walks in and out by themselves; clicks don't move them.
+    // The lectern's and the camp's rooms: the mage walks in and out by themselves; clicks don't move them.
     if (inEvent) return;
     // The opening cutscene: the board isn't the player's. In the tutorial, a click only casts the aimed Fire Beam.
     if (cut.active && (!tutorial || !aiming)) return;
@@ -836,7 +836,7 @@ export function App() {
   const chooseAtLectern = (c: EventChoice) => {
     let next: GameState | null = null;
     if (!game.run((st) => (next = eventChoice(st, c)))) return;
-    // Fed it blood: it hurts, and the wizard can't believe it (unless it killed them).
+    // Fed it blood: it hurts, and the mage can't believe it (unless it killed them).
     if (c === 'blood' && (next as GameState | null)?.phase !== 'lost') {
       sayLine(LECTERN_OUCH, TIMING.lecternOuch);
       setOuch(true);
@@ -864,8 +864,8 @@ export function App() {
         dark={cutState ? cut.view.dark : reveal?.step === 'dark' ? 1 : roomZeroDark}
         torchesLit={cutState ? cut.view.torchesLit : reveal?.step !== 'dark'}
         enemiesHidden={cutState ? cut.view.enemiesHidden : reveal?.step === 'dark'}
-        wizardHidden={!!cutState && cut.view.wizardHidden}
-        wizardFlight={cutState ? cut.view.flight : null}
+        mageHidden={!!cutState && cut.view.mageHidden}
+        mageFlight={cutState ? cut.view.flight : null}
         bare={cut.active && !tutorial}
         restPrompt={restPrompt}
         onRest={rest}
@@ -995,10 +995,15 @@ export function App() {
       {hurt > 0 && <div key={hurt} className="hurt-flash" style={{ animationDuration: `${TIMING.hurtFlash}ms` }} />}
       {cut.active && (
         <>
-          {/* Clicks move the wizard's lines along (not in the tutorial, where the board and hand are in use). */}
+          {/* Space moves the mage's lines along; so do clicks (not in the tutorial, where the board and hand are in use). */}
           {!tutorial && <div className="cutscene-click" onPointerDown={cut.advance} />}
           <div className={`cutscene-black ${cut.view.black ? 'is-on' : ''}`} style={{ transitionDuration: `${TIMING.introBlackFade}ms` }} />
           {cut.view.blink && <Blink stage="wake" />}
+          {cut.view.speech && intro === 'cutscene' && (
+            <div className={`cutscene-hint ${tutorial ? 'is-high' : ''}`}>
+              <kbd>Space</kbd> to continue
+            </div>
+          )}
           {intro === 'cutscene' && (
             <button className="cutscene-skip" onClick={cut.skip}>
               Skip

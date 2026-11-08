@@ -1,4 +1,4 @@
-import { cloneState, createGame, parseCoord, type Card, type FragmentKind, type GameState } from '../engine';
+import { cloneState, createGame, parseCoord, type FragmentKind, type GameState } from '../engine';
 import { INTRO_PLACES } from '../config/introScript';
 
 /**
@@ -28,15 +28,12 @@ export function markIntroSeen(): void {
 /** The two fragments the tutorial teaches with. */
 export const TUTORIAL_KINDS: FragmentKind[] = ['fire', 'beam'];
 
-/** The fragment lying in room 0, picked up during the cutscene. */
-const itemCard = (): Card => ({ id: -1, kind: 'fire' });
-
 /**
- * Room 0 in the cutscene, built from a fresh room 0 (`base`). `camp: false` is the room as the wizard falls into
- * it: empty, no campfire, rock or mat. `camp: true` is after the blackout: the campfire (not lit), the rock and the
- * mat are there. Both have the grimoire fragment lying on the floor unless `itemTaken`.
+ * Room 0 in the cutscene, built from a fresh room 0 (`base`). `camp: false` is the room as the mage comes to in
+ * it: no campfire, rock or mat, just the sealed door. `camp: true` is after the blackout: the campfire (not lit), the
+ * rock and the mat are there. Nothing lies on the floor: the fragments are on the mage all along.
  */
-export function introRoom0(base: GameState, { camp, itemTaken = false }: { camp: boolean; itemTaken?: boolean }): GameState {
+export function introRoom0(base: GameState, { camp }: { camp: boolean }): GameState {
   const s = cloneState(base);
   if (!camp) {
     s.room.feature = null;
@@ -45,12 +42,12 @@ export function introRoom0(base: GameState, { camp, itemTaken = false }: { camp:
   } else {
     s.room.fireLit = false;
   }
-  s.room.drops = itemTaken ? [] : [{ id: -1, pos: parseCoord(INTRO_PLACES.item), cards: [itemCard()], toHand: false, from: 'rat' }];
-  s.player.pos = parseCoord(INTRO_PLACES.fall);
+  s.room.drops = [];
+  s.player.pos = parseCoord(INTRO_PLACES.wake);
   return s;
 }
 
-/** The Cistern in the cutscene: its layout, with just the one brute that comes for the wizard. */
+/** The Cistern in the cutscene: its layout, with just the one brute that comes for the mage. */
 export function introCistern(base: GameState): GameState {
   const s = createGame(base.rng, { runeMap: base.runeMap });
   const from = parseCoord(INTRO_PLACES.bruteFrom);
@@ -79,7 +76,7 @@ export function withInHand(state: GameState, kinds: FragmentKind[]): GameState {
   return s;
 }
 
-/** The tutorial, in the real room 0: the fire is out, the wizard stands in front of it, and Fire and Beam are in hand. */
+/** The tutorial, in the real room 0: the fire is out, the mage stands in front of it, and Fire and Beam are in hand. */
 export function tutorialState(state: GameState): GameState {
   const s = withInHand(state, TUTORIAL_KINDS);
   s.room.fireLit = false;

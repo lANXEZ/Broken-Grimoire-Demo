@@ -6,7 +6,7 @@ import { RUNE_THOUGHT_DEFAULT, ThoughtCloud } from './Thought';
 import { RuneLetter } from './RuneLetter';
 
 /**
- * [UI-PLACEMENT] "Hmmm...": the wizard's memory of every card combination cast so far (LAYOUT.hmmm), drawn as one
+ * [UI-PLACEMENT] "Hmmm...": the mage's memory of every card combination cast so far (LAYOUT.hmmm), drawn as one
  * of his foggy thoughts. Top: what the hand can make right now (hover = those hand cards rise, click = they go on
  * the crafting table). Bottom, ghosted: the rest. With cards on the table, only lines using them are shown and
  * those cards are highlighted. Lines with a rune keep its numbers a mystery ("?") and show the player's own note

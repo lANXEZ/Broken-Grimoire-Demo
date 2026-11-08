@@ -249,10 +249,30 @@ describe('wind, pushes and collisions', () => {
     expect(after.room.drops).toEqual([]);
   });
 
-  it('massive and floating units can’t be pushed', () => {
+  it('floating units can’t be pushed; Wind pushes massive ones', () => {
     const s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'a2' }, { kind: 'ward', at: 'b1', element: 'wind' }] });
     const after = cast(s, ['wind', 'cross']);
-    expect([at(after, '5a'), at(after, '6a')]).toEqual(['a2', 'b1']);
+    expect([at(after, '5a'), at(after, '6a')]).toEqual(['a4', 'b1']);
+  });
+
+  it('pushing the Warden off its tile cancels its marked line', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'warden', at: 'a3' }] });
+    enemy(s, '5a').markedLine = [parseCoord('a2'), parseCoord('a1')];
+    const after = cast(s, ['wind', 'beam'], 'up');
+    expect(at(after, '5a')).toBe('a5');
+    expect(enemy(after, '5a').markedLine).toBeNull();
+  });
+
+  it('a hole stops a pushed Warden or Redactor at its edge (1 damage) instead of swallowing it', () => {
+    for (const kind of ['warden', 'redactor'] as const) {
+      const s = board({ player: 'a1', holes: ['a4'], enemies: [{ kind, at: 'a2' }] });
+      const id = s.enemies[0].id;
+      const hp = s.enemies[0].hp;
+      const after = cast(s, ['wind', 'wind', 'beam'], 'up');
+      const e = after.enemies.find((x) => x.id === id)!;
+      expect(coordLabel(e.pos)).toBe('a3');
+      expect(e.hp).toBe(hp - 1);
+    }
   });
 
   it('Quicksand catches a sliding unit; Magma burns it on the way past', () => {
@@ -327,7 +347,7 @@ describe('merges and hazards', () => {
     expect(plan.final.player.hp).toBe(19);
   });
 
-  it('a stuck wizard can’t move or cast until climbing out (2 actions)', () => {
+  it('a stuck mage can’t move or cast until climbing out (2 actions)', () => {
     let s = board({ player: 'a1', enemies: [dummy()] });
     hazard(s, 'a1', 'quicksand');
     s.player.status.stuck = 2;
@@ -467,6 +487,14 @@ describe('archer', () => {
     expect(hp(plan.final, '3a')).toBe(4);
     expect(at(plan.final, '3a')).toBe('a2');
     expect(plan.intents['2a']).toEqual([{ kind: 'shoot', value: 2, note: 'Brute 3a is in the way' }]);
+  });
+
+  it('an arrow hurts a Warden in the way but can’t push it', () => {
+    const s = board({ player: 'a1', enemies: [{ kind: 'archer', at: 'a5' }, { kind: 'warden', at: 'a3' }] });
+    Object.assign(enemy(s, '5a').status, { root: 1, stun: 1 });
+    const plan = planEnemyTurn(toEnemyTurn(s));
+    expect(hp(plan.final, '5a')).toBe(6);
+    expect(at(plan.final, '5a')).toBe('a3');
   });
 
   it('a Page Ward in the way stops the arrow but takes nothing', () => {
@@ -813,20 +841,24 @@ describe('the run', () => {
     const wake = () => createGame(7, { prologue: true });
     const walkTo = (s: GameState, coord: string) => (freeWalkPath(s, parseCoord(coord)) ?? []).reduce((st, p) => freeStep(st, p), s);
 
-    it('is a 3\u00d74 room with a campfire, a rock, a collapsed corner and the big door; no enemies, never cleared', () => {
+    it('is a 3\u00d74 room with a campfire, a rock, the sealed door and the big door; no enemies, never cleared', () => {
       const s = wake();
       expect([s.room.width, s.room.height, s.stage, s.phase]).toEqual([3, 4, -1, 'player']);
       expect(isPrologue(s)).toBe(true);
       expect(coordLabel(s.player.pos)).toBe('a1');
       expect(s.room.feature).toMatchObject({ kind: 'campfire' });
       expect(labels(s.room.seats)).toEqual(['a2']);
-      expect(labels(s.room.moonlight ?? [])).toEqual(['a3', 'a4']);
+      expect(coordLabel(s.room.sealedDoor!)).toBe('a4');
+      expect(labels(s.room.spellTrail ?? [])).toEqual(['a3']);
+      // The gravel heap blocks the sealed door's tile; the trail in front of it is walkable.
+      expect(isWalkable(s, parseCoord('a4'))).toBe(false);
+      expect(isWalkable(s, parseCoord('a3'))).toBe(true);
       expect(coordLabel(s.room.exit!)).toBe('c4');
       expect(s.enemies).toEqual([]);
       expect(s.cards.hand).toHaveLength(5);
     });
 
-    it('the wizard wakes up on the sleeping mat (two tiles), which can be walked off and back onto', () => {
+    it('the mage wakes up on the sleeping mat (two tiles), which can be walked off and back onto', () => {
       const s = wake();
       expect(labels(s.room.mat!)).toEqual(['a1', 'b1']);
       expect(coordLabel(s.player.pos)).toBe('a1');
@@ -1035,14 +1067,14 @@ describe('spell effects (castFx)', () => {
 });
 
 describe('the door', () => {
-  it('is locked until the room is cleared: the wizard can’t step on it, monsters can', () => {
+  it('is locked until the room is cleared: the mage can’t step on it, monsters can', () => {
     const s = board({ player: 'e6', exit: 'f6', enemies: [{ kind: 'rat', at: 'a1' }] });
     expect(() => playerMove(s, 'right')).toThrow(/locked/);
     const r = board({ player: 'a1', exit: 'a3', enemies: [{ kind: 'rat', at: 'a4' }] });
     expect(at(runEnemyTurn(r), '1a')).toBe('a2'); // walked over the door to reach you
   });
 
-  it('a push into the locked door stops the wizard like the wall', () => {
+  it('a push into the locked door stops the mage like the wall', () => {
     const s = board({ player: 'a2', exit: 'a1', enemies: [{ kind: 'archer', at: 'a6' }] });
     const after = runEnemyTurn(s);
     expect(coordLabel(after.player.pos)).toBe('a2');

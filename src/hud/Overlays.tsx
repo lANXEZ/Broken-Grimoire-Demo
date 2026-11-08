@@ -62,7 +62,7 @@ export function Toasts({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
   );
 }
 
-/** Something the wizard just picked up off the floor. */
+/** Something the mage just picked up off the floor. */
 export interface Pickup {
   id: number;
   cards: Card[];

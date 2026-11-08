@@ -5,7 +5,7 @@ import { aimDirection, cleanTable, placeOnTable, previewCast, removeFromTable, t
 let nextId = 1000;
 const card = (kind: FragmentKind): Card => ({ id: nextId++, kind });
 
-/** A fresh game with the wizard in the middle of an empty 6×6 room. */
+/** A fresh game with the mage in the middle of an empty 6×6 room. */
 function open(mana = 6): GameState {
   const s = createGame(1);
   s.enemies = [];

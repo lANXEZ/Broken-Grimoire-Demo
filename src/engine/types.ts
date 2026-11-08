@@ -42,7 +42,7 @@ export interface Statuses {
   burn: number;
   /** Turns of Root left (the unit can't move). */
   root: number;
-  /** Turns of Stun left (the unit can't attack; the wizard can't cast). */
+  /** Turns of Stun left (the unit can't attack; the mage can't cast). */
   stun: number;
   /** Quicksand: actions the unit still has to spend to escape (0 = free). */
   stuck: number;
@@ -50,7 +50,10 @@ export interface Statuses {
 
 export type RedactorMode = 'guarded' | 'chaos' | 'spent';
 
-/** How the board treats a unit: floating units ignore holes, pushes and hazards; massive ones can't be pushed. */
+/**
+ * How the board treats a unit: floating units ignore holes, pushes and hazards; massive ones are pushed only by Wind
+ * (not by arrows) and are too big to fall into a hole.
+ */
 export type UnitSize = 'normal' | 'float' | 'massive';
 
 export interface Enemy {
@@ -106,7 +109,7 @@ export interface Hazard {
   until: number;
 }
 
-/** Loot lying on the floor until the wizard walks onto it. */
+/** Loot lying on the floor until the mage walks onto it. */
 export interface Drop {
   id: number;
   pos: Pos;
@@ -125,15 +128,15 @@ export interface RoomRuntime {
   pillars: Pillar[];
   holes: Pos[];
   /**
-   * The door to the next stop (null in the boss room). Locked until the room is cleared: while locked the wizard
-   * can't step onto it (monsters can). Once open, Continue walks the wizard there and on.
+   * The door to the next stop (null in the boss room). Locked until the room is cleared: while locked the mage
+   * can't step onto it (monsters can). Once open, Continue walks the mage there and on.
    */
   exit: Pos | null;
-  /** The door is open from the start (the Cistern): the wizard may leave early, losing what the survivors would drop. */
+  /** The door is open from the start (the Cistern): the mage may leave early, losing what the survivors would drop. */
   exitAlwaysOpen: boolean;
   /**
    * The thing a between-rooms room is built around (the event's lectern, the camp's fire), or null. It blocks its
-   * tile like a pillar but never breaks; `read` is where the wizard stands to use it.
+   * tile like a pillar but never breaks; `read` is where the mage stands to use it.
    */
   feature: RoomFeature | null;
   /** Decorations that block their tiles too (the logs around the campfire). */
@@ -142,8 +145,10 @@ export interface RoomRuntime {
   fireLit?: boolean;
   /** How the seats look (logs by default; room 0 has a rock). */
   seatStyle?: 'log' | 'rock';
-  /** Room 0: tiles under the collapsed ceiling, where moonlight, dust and gravel come down (walkable). */
-  moonlight?: Pos[];
+  /** Room 0: the door the mage sealed with spells, buried under gravel (blocks its tile, like furniture). */
+  sealedDoor?: Pos;
+  /** Room 0: the tiles in front of the sealed door, with spilled gravel and the spells' marks (walkable). */
+  spellTrail?: Pos[];
   /** Room 0: the big dungeon door. */
   bigDoor?: boolean;
   /** Room 0: the sleeping mat's tiles, pillow end first (walkable); standing on it offers a way back to the title. */
@@ -160,8 +165,8 @@ export interface RoomFeature {
 
 /**
  * player / enemy: combat turns. cleared: every enemy is dead, walk freely and Continue.
- * event / camp: the Whispering Lectern's room and the camp's room (see `EventState`): the wizard walks up to the
- * feature, the player chooses, the wizard walks out. won / lost: the run is over.
+ * event / camp: the Whispering Lectern's room and the camp's room (see `EventState`): the mage walks up to the
+ * feature, the player chooses, the mage walks out. won / lost: the run is over.
  */
 export type Phase = 'player' | 'enemy' | 'cleared' | 'event' | 'camp' | 'won' | 'lost';
 
@@ -169,10 +174,10 @@ export type LostReason = 'hp' | 'grimoire' | 'hole';
 
 /**
  * The lectern's room and the camp's room, step by step:
- * - approach: the wizard is walking up to the lectern / fire (the door is locked);
+ * - approach: the mage is walking up to the lectern / fire (the door is locked);
  * - offer: the choice. Lectern: take a rune fragment, or leave it. Camp: rest, or tear out a page;
  * - blood (lectern only): you took one, and it speaks: give it some blood (another rune, for HP), or walk away;
- * - done: it's over; the door is open and the wizard walks out.
+ * - done: it's over; the door is open and the mage walks out.
  */
 export type EventStep = 'approach' | 'offer' | 'blood' | 'done';
 
@@ -220,7 +225,7 @@ export interface GameState {
   lostReason?: LostReason;
   /** What each rune symbol does (index = symbol). Fixed per computer; the app passes it in. */
   runeMap: RuneEffect[];
-  /** Rune symbols the wizard has been given this run (no repeats). */
+  /** Rune symbols the mage has been given this run (no repeats). */
   runesFound: number[];
   /** Grimoire pages written so far (see `pageId`). Kept across runs; the app passes it in. */
   grimoire: string[];

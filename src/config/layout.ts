@@ -35,7 +35,7 @@ export const LAYOUT = {
   hand: { bottom: -24, cardWidth: 160, cardHeight: 224, spacing: 128, fanDeg: 4, arcDrop: 10, hoverLift: 70, hoverScale: 1.18, noteLift: 56 },
 
   /**
-   * The "Hmmm..." note: the wizard's memory of card combinations, a column on the left under the top bar and above
+   * The "Hmmm..." note: the mage's memory of card combinations, a column on the left under the top bar and above
    * the mana orb (the board keeps `board.sideMargin` free on each side).
    */
   hmmm: { left: 18, top: 84, width: 236, bottom: 452 },
@@ -46,7 +46,7 @@ export const LAYOUT = {
    * Cards on it (`cardWidth`×`cardHeight`) stay wherever they are dropped, each with a random tilt of up to
    * `maxTiltDeg`. `overhang` is how much of a card (0–1) may stick out past the table's sides and bottom edge
    * (never over the strip at the top).
-   * While the wizard is stuck in quicksand, the "Climb out" button fills this same box instead.
+   * While the mage is stuck in quicksand, the "Climb out" button fills this same box instead.
    */
   craftingTable: { bottom: 220, width: 620, height: 222, offsetX: 0, stripHeight: 34, cardWidth: 92, cardHeight: 129, maxTiltDeg: 9, overhang: 0.25 },
 

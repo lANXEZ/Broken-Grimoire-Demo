@@ -19,7 +19,7 @@ export function TopBar({ state, onGrimoire, onDeck, onToggleLog, onMenu }: {
   return (
     <div className="top-bar">
       <div className="top-left">
-        <div className="top-name">The Wizard</div>
+        <div className="top-name">The Mage</div>
         <div className="top-hp" title="HP. Carries over between rooms. Heal at the camp.">
           <span className="heart">&hearts;</span>
           {p.hp}/{p.maxHp}

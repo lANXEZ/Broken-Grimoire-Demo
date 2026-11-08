@@ -11,7 +11,7 @@ import type { DragSource } from './useCardDrag';
  * A fragment card face. PLACEHOLDER art: the printed kit cards (config/art.ts). Wind and Wall, which the kit never
  * had, are drawn in the kit's layout (hud/KitCard.tsx); runes are plain cards with their gibberish symbol.
  *
- * A rune card also wears the wizard's thought bubble with the player's note on it (hud/Thought.tsx):
+ * A rune card also wears the mage's thought bubble with the player's note on it (hud/Thought.tsx):
  * `thought` = 'edit' (default: the pencil works), 'show' (read only, e.g. on buttons) or 'none' (tiny copies).
  */
 export function FragmentCard({ card, className = '', style, thought = 'edit' }: {

@@ -16,7 +16,7 @@ export function devEdit(state: GameState, note: string, edit: (s: GameState) => 
   if (s.player.hp <= 0 && s.phase !== 'lost') {
     s.phase = 'lost';
     s.lostReason = 'hp';
-    log(s, 'system', 'The wizard has fallen. Game over.');
+    log(s, 'system', 'The mage has fallen. Game over.');
   }
   return s;
 }

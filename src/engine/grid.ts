@@ -63,24 +63,25 @@ export function isOccupied(state: GameState, p: Pos, ignoreEnemyId?: string): bo
 /** Is the room's door open: always (the Cistern), or once the room is cleared? */
 export function exitOpen(state: GameState): boolean {
   if (!state.room.exit) return false;
-  // The lectern's and the camp's rooms: open once the wizard has reached the lectern / fire.
+  // The lectern's and the camp's rooms: open once the mage has reached the lectern / fire.
   if (state.phase === 'event' || state.phase === 'camp') return !!state.event && state.event.step !== 'approach';
   return state.room.exitAlwaysOpen || state.phase === 'cleared';
 }
 
-/** Is this the room's door, still locked? Only the wizard is kept off it. */
+/** Is this the room's door, still locked? Only the mage is kept off it. */
 export function isLockedExit(state: GameState, p: Pos): boolean {
   return !!state.room.exit && !exitOpen(state) && samePos(state.room.exit, p);
 }
 
-/** Is the wizard standing in the open door? */
+/** Is the mage standing in the open door? */
 export function onOpenExit(state: GameState): boolean {
   return exitOpen(state) && samePos(state.room.exit!, state.player.pos);
 }
 
-/** The lectern, the campfire or one of its logs: furniture that blocks its tile. */
+/** The lectern, the campfire or one of its logs, or room 0's sealed door: furniture that blocks its tile. */
 export function isFurniture(state: GameState, p: Pos): boolean {
-  return (!!state.room.feature && samePos(state.room.feature.pos, p)) || (state.room.seats ?? []).some((q) => samePos(q, p));
+  const r = state.room;
+  return (!!r.feature && samePos(r.feature.pos, p)) || (r.seats ?? []).some((q) => samePos(q, p)) || (!!r.sealedDoor && samePos(r.sealedDoor, p));
 }
 
 /** Can a unit step onto this tile? Pillars, furniture, holes and other units block. */
@@ -213,10 +214,10 @@ export function stepAway(state: GameState, enemy: Enemy, threat: Pos): Pos | nul
   return pick(state, best);
 }
 
-/** Shortest walk for the wizard (after a room is cleared), avoiding pillars, holes and units. Excludes `from`. */
+/** Shortest walk for the mage (after a room is cleared), avoiding pillars, holes and units. Excludes `from`. */
 export function walkPath(state: GameState, from: Pos, to: Pos): Pos[] | null {
   if (samePos(from, to)) return [];
-  // The wizard's free walk: around pillars, furniture, holes and enemies, and never through a locked door.
+  // The mage's free walk: around pillars, furniture, holes and enemies, and never through a locked door.
   const blocked = (q: Pos) => isPillar(state, q) || isFurniture(state, q) || isHole(state, q) || isLockedExit(state, q) || state.enemies.some((e) => samePos(e.pos, q));
   if (!inBounds(state, to) || blocked(to)) return null;
   const prev = new Map<string, Pos | null>([[posKey(from), null]]);

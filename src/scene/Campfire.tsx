@@ -10,7 +10,7 @@ import { tileHandlers, type TilePointer } from './Board';
 /**
  * PLACEHOLDER: the camp's fire, in the middle of its room: a ring of stones, crossed logs, flickering flames, rising
  * embers and a warm light; plus the logs to sit on around it (each blocks its tile). Fire and logs are <Obstacle>s,
- * so they fade when the wizard stands behind them.
+ * so they fade when the mage stands behind them.
  */
 const glow = { transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false } as const;
 

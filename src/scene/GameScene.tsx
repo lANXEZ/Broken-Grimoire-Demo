@@ -10,8 +10,8 @@ import { CameraShake, SpellFxLayer, type FxEvent } from './SpellFx';
 import { Unit, type Flight, type UnitView } from './Unit';
 import { SceneLights } from './Lighting';
 import { Drops, Hazards } from './Hazards';
-import { BIG_DOOR_SCALE, DOOR_TOP } from './Door';
-import { Moonlight } from './Moonlight';
+import { ARCH, BIG_DOOR_SCALE, DOOR_TOP } from './Door';
+import { SealedDoor } from './SealedDoor';
 import { Mat } from './Mat';
 import { Lectern } from './Lectern';
 import { Campfire } from './Campfire';
@@ -26,9 +26,9 @@ interface Props {
   fx: FxEvent[];
   /** A rune's part of a cast is showing: HP changes appear as purple numbers. */
   runeTint: boolean;
-  /** What the wizard is thinking, shown in a thought cloud over their head (or null). */
+  /** What the mage is thinking, shown in a thought cloud over their head (or null). */
   playerThought?: string | null;
-  /** What the wizard says out loud, in a speech bubble (or null). */
+  /** What the mage says out loud, in a speech bubble (or null). */
   playerSpeech?: string | null;
   /** How dark the room is: 0 = normal, 1 = pitch dark (scene/Lighting.tsx). */
   dark?: number;
@@ -36,13 +36,13 @@ interface Props {
   torchesLit?: boolean;
   /** The monsters can't be seen yet (a dark room before the dungeon lights it). */
   enemiesHidden?: boolean;
-  /** The opening cutscene: the wizard is off stage (still in the next room). */
-  wizardHidden?: boolean;
-  /** The opening cutscene: the wizard falls or is thrown onto their tile. */
-  wizardFlight?: Flight | null;
+  /** The opening cutscene: the mage is off stage (still in the next room). */
+  mageHidden?: boolean;
+  /** The opening cutscene: the mage falls or is thrown onto their tile. */
+  mageFlight?: Flight | null;
   /** The opening cutscene: units are just pictures (no HP plates, hover cards or intents). */
   bare?: boolean;
-  /** Room 0: the wizard is on the mat and can go back to the title ("Get some rest?"). */
+  /** Room 0: the mage is on the mat and can go back to the title ("Get some rest?"). */
   restPrompt?: boolean;
   onRest?: () => void;
   hover: Pos | null;
@@ -56,7 +56,7 @@ function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitVie
     {
       key: 'player',
       isPlayer: true,
-      name: 'The Wizard',
+      name: 'The Mage',
       tag: '',
       pos: p.pos,
       hp: p.hp,
@@ -110,8 +110,8 @@ export function GameScene({
   dark = 0,
   torchesLit = true,
   enemiesHidden = false,
-  wizardHidden = false,
-  wizardFlight = null,
+  mageHidden = false,
+  mageFlight = null,
   bare = false,
   restPrompt = false,
   onRest = () => {},
@@ -138,12 +138,20 @@ export function GameScene({
       }}
     >
       <Canvas orthographic shadows dpr={[1, 2]} gl={{ antialias: true, alpha: true }} camera={{ zoom: 60, position: [-20, 20, 20], near: 0.1, far: 200 }}>
-        <CameraRig room={room} extraPoints={room.exit ? [tileToWorld(room.exit, room, room.bigDoor ? DOOR_TOP * BIG_DOOR_SCALE : DOOR_TOP)] : []} />
+        <CameraRig
+          room={room}
+          extraPoints={[
+            ...(room.exit ? [tileToWorld(room.exit, room, room.bigDoor ? DOOR_TOP * BIG_DOOR_SCALE : DOOR_TOP)] : []),
+            ...(room.sealedDoor ? [tileToWorld(room.sealedDoor, room, TILE_TOP + (ARCH.height + 0.2) * BIG_DOOR_SCALE)] : []),
+          ]}
+        />
         <CameraShake />
         <SceneLights dark={dark} />
         <Board room={room} exitOpen={exitOpen(state)} exitLabel={stageName(state.stage + 1)} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} torchesLit={torchesLit} doorSign={!bare} />
         <Hazards hazards={room.hazards} room={room} />
-        {room.moonlight && room.moonlight.length > 0 && <Moonlight tiles={room.moonlight} room={room} />}
+        {room.sealedDoor && (
+          <SealedDoor pos={room.sealedDoor} trail={room.spellTrail ?? []} room={room} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
+        )}
         {room.mat && room.mat.length > 0 && <Mat tiles={room.mat} room={room} prompt={restPrompt} onRest={onRest} />}
         {room.feature?.kind === 'lectern' && (
           <Lectern
@@ -183,9 +191,9 @@ export function GameScene({
               runeTint={runeTint}
               thought={u.isPlayer ? playerThought : null}
               speech={u.isPlayer ? playerSpeech : null}
-              hidden={u.isPlayer ? wizardHidden : enemiesHidden}
+              hidden={u.isPlayer ? mageHidden : enemiesHidden}
               bare={bare}
-              flight={u.isPlayer ? wizardFlight : null}
+              flight={u.isPlayer ? mageFlight : null}
             />
           ))}
         </Suspense>
