@@ -966,6 +966,22 @@ button {
   font-size: 0.8rem;
   cursor: pointer;
 }
+.dev-hint {
+  color: #c9a2f0;
+  white-space: nowrap;
+}
+.dev-hint.is-armed {
+  color: #ffb3a6;
+}
+.dev-hint kbd {
+  display: inline-block;
+  padding: 0 0.35rem;
+  border: 0.08rem solid currentColor;
+  border-bottom-width: 0.18rem;
+  border-radius: 0.25rem;
+  font-family: inherit;
+  font-weight: 700;
+}
 .dev-bar button.is-danger {
   background: #8b2e2a;
   border-color: #ff9a8a;
