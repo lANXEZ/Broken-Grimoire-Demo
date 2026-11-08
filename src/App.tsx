@@ -41,6 +41,8 @@ import { useIntro } from './game/useIntro';
 import { introSeen, markIntroSeen, tutorialCardIds } from './game/intro';
 import { INTRO, LECTERN_OUCH } from './config/introScript';
 import { GameScene } from './scene/GameScene';
+import { WorldMap } from './scene/WorldMap';
+import './scene/worldmap.css';
 import type { BoardOverlays } from './scene/TileOverlay';
 import { fxEventDuration, type CastEvent, type FxEvent, type RuneEvent } from './scene/SpellFx';
 import { FX } from './config/fx';
@@ -123,6 +125,15 @@ export function App() {
    * mat ('dozing') before the waking.
    */
   const [intro, setIntro] = useState<'title' | 'leaving' | 'closing' | 'cutscene' | 'dozing' | 'fate' | 'resting' | 'waking' | null>('title');
+  /**
+   * [MAP] The branching run map (scene/WorldMap.tsx) shows over the game each time the run reaches a new stop
+   * (stage 0..4), starting when the wizard leaves room 0 (the prologue, stage -1) through the door. Its branches
+   * are an illusion (config/map.ts): the engine has already loaded this stop, and tapping the lit node only hides
+   * the map to reveal it — no engine logic runs here. Hidden during the title/intro, the prologue and the end
+   * screens so it never covers them.
+   */
+  const [mapShown, setMapShown] = useState(false);
+  const lastMapStage = useRef(state.stage);
   /** What the mage says out loud (a speech bubble), outside the cutscene: e.g. at the lectern. */
   const [speech, setSpeech] = useState<{ id: number; text: string } | null>(null);
   const sayLine = useCallback((text: string, ms: number) => {
@@ -251,6 +262,14 @@ export function App() {
     if (state.phase !== 'player') setMode({ kind: 'idle' });
   }, [state.phase]);
   useEffect(() => setTable([]), [state.stage]);
+  // [MAP] Show the run map whenever the run advances to a new stop (stage 0..4). stage -1 is the prologue (room 0),
+  // so leaving it for the Cistern (-1 -> 0) is the first time the map appears.
+  useEffect(() => {
+    if (state.stage !== lastMapStage.current) {
+      lastMapStage.current = state.stage;
+      if (state.stage >= 0) setMapShown(true);
+    }
+  }, [state.stage]);
   // Stuck in quicksand: no casting, so the crafting table makes way for the Climb out button (cards go back to the hand).
   const stuck = state.phase === 'player' && state.player.status.stuck > 0;
   useEffect(() => {
@@ -1040,6 +1059,13 @@ export function App() {
             wakeUp();
           }}
         />
+      )}
+
+      {/* [MAP] The branching run map, over everything. Its branches are an illusion: tapping the lit node only hides
+          the map to show the stop the engine already loaded (no engine logic runs here). Gated off during the
+          title/intro, the prologue (stage -1) and the end screens so it never covers them. */}
+      {mapShown && !intro && !finished && state.stage >= 0 && (
+        <WorldMap stage={state.stage} onEnter={() => setMapShown(false)} />
       )}
     </div>
   );

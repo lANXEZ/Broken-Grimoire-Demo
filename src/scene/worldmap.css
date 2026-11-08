@@ -1,0 +1,204 @@
+/* [MAP] The run-map overlay (scene/WorldMap.tsx). Self-contained styles, kept out of hud.css so nothing else
+   changes. Uses the game's existing tokens (--gold, --ink, --panel) and --u scaling; 1rem = 16 design px.
+   The map climbs: the first stop sits at the bottom, the boss at the top. */
+
+.map-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 700; /* above combat + the z-index:500 modals, below drag ghosts (1000) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--ink);
+  font-family: 'Kreon', Georgia, serif;
+  /* A worn, grey-green parchment chart, like the reference — muted and desaturated old vellum. Kept on the dark
+     side to sit under the game's gold, but light enough that every path and node reads clearly. */
+  background:
+    radial-gradient(ellipse at 50% 50%, #7c7a6a 0%, #5f5d50 40%, #46453c 70%, #343128 100%);
+  animation: map-fade 0.28s ease;
+}
+@keyframes map-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.map-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 12rem #0007;
+  background: radial-gradient(ellipse at 50% 50%, transparent 58%, #0006 100%);
+  /* a faint mottled grain so the parchment isn't a flat fill */
+  opacity: 0.9;
+}
+
+.map-head {
+  position: relative;
+  text-align: center;
+  padding: 1.4rem 1rem 0.4rem;
+}
+.map-title {
+  font-family: 'Cinzel', serif;
+  font-size: 2.3rem;
+  letter-spacing: 0.06em;
+  color: #f0e4c4;
+  text-shadow: 0 0.14rem 0.35rem #000b, 0 0 1.6rem #d9b76844;
+}
+.map-sub {
+  margin-top: 0.3rem;
+  font-size: 1.05rem;
+  color: #e7dcc1cc;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0.1rem 0.2rem #0009;
+}
+
+.map-board {
+  position: relative;
+  flex: 1;
+  width: min(32rem, 94vw);
+  margin: 0.4rem auto 0;
+}
+
+/* ---- paths ---- */
+.map-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.map-line {
+  /* dark ink dashes on the pale chart, like the reference */
+  stroke: #1c1a16aa;
+  stroke-width: 1.6;
+  stroke-dasharray: 3 3.4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.map-line.taken {
+  stroke: var(--gold);
+  stroke-width: 2.4;
+  stroke-dasharray: 3.4 3;
+  filter: drop-shadow(0 0 0.14rem #d9b768aa);
+}
+
+/* ---- root marker (below the first stop) ---- */
+.map-root {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+.map-root-mark {
+  display: block;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #8a7850, #2a2016);
+  border: 0.16rem solid var(--gold-dim);
+  box-shadow: 0 0 0.9rem #000a, inset 0 0.1rem 0 #ffffff22;
+}
+
+/* ---- nodes ---- */
+.map-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  width: 3.1rem;
+  height: 3.1rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  padding: 0;
+  cursor: default;
+  color: #e9dcbf;
+  background: radial-gradient(circle at 42% 34%, #342a1f, #17110c 80%);
+  border: 0.17rem solid #9a7c4e;
+  box-shadow: 0 0.35rem 0.9rem #0009, inset 0 0.1rem 0 #ffffff1c;
+  transition: transform 0.14s, box-shadow 0.14s, color 0.14s, border-color 0.14s;
+}
+.map-node-ring {
+  position: absolute;
+  inset: -0.4rem;
+  border-radius: 50%;
+  border: 0.12rem solid transparent;
+  pointer-events: none;
+}
+.map-glyph {
+  width: 62%;
+  height: 62%;
+}
+
+/* boss sits a touch larger */
+.map-node.boss {
+  width: 3.7rem;
+  height: 3.7rem;
+  border-color: #8a4a3e;
+}
+
+/* travelled layers: lit but settled */
+.map-node.done {
+  color: var(--gold-dim);
+  border-color: var(--gold-dim);
+  opacity: 0.82;
+}
+.map-node.done.chosen {
+  color: var(--gold);
+  border-color: var(--gold);
+  opacity: 1;
+}
+
+/* the current layer: lit, tappable, breathing */
+.map-node.current {
+  color: var(--ink);
+  border-color: var(--gold);
+  cursor: pointer;
+  box-shadow: 0 0.3rem 0.9rem #000a, 0 0 1.1rem #d9b76855, inset 0 0.1rem 0 #ffffff1f;
+  animation: map-pulse 1.8s ease-in-out infinite;
+}
+.map-node.current .map-node-ring {
+  border-color: #d9b76855;
+  animation: map-ring 1.8s ease-in-out infinite;
+}
+.map-node.current:hover {
+  transform: translate(-50%, -50%) scale(1.09);
+  color: #fff6e0;
+  box-shadow: 0 0.4rem 1.1rem #000b, 0 0 1.5rem #d9b76888, inset 0 0.1rem 0 #ffffff2a;
+}
+.map-node.boss.current {
+  box-shadow: 0 0.3rem 0.9rem #000a, 0 0 1.3rem #e2685a66, inset 0 0.1rem 0 #ffffff1f;
+}
+
+/* not reached yet: present but unlit — dark ink sigils waiting on the chart */
+.map-node.locked {
+  opacity: 0.72;
+  color: #b4a584;
+  border-color: #6d5a3b;
+  box-shadow: 0 0.25rem 0.7rem #0008, inset 0 0.1rem 0 #ffffff12;
+}
+
+@keyframes map-pulse {
+  50% { box-shadow: 0 0.3rem 0.9rem #000a, 0 0 1.6rem #d9b76877, inset 0 0.1rem 0 #ffffff1f; }
+}
+@keyframes map-ring {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.12); opacity: 0; }
+}
+
+.map-here {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  text-shadow: 0 0.1rem 0.2rem #000;
+}
+
+/* ---- footer ---- */
+.map-foot {
+  position: relative;
+  padding: 0.6rem 1rem 1.6rem;
+}
+.map-foot .hud-button {
+  min-width: 16rem;
+}
