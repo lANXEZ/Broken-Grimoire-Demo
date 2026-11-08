@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ROOMS, devEdit, devRemoveEnemy, enemyAt, killEnemy, loadRoom, type GameState, type Pos } from '../engine';
+import { ROOMS, devEdit, enemyAt, killEnemy, loadRoom, type GameState, type Pos } from '../engine';
 import type { GameApi } from '../game/useGame';
 import { newAccount } from '../game/account';
 
@@ -38,13 +38,10 @@ export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
       <button onClick={() => cheat('full mana', (d) => (d.player.mana = d.player.maxMana))}>Mana</button>
       <button onClick={() => cheat('full HP', (d) => (d.player.hp = d.player.maxHp))}>Heal</button>
       <button onClick={() => cheat('+3 actions', (d) => (d.actionsLeft += 3))}>+Actions</button>
-      <button
-        disabled={!hovered}
-        title="Kill the enemy under the pointer (K)"
-        onClick={() => hovered && game.run((st) => devRemoveEnemy(st, hovered.id, true))}
-      >
-        Kill {hovered ? hovered.id : 'hovered'}
-      </button>
+      {/* Killing the enemy under the pointer is a key (App.tsx), not a button: moving to a button would leave the enemy. */}
+      <span className={`dev-hint ${hovered ? 'is-armed' : ''}`} title="Point at an enemy and press K to kill it">
+        <kbd>K</kbd> {hovered ? `kills ${hovered.id}` : 'kills the enemy you point at'}
+      </span>
       <button
         disabled={s.phase !== 'player' || s.enemies.length === 0}
         title="Kill every enemy (their drops land on the floor)"
