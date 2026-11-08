@@ -10,8 +10,8 @@ import { CameraShake, SpellFxLayer, type FxEvent } from './SpellFx';
 import { Unit, type Flight, type UnitView } from './Unit';
 import { SceneLights } from './Lighting';
 import { Drops, Hazards } from './Hazards';
-import { BIG_DOOR_SCALE, DOOR_TOP } from './Door';
-import { Moonlight } from './Moonlight';
+import { ARCH, BIG_DOOR_SCALE, DOOR_TOP } from './Door';
+import { SealedDoor } from './SealedDoor';
 import { Mat } from './Mat';
 import { Lectern } from './Lectern';
 import { Campfire } from './Campfire';
@@ -138,12 +138,20 @@ export function GameScene({
       }}
     >
       <Canvas orthographic shadows dpr={[1, 2]} gl={{ antialias: true, alpha: true }} camera={{ zoom: 60, position: [-20, 20, 20], near: 0.1, far: 200 }}>
-        <CameraRig room={room} extraPoints={room.exit ? [tileToWorld(room.exit, room, room.bigDoor ? DOOR_TOP * BIG_DOOR_SCALE : DOOR_TOP)] : []} />
+        <CameraRig
+          room={room}
+          extraPoints={[
+            ...(room.exit ? [tileToWorld(room.exit, room, room.bigDoor ? DOOR_TOP * BIG_DOOR_SCALE : DOOR_TOP)] : []),
+            ...(room.sealedDoor ? [tileToWorld(room.sealedDoor, room, TILE_TOP + (ARCH.height + 0.2) * BIG_DOOR_SCALE)] : []),
+          ]}
+        />
         <CameraShake />
         <SceneLights dark={dark} />
         <Board room={room} exitOpen={exitOpen(state)} exitLabel={stageName(state.stage + 1)} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} torchesLit={torchesLit} doorSign={!bare} />
         <Hazards hazards={room.hazards} room={room} />
-        {room.moonlight && room.moonlight.length > 0 && <Moonlight tiles={room.moonlight} room={room} />}
+        {room.sealedDoor && (
+          <SealedDoor pos={room.sealedDoor} trail={room.spellTrail ?? []} room={room} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
+        )}
         {room.mat && room.mat.length > 0 && <Mat tiles={room.mat} room={room} prompt={restPrompt} onRest={onRest} />}
         {room.feature?.kind === 'lectern' && (
           <Lectern

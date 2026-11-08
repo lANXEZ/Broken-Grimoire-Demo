@@ -145,8 +145,10 @@ export interface RoomRuntime {
   fireLit?: boolean;
   /** How the seats look (logs by default; room 0 has a rock). */
   seatStyle?: 'log' | 'rock';
-  /** Room 0: tiles under the collapsed ceiling, where moonlight, dust and gravel come down (walkable). */
-  moonlight?: Pos[];
+  /** Room 0: the door the mage sealed with spells, buried under gravel (blocks its tile, like furniture). */
+  sealedDoor?: Pos;
+  /** Room 0: the tiles in front of the sealed door, with spilled gravel and the spells' marks (walkable). */
+  spellTrail?: Pos[];
   /** Room 0: the big dungeon door. */
   bigDoor?: boolean;
   /** Room 0: the sleeping mat's tiles, pillow end first (walkable); standing on it offers a way back to the title. */

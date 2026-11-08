@@ -209,15 +209,10 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   const base = createGame(Date.now(), { prologue: true, runeMap: latest.current.game.state.runeMap });
   const empty = introRoom0(base, { camp: false });
 
-  // 1. Room 0, dark and empty. The eyes open, and the mage falls in through the hole into the moonlight.
-  patch({ state: empty, dark: 1, mageHidden: true, blink: 'wake' });
-  await sleep(TIMING.wakeBlink * 0.45);
-  fly(null, 3.4, TIMING.introFall);
-  await sleep(TIMING.introFall);
-  shakeCamera(0.09, 0.3);
-  puff();
-  await sleep(TIMING.wakeBlink * 0.55);
-  patch({ blink: null, flight: null });
+  // 1. Room 0, dark and empty. The mage comes to in front of the door they sealed (the last spell knocked them out).
+  patch({ state: empty, dark: 1, mageHidden: false, blink: 'wake' });
+  await sleep(TIMING.wakeBlink);
+  patch({ blink: null });
   await sleep(700);
   for (const line of INTRO.waking) await say(line);
 
@@ -266,7 +261,7 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   await sleep(900);
   await say(INTRO.thrownOut);
 
-  // 5. Black, then the campfire (not lit) and the mat are there. The grimoire fragment on the floor.
+  // 5. Black, then the campfire (not lit) and the mat are there. The mage calms down and finds the fragments on them.
   await fadeToBlack(TIMING.introCampBlack);
   const camp = introRoom0(base, { camp: true });
   camp.player.pos = parseCoord(INTRO_PLACES.thrown);
@@ -275,11 +270,7 @@ async function play(r: Run, latest: Latest, setView: (v: IntroView) => void): Pr
   await sleep(400);
   for (const line of INTRO.campMade) await say(line);
   await sleep(1000);
-  await say(INTRO.noticeItem);
-  await walk(INTRO_PLACES.item);
-  setScene({ ...scene(), room: { ...scene().room, drops: [] } });
-  await sleep(350);
-  for (const line of INTRO.pickUp) await say(line);
+  for (const line of INTRO.checkPockets) await say(line);
   await walk(INTRO_PLACES.atFire);
   await say(INTRO.atFire);
 

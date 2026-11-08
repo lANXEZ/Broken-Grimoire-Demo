@@ -8,13 +8,14 @@ const kinds = (s: GameState) => s.cards.hand.map((c) => c.kind);
 const allCards = (s: GameState) => [...s.cards.hand, ...s.cards.deck, ...s.cards.discard].map((c) => c.id).sort((a, b) => a - b);
 
 describe('the opening cutscene', () => {
-  it('room 0 starts empty (no fire, rock or mat), with the grimoire fragment on the floor', () => {
+  it('room 0 starts empty (no fire, rock or mat, nothing on the floor) but for the sealed door', () => {
     const s = introRoom0(room0(), { camp: false });
     expect(s.room.feature).toBeNull();
     expect(s.room.seats).toEqual([]);
     expect(s.room.mat).toEqual([]);
-    expect(s.room.drops.map((d) => coordLabel(d.pos))).toEqual([INTRO_PLACES.item]);
-    expect(coordLabel(s.player.pos)).toBe(INTRO_PLACES.fall);
+    expect(s.room.drops).toEqual([]);
+    expect(coordLabel(s.player.pos)).toBe(INTRO_PLACES.wake);
+    expect(s.room.sealedDoor).toBeTruthy();
   });
 
   it('after the blackout the campfire (out) and the mat are there', () => {
@@ -22,7 +23,6 @@ describe('the opening cutscene', () => {
     expect(s.room.feature?.kind).toBe('campfire');
     expect(s.room.fireLit).toBe(false);
     expect(s.room.mat?.length).toBe(2);
-    expect(introRoom0(room0(), { camp: true, itemTaken: true }).room.drops).toEqual([]);
   });
 
   it('the Cistern has just the one brute', () => {

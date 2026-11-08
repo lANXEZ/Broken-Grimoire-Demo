@@ -5,7 +5,8 @@ import type { DirectionalLight, HemisphereLight } from 'three';
 /**
  * The room's light: the sky light and the sun-like key light, dimmed down when the room is dark (a room the mage
  * walks into for the first time before its torches are lit, room 0 while its fire is out, the opening cutscene).
- * Torches, the campfire and the moonlight have their own lights and glows, so they still show in the dark.
+ * Torches, the campfire and the glowing spell marks by room 0's sealed door have their own lights and glows, so they
+ * still show in the dark.
  *
  * Unit pictures don't take light (they're flat cut-outs), so units read `sceneLight.level` to dim themselves.
  */

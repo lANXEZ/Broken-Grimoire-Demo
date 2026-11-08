@@ -33,33 +33,38 @@ same fixed sequence:
 
 - **Title screen and room 0 (team decision, Nov 5):** the game opens on a title screen (a night forest under the
   moon, the game's name, Start on the right; with a saved run, Continue or New game). A new run opens its eyes (a
-  first-person blink) in **room 0, The Waking Room**: 3×4, a campfire (b2) with a rock to sit on (a2), a corner
-  where the ceiling has collapsed (a3–a4: moonlight, dust and falling gravel; walkable) and a big dungeon door
-  (c4). The mage thinks: *"Dream of outside again… How long have I been stuck here…"* There are no enemies;
+  first-person blink) in **room 0, The Waking Room**: 3×4, a campfire (b2) with a rock to sit on (a2), a big
+  dungeon door (c4), and in the back corner **a door the mage sealed with a string of spells** (a4, team decision,
+  Nov 8): buried under a heap of gravel that blocks the tile, with the spells' marks trailing across the gravel
+  spilled in front (a3, walkable): scorch and embers (Fire), frost shards (Water) and rock spikes (Earth). The mage thinks: *"Dream of outside again… How long have I been stuck here…"* There are no enemies;
   actions and mana never run out and the hand refills after every cast, so it's the place to try spells (casts there
   count for the Grimoire and the "Hmmm..." note; Reroll works too). **The campfire reacts to spells** that reach its
   tile: Water, Earth, Fog and Quicksand put it out; Fire, Unstable Fire and Magma light it again; Wind does nothing.
-  The moonlight comes down through the hole in a "|_\\" shape (straight on the left, fanning out to the right). Click a tile to walk there; walking through the door
+  Click a tile to walk there; walking through the door
   starts the run in the Cistern. Room 0 isn't one of the numbered stops. **The campfire is the room's light:** while
-  it's out, room 0 is dark but for the moonlight (team decision, Nov 6).
+  it's out, room 0 is dark but for the faint glow of the spell marks (team decision, Nov 6).
 - **The opening cutscene and tutorial (team decision, Nov 6):** the first time **Start** is pressed on a computer
   (saved per computer; a **Skip** button jumps straight to the game, and quitting midway plays it again next time).
   The words are in `src/config/introScript.ts`, the order in `src/game/useIntro.ts`. The mage speaks in speech
   bubbles; each line stays until the player presses **Space** (Enter or a click work too):
-  1. The eyes open on room 0, dark and empty (no fire, rock or mat; a grimoire fragment lies at c1). The mage falls
-     through the hole into the moonlight (a3): *"Ahh… What happened?"*, *"Where is this? Why is it so dark?"*,
+  1. The eyes open on room 0, dark and empty (no fire, rock or mat). The mage comes to on the spell trail (a3),
+     knocked out by the last spell that sealed the door, with a few grimoire fragments on them (not noticed yet):
+     *"Ahh… What happened?"*,
+     *"Where is this? Why is it so dark?"*,
      *"Maybe that door leads somewhere."*, and walks through the door.
   2. The Cistern, dark; a second later its torches catch and show **one brute** (e2; the room's rat and other brute
      aren't in the cutscene): *"!!!"*, *"A monster??"*, *"Is that a brute?"* It walks up to the mage step by step:
-     *"That's not good."*, *"Don't come any closer!!"*, *"HERE! ROCK BEAM!!!"* (only a puff of air), *"Huh??"*,
-     *"Wait, where the hell is my grimoire?"*, *"Hell nah."*, *"FIRE BEAM!!!"*, *"ROCK SPEAR!!"* (puffs), and it
-     stops in front of the mage: *"Naw man."*
+     *"That's not good."*, *"Don't come any closer!!"*, then long spells from memory that only puff out without the
+     grimoire: *"SUPREME CRIMSON INFERNO DRAGON-SPIRAL NOVA!!!"* (puff), *"Huh??"*, *"Wait, where the hell is my
+     grimoire?"*, *"Hell nah."*, *"GRAND TERRA COLOSSUS EARTHSHATTER FIST!!"*, *"ETERNAL ABYSSAL TIDE-SERPENT
+     MAELSTROM!!!"* (puffs), and it stops in front of the mage: *"Naw man."*
   3. Back in room 0: a second later the screen's edge flashes red (hurt, off screen), and the mage is thrown back
      out through the door (lands on b3): *"Guess I have to make a plan first."*
   4. Black for a second, then room 0 with the campfire (not lit), the rock and the mat: *"Now, the first problem:
-     how do I light this up?"*, *"…"*, then *"Wait, is that a…"*. The mage walks over and picks up the fragment:
-     *"A fragment of my grimoire!!!"*, *"Why is it torn up like this?"*, *"Hmm, spells are usually just words put
-     together anyway."*, walks to the fire (b1): *"Will this work?"*
+     how do I light this up?"*, *"…"*. The mage calms down and checks what they have on them: *"Calm down.
+     Think."*, *"What do I have on me?"*, *"These… are pages of my grimoire!!!"*, *"Why is it torn up like
+     this?"*, *"Hmm, spells are usually just words put together anyway."*, then walks to the fire (b1): *"Will
+     this work?"*
   5. **Tutorial** (the real game, HUD back on screen, nothing else to do): the hand holds **Fire** and **Beam** (the
      other three are random and can't be picked up). Both glow, with a tip over the next one: *"Drag the fragment and
      place it on the crafting table"*. With both on the table the Cast button glows: *"Select a direction"*. A cast
