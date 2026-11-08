@@ -173,7 +173,6 @@ export function fragmentArt(card: Pick<Card, 'kind' | 'rune'>): string {
 /**
  * The full card for a fragment kind, shown big beside the board while a fragment is hovered (hud/CardPreview.tsx):
  * public/art/info_cards/. Runes have no info card (null).
- * NOTE for the art team: the Wind card says "PUSH 1"; the game pushes 2 (team decision, Nov 4).
  */
 export function infoCardArt(kind: FragmentKind): string | null {
   return kind === 'rune' ? null : artUrl(`info_cards/${kind}.png`);
