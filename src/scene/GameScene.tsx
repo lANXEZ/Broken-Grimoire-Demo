@@ -161,7 +161,7 @@ export function GameScene({
         <CameraShake />
         <SceneLights dark={dark} />
         <Board room={room} exitOpen={exitOpen(state)} exitLabel={stageName(state.stage + 1)} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} torchesLit={torchesLit} doorSign={!bare} />
-        <Hazards hazards={room.hazards} room={room} />
+        <Hazards hazards={room.hazards} room={room} hover={hover} turn={state.turn} cards={!bare} />
         {room.sealedDoor && (
           <SealedDoor pos={room.sealedDoor} trail={room.spellTrail ?? []} room={room} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
         )}
@@ -198,7 +198,6 @@ export function GameScene({
               key={u.key}
               unit={u}
               room={room}
-              pointer={pointer}
               hovered={!!hover && hover.x === u.pos.x && hover.y === u.pos.y}
               showIntents={showIntents}
               runeTint={runeTint}

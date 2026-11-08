@@ -81,6 +81,8 @@ interface HandProps {
  * [UI-PLACEMENT] The hand: fanned fragments at the bottom centre, Slay the Spire style (LAYOUT.hand).
  * Drag a fragment up onto the crafting table, or click it to put it there. Hovering one shows its card beside the
  * board (hud/CardPreview.tsx). In reroll mode, clicking marks fragments to swap instead.
+ * A popped-up rune card's note bubble, and the gap down to the card, count as the card: the pointer can move onto the
+ * note without the card dropping back, and pressing it picks the card up.
  */
 export function Hand({ cards, draggingId, dropHighlight, startDrag, rerollMarked, lifted, disabled, tutorial = null }: HandProps) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -109,7 +111,7 @@ export function Hand({ cards, draggingId, dropHighlight, startDrag, rerollMarked
         return (
           <div
             key={card.id}
-            className={`hand-card ${draggingId === card.id ? 'is-dragging' : ''} ${marked ? 'is-marked' : ''} ${pulled ? 'is-pulled' : ''} ${rerollMarked ? 'is-rerolling' : ''} ${tutorial ? (shut ? 'is-shut' : 'is-tutorial') : ''}`}
+            className={`hand-card ${isHover ? 'is-hover' : ''} ${draggingId === card.id ? 'is-dragging' : ''} ${marked ? 'is-marked' : ''} ${pulled ? 'is-pulled' : ''} ${rerollMarked ? 'is-rerolling' : ''} ${tutorial ? (shut ? 'is-shut' : 'is-tutorial') : ''}`}
             style={style}
             onPointerEnter={() => setHovered(card.id)}
             onPointerLeave={() => setHovered((h) => (h === card.id ? null : h))}

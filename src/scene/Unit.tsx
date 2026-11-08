@@ -9,8 +9,10 @@ import { TIMING } from '../config/timing';
 import { IntentChips, describeIntents } from '../hud/intents';
 import { ThoughtCloud } from '../hud/Thought';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
-import { tileHandlers, type TilePointer } from './Board';
 import { sceneLight } from './Lighting';
+
+/** The unit's meshes never catch the mouse (see the standee picture below). */
+const noRaycast = () => null;
 
 /** Everything the board needs to draw one unit (the player or an enemy). Built in GameScene.tsx. */
 export interface UnitView {
@@ -125,10 +127,9 @@ interface FloatNum {
  * The mage switches poses (config/art.ts MAGE_ART): running while moving, casting or meditating when the scene says
  * so, idle otherwise; and turns to face the way they walk or cast.
  */
-export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = false, thought = null, speech = null, hidden = false, bare = false, flight = null, pose = null, face = null }: {
+export function Unit({ unit, room, hovered, showIntents, runeTint = false, thought = null, speech = null, hidden = false, bare = false, flight = null, pose = null, face = null }: {
   unit: UnitView;
   room: RoomSize;
-  pointer: TilePointer;
   hovered: boolean;
   showIntents: boolean;
   /** HP changes now come from a rune: show them in purple. */
@@ -281,7 +282,6 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
       : PLACEHOLDER_COLORS.unitBase.enemy;
   const S = UNIT_SPRITE;
   const headY = TILE_TOP + S.footY + unit.height + 0.1;
-  const handlers = tileHandlers(unit.pos, pointer);
 
   return (
     <group ref={group}>
@@ -293,9 +293,11 @@ export function Unit({ unit, room, pointer, hovered, showIntents, runeTint = fal
         </mesh>
       </group>
 
-      {/* Standee picture: its feet on the tile (sized and posed in placePicture). */}
+      {/* Standee picture: its feet on the tile (sized and posed in placePicture). It doesn't catch the mouse: a tall
+          picture covers the tiles behind it, so pointing and clicking always go to the floor tile under the pointer.
+          A unit is hovered (its card) and clicked through its own tile. */}
       <Billboard position={[0, TILE_TOP + S.footY, 0]}>
-        <mesh ref={picture} position={[0, unit.height / 2, 0]} scale={[unit.height, unit.height, 1]} {...(bare || hidden ? {} : handlers)}>
+        <mesh ref={picture} position={[0, unit.height / 2, 0]} scale={[unit.height, unit.height, 1]} raycast={noRaycast}>
           <planeGeometry args={[1, 1]} />
           <meshBasicMaterial ref={sprite} map={textures[0]} side={DoubleSide} transparent alphaTest={0.4} toneMapped={false} />
         </mesh>

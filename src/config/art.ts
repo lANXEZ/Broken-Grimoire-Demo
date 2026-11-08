@@ -218,3 +218,6 @@ export const FRAGMENT_COLOR: Record<FragmentKind, string> = {
   wall: '#c9b3f0',
   rune: '#8f86a8',
 };
+
+/** A rune fragment lying on the floor: its gem, halo, floor glow and light are this bright purple. */
+export const RUNE_DROP_GLOW = '#b866ff';

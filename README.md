@@ -46,7 +46,7 @@ pages, and the "Hmmm..." note's card combinations.
 
 | Action | How |
 |---|---|
-| Start | Title screen: **Start** (or **Continue** / **New game** when a run is saved; a run still in room 0 doesn't count). **Quit** closes the game (.exe only). The first time on a computer, Start plays the opening cutscene and tutorial |
+| Start | Title screen: **Start** (or **Continue** / **New game** when a run is saved; a run still in room 0 doesn't count). **Quit** closes the game (in a browser, which won't let the page close its tab, it shows a goodbye screen instead). The first time on a computer, Start plays the opening cutscene and tutorial |
 | Opening cutscene | **Space** (or Enter, or a click) for the mage's next line; **Skip** (top right) jumps straight to the game |
 | Back to the title | In room 0, stand on the sleeping mat and click **Get some rest?** over the pillow |
 | Room 0 | Click any tile to walk there, click the big door to start the run. Spells are free to try: mana and actions never run out, Reroll works, and Water or Earth puts the campfire out (Fire lights it again) |

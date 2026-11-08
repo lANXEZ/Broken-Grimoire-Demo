@@ -32,7 +32,9 @@ same fixed sequence:
 6. **Boss · The Redactor** (8×8)
 
 - **Title screen and room 0 (team decision, Nov 5):** the game opens on a title screen (a night forest under the
-  moon, the game's name, Start on the right; with a saved run, Continue or New game). A new run opens its eyes (a
+  moon, the game's name, Start on the right; with a saved run, Continue or New game; and Quit under them, which
+  closes the game; in a browser, which usually won't let a page close its tab, it shows a goodbye screen instead,
+  with a button back to the title). A new run opens its eyes (a
   first-person blink) in **room 0, The Waking Room**: 3×4, a campfire (b2) with a rock to sit on (a2), a big
   dungeon door (c4), and in the back corner **a door the mage sealed with a string of spells** (a4, team decision,
   Nov 8): buried under a heap of gravel that blocks the tile, with the spells' marks trailing across the gravel
@@ -84,8 +86,8 @@ same fixed sequence:
 - **The sleeping mat and the title (team decision, Nov 5):** the mage wakes up on a rough old sleeping mat in room 0
   (two tiles, a1–b1, a small old pillow at a1; walkable). Standing on it, once the waking thought has gone, a small
   prompt floats over the pillow: *"Get some rest? (Return to menu)"*. Clicking it closes the eyes and goes back to
-  the title screen. A run still in room 0 doesn't count as saved, so the title then shows **Start** (and on the
-  .exe **Quit**, which closes the game); Start wakes the mage in room 0 again.
+  the title screen. A run still in room 0 doesn't count as saved, so the title then shows **Start** (and
+  **Quit**); Start wakes the mage in room 0 again.
 - **Defeat (team decision, Nov 5):** the defeat panel's button says **Continue** (victory keeps New run). Everything
   fades to black, and a line written in the rune alphabet appears in the middle of the screen, letter by letter from
   left to right as if someone were saying it to the mage, with a pause after "Wake up,": *"Wake up, you can't
@@ -127,7 +129,7 @@ moves, attacks and their damage (for example `» ×2` then `⚔ 3`). They **neve
 which path it will take**.
 
 - The preview assumes you end your turn right now, updates after every action you take, and is exact: the monsters
-  do what was shown unless your later actions change the situation. Hover a unit for the same plan in words.
+  do what was shown unless your later actions change the situation. Hover a unit's tile for the same plan in words.
 - **Charging monsters** (the Warden) are the only ones whose attack is marked on the floor: the full line is drawn
   when it charges, and it fires at the start of its next turn.
 - Repeated actions are merged into one chip, and damage values are written on the chip (`3×2` = two hits of 3).
@@ -261,6 +263,9 @@ One hazard per tile; a new one replaces the old.
 | Fire + Earth | **Magma** | Units hit by the cast take 2 damage **and gain Burn** (house rule, see [Build decisions](#build-decisions-nov-4)). A unit that steps onto magma later gains Burn too. Monsters avoid it when pathing. Water on a magma tile turns it back to floor. |
 | Earth + Water | **Quicksand** | 0 damage. A unit on it can't move, attack or cast until it spends 2 actions to escape; escaping removes the puddle. Monsters avoid stepping in (cast it on them or push them in). If nobody escapes, it vanishes after the 3 turns. |
 
+**Hover a hazard's tile** to see a card saying what it does and the end of which of your turns it fades. The card
+sits left of the tile, so it doesn't cover the card of a unit standing in it.
+
 ## Statuses
 
 | Status | Source | Effect |
@@ -290,7 +295,9 @@ bubble, *"Hmm, what is it?"*, with a pencil: click it to write what you think th
 cancels). A note belongs to the rune's **symbol**, so every card with that symbol shares it, in every run on that
 computer (the meanings are fixed per computer too). Notes can be edited on any rune card in the hand, on the crafting
 table, or in the **Deck** view (top bar, or D), which lists every card you own. The game never fills a note in
-itself, and never says whether a note is right.
+itself, and never says whether a note is right. While a rune card in the hand is popped up under the mouse, its note
+bubble counts as part of the card: the mouse can move up onto the note without the card dropping back, and pressing
+the note (anywhere but the pencil) picks the card up like pressing the card.
 
 - **Six runes (team decision, Nov 9):** the art team drew 6 rune fragments, so the game has 6 runes: Widen and
   Backfire were cut. Each rune card is drawn as its own fragment (`rune1`–`rune6` in `public/art/spell_fragments/`).
@@ -325,7 +332,7 @@ Cut on Nov 9 (no fragment art): Widen (the shape grows 1 tile on each side) and 
 |---|---|
 | **Pillar** | **2 HP.** Any hit or collision removes 1; a destroyed pillar becomes open floor. Blocks movement, line of sight, Archer shots, the Warden's line and spells. |
 | **Hole** | No unit walks into one. A unit **pushed** into a hole dies instantly (you included: game over), and its loot is lost. The Warden and the Redactor are too big to fall in: the hole stops them at its edge like the wall (1 damage). |
-| **Drops** | Every monster that dies, whoever killed it, leaves a small bobbing item icon on its tile. Walk onto it to pick it up: a fragment goes to your discard pile; a Scrap's carried cards go back to your hand. |
+| **Drops** | Every monster that dies, whoever killed it, leaves a small bobbing item icon on its tile. One holding a rune glows bright purple, with a pulsing halo and a pool of purple light on the floor. Walk onto it to pick it up: a fragment goes to your discard pile; a Scrap's carried cards go back to your hand. |
 | **Marked line** | The Warden's line, which fires 5 dmg at the start of its next turn. |
 | <a id="erasure-zone"></a>**Erasure Zone** | Left by the Redactor's Chaos-mode explosions: the 3×3 block around it, its own tile included. Several zones add up. If you end your turn inside one, a random fragment from your hand is erased: gone for good, not discarded (the top card of your deck if your hand is empty). Then the zones fade. |
 | **Hazards** | Fog, Magma and Quicksand from [merges](#element-merges). There are no separate traps in the demo. |
@@ -350,6 +357,9 @@ Cut on Nov 9 (no fragment art): Widen (the shape grows 1 tile on each side) and 
   unit stands behind them or the mouse is near them, so nothing hides behind the scenery. While faded, the mouse
   passes through them to the tiles and units behind, so the player can peek behind a pillar and spot anything placed
   there.
+- **Units don't catch the mouse.** A unit's picture stands tall and covers the tiles behind it, so pointing, aiming
+  and clicking always go to the floor tile under the mouse. To point at a unit (its card, or K in dev mode), point at
+  the tile it stands on.
 - **Marked line:** pulsing red tiles. **Erasure Zone:** dark violet tiles with a throbbing purple edge, drawn over
   the move highlights (Nov 6: it used to be near-black under them and was easy to miss).
 - **Badges** beside the HP bar under each unit: the Burn icon with the turns left, the Root icon, the Stun icon;

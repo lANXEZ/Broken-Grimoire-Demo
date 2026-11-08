@@ -1239,6 +1239,18 @@ button {
 .unit-card-plan {
   color: #f6e2b0;
 }
+/* A hazard's hover card: left of its tile (a unit's card sits right), edged in the hazard's colour. */
+.hazard-card {
+  transform: translate(calc(-100% - 2.5rem), -50%);
+}
+.hazard-card.is-fog { border-color: #d9dde6; }
+.hazard-card.is-magma { border-color: #ff5a1f; }
+.hazard-card.is-quicksand { border-color: #c9a25a; }
+.hazard-card-fades {
+  margin: 0.35rem 0 0;
+  color: var(--ink-dim);
+  font-style: italic;
+}
 
 /* ------------------------------------------------------------------ dialogs */
 
@@ -1988,6 +2000,19 @@ button {
 .rune-thought.is-editing {
   z-index: 60;
 }
+/* A popped-up hand card: its note bubble and the gap below it catch the mouse as part of the card. */
+.hand-card.is-hover .rune-thought {
+  pointer-events: auto;
+}
+.hand-card.is-hover .rune-thought::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: -1.3em;
+  z-index: -2;
+}
 .rune-thought-input {
   width: 100%;
   min-height: 2.6em;
@@ -2637,6 +2662,30 @@ button {
   text-align: center;
   color: #f3e6c8;
   text-shadow: 0 0.1rem 0.4rem #000;
+}
+.title-goodbye {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: #000a;
+  font-family: 'Cinzel', serif;
+  font-size: clamp(1.8rem, 3.5vw, 3rem);
+  color: #e9dcc0;
+  text-shadow: 0 0.3rem 1rem #000;
+}
+.title-goodbye p {
+  margin: 0;
+}
+.title-goodbye .title-goodbye-hint {
+  margin-bottom: 1.2rem;
+  font-family: 'Kreon', serif;
+  font-size: 1.1rem;
+  color: #f3e6c8aa;
 }
 .title-credit {
   position: absolute;
