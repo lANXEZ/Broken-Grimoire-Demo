@@ -71,8 +71,10 @@ function load(): GameState {
   // Saves from before the "Hmmm..." note existed get this computer's note.
   if (isUsableSave(saved)) {
     const s: GameState = { ...saved, runeMap: runeMap(), combos: Array.isArray(saved.combos) ? saved.combos : savedCombos(), event: saved.event ?? null };
-    // Saved at the lectern or the camp before they had rooms of their own: start that stop again.
-    return (s.phase === 'event' || s.phase === 'camp') && (!s.event || !s.room.feature) ? restartStage(s) : s;
+    // Saved at the lectern or the camp before they had rooms of their own, or in room 0 before it had its sealed
+    // door: start that stop again.
+    const stale = ((s.phase === 'event' || s.phase === 'camp') && (!s.event || !s.room.feature)) || (s.room.id === 'prologue' && !s.room.sealedDoor);
+    return stale ? restartStage(s) : s;
   }
   return newGame();
 }

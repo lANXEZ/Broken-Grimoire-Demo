@@ -96,22 +96,26 @@ export const LECTERN_ROOM = {
 } as const;
 
 /**
- * Room 0, the prologue (team decision, Nov 5): where a new run wakes up. 3x4, a campfire with a rock to sit on, a
- * corner where the ceiling has collapsed (moonlight, dust and gravel come down: walkable), and the big dungeon door.
+ * Room 0, the prologue (team decision, Nov 5): where a new run wakes up. 3x4, a campfire with a rock to sit on, the big
+ * dungeon door, and in the back corner a second door the mage sealed with a string of spells (Nov 8): buried under a
+ * heap of gravel that blocks its tile, with the spells' marks trailing across the gravel spilled in front.
  * No enemies; actions and mana never run out and the hand refills after every cast, so it's the place to try spells.
  * Going through the door starts the run (the Cistern). It isn't one of the run's numbered stops.
  */
 export const PROLOGUE_ROOM = {
   id: 'prologue',
   name: 'The Waking Room',
-  blurb: 'Where you wake, again. A dying fire, a rock to sit on, and the moon through a hole in the ceiling.',
+  blurb: 'Where you wake, again. A dying fire, a rock to sit on, and a door buried under gravel and spell scars.',
   width: 3,
   height: 4,
   start: 'a1',
   feature: 'b2',
   read: 'b1',
   seats: ['a2'],
-  moonlight: ['a3', 'a4'],
+  /** The sealed door, under its gravel heap (blocks the tile). */
+  sealedDoor: 'a4',
+  /** In front of it: spilled gravel and the spells' marks (walkable). */
+  spellTrail: ['a3'],
   /**
    * The sleeping mat the mage wakes up on: two tiles, pillow end first (walkable). Standing on it offers
    * "Get some rest?" (back to the title).

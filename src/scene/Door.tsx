@@ -16,7 +16,7 @@ import { tileHandlers, type TilePointer } from './Board';
  *   gold arrow bobs above it under an EXIT sign naming where it leads. Hard to miss on purpose.
  * The archway is an <Obstacle> (it fades like a pillar); the portal, beam, arrow and sign never hide anything.
  */
-const ARCH = { width: 0.86, height: 1.05, post: 0.13, opening: 0.6 } as const;
+export const ARCH = { width: 0.86, height: 1.05, post: 0.13, opening: 0.6 } as const;
 /** Heights above the tile: the bobbing arrow, the EXIT sign's centre, and the sign's top edge (roughly). */
 const ARROW_Y = 1.38;
 const SIGN_Y = 1.66;

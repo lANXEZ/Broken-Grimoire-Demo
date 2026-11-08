@@ -85,8 +85,6 @@ export const PLACEHOLDER_COLORS = {
   campLight: '#ffb066',
   campSmoke: '#8a8580',
   campSteam: '#e8ecf0',
-  /** Room 0's collapsed corner (scene/Moonlight.tsx). */
-  moonlight: '#b9cdff',
   // Room 0's sleeping mat: old straw, darker woven bands and worn patches, a dirty off-white pillow.
   matStraw: '#8f7a52',
   matWeave: '#6f5d3c',
@@ -100,8 +98,21 @@ export const PLACEHOLDER_COLORS = {
   torchFlame: '#ff8a2a',
   torchFlameCore: '#ffe08a',
   torchLight: '#ffa04d',
-  moonDust: '#e6eeff',
   rubble: '#7a7067',
+  /**
+   * Room 0's sealed door (scene/SealedDoor.tsx): charred wood and its cracks, the gravel heap, and the marks the spells
+   * left on it: scorch and embers (Fire), frost (Water), rock spikes (Earth), and the faint motes off the spikes.
+   */
+  sealedWood: '#4a3220',
+  sealedCrack: '#120a06',
+  rubbleLight: '#968a7c',
+  scorch: '#0d0806',
+  scorchedStone: '#3b3029',
+  ember: '#ff7a2a',
+  frost: '#9fd8ff',
+  frostedStone: '#c9d8e2',
+  earthSpike: '#6b5a48',
+  earthSpark: '#d9b27a',
   hole: '#060405',
   holeRim: '#241b16',
   unitBase: { player: '#d8b55a', enemy: '#8b2e2a' },

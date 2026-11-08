@@ -64,12 +64,11 @@ export const TIMING = {
   /** The Whispering Lectern: "Ah! How???" stays up this long before the rune is shown. */
   lecternOuch: 1500,
   /**
-   * The opening cutscene (game/useIntro.ts): a step when the mage walks, the fall through the hole, being thrown
+   * The opening cutscene (game/useIntro.ts): a step when the mage walks, being thrown
    * out of the door, a fade to black (and the longer black before the campfire appears), the pause after a
    * tutorial cast before the mage reacts, and the eyes closing on the mat at the end.
    */
   introWalkStep: 300,
-  introFall: 520,
   introThrow: 650,
   introBlackFade: 600,
   introCampBlack: 1000,

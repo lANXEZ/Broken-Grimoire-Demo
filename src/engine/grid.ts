@@ -78,9 +78,10 @@ export function onOpenExit(state: GameState): boolean {
   return exitOpen(state) && samePos(state.room.exit!, state.player.pos);
 }
 
-/** The lectern, the campfire or one of its logs: furniture that blocks its tile. */
+/** The lectern, the campfire or one of its logs, or room 0's sealed door: furniture that blocks its tile. */
 export function isFurniture(state: GameState, p: Pos): boolean {
-  return (!!state.room.feature && samePos(state.room.feature.pos, p)) || (state.room.seats ?? []).some((q) => samePos(q, p));
+  const r = state.room;
+  return (!!r.feature && samePos(r.feature.pos, p)) || (r.seats ?? []).some((q) => samePos(q, p)) || (!!r.sealedDoor && samePos(r.sealedDoor, p));
 }
 
 /** Can a unit step onto this tile? Pillars, furniture, holes and other units block. */

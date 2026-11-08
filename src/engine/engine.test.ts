@@ -841,14 +841,18 @@ describe('the run', () => {
     const wake = () => createGame(7, { prologue: true });
     const walkTo = (s: GameState, coord: string) => (freeWalkPath(s, parseCoord(coord)) ?? []).reduce((st, p) => freeStep(st, p), s);
 
-    it('is a 3\u00d74 room with a campfire, a rock, a collapsed corner and the big door; no enemies, never cleared', () => {
+    it('is a 3\u00d74 room with a campfire, a rock, the sealed door and the big door; no enemies, never cleared', () => {
       const s = wake();
       expect([s.room.width, s.room.height, s.stage, s.phase]).toEqual([3, 4, -1, 'player']);
       expect(isPrologue(s)).toBe(true);
       expect(coordLabel(s.player.pos)).toBe('a1');
       expect(s.room.feature).toMatchObject({ kind: 'campfire' });
       expect(labels(s.room.seats)).toEqual(['a2']);
-      expect(labels(s.room.moonlight ?? [])).toEqual(['a3', 'a4']);
+      expect(coordLabel(s.room.sealedDoor!)).toBe('a4');
+      expect(labels(s.room.spellTrail ?? [])).toEqual(['a3']);
+      // The gravel heap blocks the sealed door's tile; the trail in front of it is walkable.
+      expect(isWalkable(s, parseCoord('a4'))).toBe(false);
+      expect(isWalkable(s, parseCoord('a3'))).toBe(true);
       expect(coordLabel(s.room.exit!)).toBe('c4');
       expect(s.enemies).toEqual([]);
       expect(s.cards.hand).toHaveLength(5);

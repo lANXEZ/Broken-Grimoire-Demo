@@ -43,7 +43,7 @@ export interface UnitView {
 
 /**
  * A unit flying onto its tile instead of walking (the opening cutscene): dropping in from `height` tiles above it
- * (`from` null: the mage falling through room 0's hole), or thrown from the `from` tile along an arc `height`
+ * (`from` null), or thrown from the `from` tile along an arc `height`
  * tiles high. Plays once per `id`, over `ms`.
  */
 export interface Flight {

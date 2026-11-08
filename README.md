@@ -87,7 +87,7 @@ pages, and the "Hmmm..." note's card combinations.
 | Animation speeds | `src/config/timing.ts` |
 | Spell effects (timing, size, colours, camera shake on/off) | `src/config/fx.ts`; the effects themselves are in `src/scene/SpellFx.tsx` |
 | Balance numbers, enemies, rooms, the run order | `src/engine/data.ts` (`RULES`, `ENEMY_DEFS`, `ROOMS`, `RUN`) |
-| Room 0's layout (campfire, moonlight, the sleeping mat's tiles) | `src/engine/data.ts` (`PROLOGUE_ROOM`); the mat's look and its "Get some rest?" prompt are `src/scene/Mat.tsx` |
+| Room 0's layout (campfire, sealed door and its spell trail, the sleeping mat's tiles) | `src/engine/data.ts` (`PROLOGUE_ROOM`); the mat's look and its "Get some rest?" prompt are `src/scene/Mat.tsx` |
 | Rune cards' made-up names | `src/engine/runes.ts` (`RUNE_SYMBOLS`) |
 | The rune alphabet (cipher) and its symbols | `src/engine/cipher.ts` (`CIPHER_SYMBOLS`, how clashes are handled); saved per computer in `src/game/runeMap.ts` |
 | Hidden messages' English text (e.g. the line after a defeat) | `src/config/runeMessages.ts`; the black screen after a defeat is `FateScreen` in `src/hud/TitleScreen.tsx`, its timing `fate*` in `src/config/timing.ts` |
