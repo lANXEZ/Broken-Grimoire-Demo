@@ -276,9 +276,9 @@ keep your own notes; the game never records them.
 **How a rune cast looks (team decision, Nov 4):** it plays in two parts so the player can see what the rune
 did. First the spell itself, exactly as if the rune weren't there. Then the rune's symbol glows purple on the 3×3
 floor around the mage, and the rune's own part plays in purple, with its damage and healing in purple numbers
-(Echo replays the spell, Amplify strikes each target, Widen hits the extra tiles, Siphon draws wisps back to you,
-Volatile blasts the targets again and lashes back, Free returns the mana and takes the HP, Backfire hits your tile,
-Fizzle: no spell part, just the glow and purple smoke). A rune on a table that makes no spell only puffs grey
+(Echo replays the spell, Amplify strikes each target, Siphon draws wisps back to you, Volatile blasts the targets
+again and lashes back, Free returns the mana and takes the HP, Fizzle: no spell part, just the glow and purple
+smoke). A rune on a table that makes no spell only puffs grey
 smoke: no glow, since the cards failed, not the rune. The result is the same as before; only the showing changed.
 Space or a click skips to the end.
 
@@ -289,28 +289,32 @@ computer (the meanings are fixed per computer too). Notes can be edited on any r
 table, or in the **Deck** view (top bar, or D), which lists every card you own. The game never fills a note in
 itself, and never says whether a note is right.
 
-- **Fixed but random:** on first launch the game randomly assigns the 8 meanings to the 8 symbols and saves that
+- **Six runes (team decision, Nov 9):** the art team drew 6 rune fragments, so the game has 6 runes: Widen and
+  Backfire were cut. Each rune card is drawn as its own fragment (`rune1`–`rune6` in `public/art/spell_fragments/`).
+  The art team's symbols aren't the rune alphabet below; for the demo a rune card simply shows its fragment, and the
+  alphabet is only used for the hidden messages. Saves from before keep working: an old 8-rune mapping is replaced
+  by a new 6-rune one, and rune cards 7 and 8 in a saved run become runes still in the game.
+- **Fixed but random:** on first launch the game randomly assigns the 6 meanings to the 6 rune cards and saves that
   mapping. It then stays the same for every run on that computer, so notes keep working.
 - **The rune alphabet (team decision, Nov 5):** a secret cipher. On first launch every computer also gets its own
   random alphabet: each English letter A–Z gets a different rune symbol (drawn from 33: the 24 Elder Futhark runes
-  and 9 Anglo-Saxon ones). A rune card shows the symbol for the first letter of what it does (Amplify shows A's
-  symbol). When two runes start with the same letter (Free and Fizzle), the second gets an extra symbol that also
-  means that letter, so no two rune cards look alike. Players who work out the runes learn part of the alphabet,
-  which lets them read the developer's hidden messages: English text the game writes in the same symbols (always
-  a letter's first symbol). The made-up name (Vreth, Ulmo, …) stays with the shuffled card and tells you nothing.
+  and 9 Anglo-Saxon ones). The developer's hidden messages are English text written in these symbols (always a
+  letter's first symbol). Each rune effect also has a symbol (the first letter of what it does; Free and Fizzle get
+  different ones), which the drawn stand-in rune card shows if its fragment picture fails to load. Since Nov 9 the
+  rune cards show the art team's fragments instead, so they no longer teach the alphabet. The made-up name (Vreth, Ulmo, …) stays with the shuffled card and tells you nothing.
   Saved like the mapping; a rune added in a later version just gets a symbol added to the saved alphabet.
 - **Sources:** up to 2 from the event and 1 from the Warden, so at most 3 per run. **Never a random drop.**
 
-| Effect (proposed) | Type |
+| Effect | Type |
 |---|---|
 | Echo: the spell casts twice | Good |
 | Amplify: +2 damage | Good |
-| Widen: the shape grows 1 tile on each side | Good |
 | Siphon: heal 1 HP per enemy hit | Good |
 | Volatile: double damage, but you take 2 damage | Risky |
 | Free: costs 0 mana, but you lose 2 HP | Risky |
-| Backfire: the spell centres on you instead | Bad |
 | Fizzle: nothing happens; mana and cards are spent | Bad |
+
+Cut on Nov 9 (no fragment art): Widen (the shape grows 1 tile on each side) and Backfire (the spell hits you too).
 
 ## The board
 
@@ -526,7 +530,7 @@ section wins.
 | Several units pushed | The **farthest from you moves first**, so a line of units slides together instead of bumping into each other. |
 | Pushes over hazards | Sliding into **Quicksand stops the push** there (the unit is stuck). Sliding over or onto **Magma burns**. |
 | Holes | Holes don't block spells, sight or shots; only walking. |
-| You and statuses | Only Backfire can Root or Stun you. A Stunned mage can't cast; a Rooted one can't move. On your own turn the effect lasts for the rest of it and your next turn. |
+| You and statuses | Nothing Roots or Stuns you now (only the cut Backfire rune could). A Stunned mage can't cast; a Rooted one can't move. |
 
 **Merges and hazards**
 
@@ -559,8 +563,6 @@ section wins.
 | Cost shown | Always the spell's cost + 1, even for Free, so the button never gives a rune away. The preview never shows a rune's effect. |
 | Echo | The same tiles are hit a second time, right after the first (pushed units may have moved). |
 | Amplify, Volatile | Amplify gives Wind 2 damage. Volatile doubles 0 to 0 but still hurts you. |
-| Widen | Beam gains two side lanes; Cross gains the diagonals (a doubled Cross: the 5×5 without its corners); Wall becomes 5 wide. |
-| Backfire | The spell resolves normally **and** hits you too (damage and effect; a Wind push along the cast direction). |
 | Siphon | Heals 1 per enemy affected (not immune), up to max HP. |
 | Which rune you get | A random symbol you don't already hold this run. |
 | Event | Read aloud can't take you below 1 HP. Runes go into your deck. |
@@ -580,6 +582,8 @@ section wins.
 | Hmmm... and rune notes | Team decisions (Nov 4), not in the design: see ["Hmmm..."](#hmmm-the-spell-note) and [Runes](#runes). The Grimoire is unchanged (pages per element + shape). |
 | Stronger Wind | **Team decision (Nov 4), not in the design** (which had push 1 / push 2): Wind pushes 2 tiles, and doubled Wind pushes until the target hits something, taking the usual 1 collision damage. |
 | Wind pushes the Warden and the Redactor | **Team decision (Nov 8), not in the design** (where massive units can't be pushed): Wind pushes them like any monster; Archer arrows still can't. They're too big to fall into a hole: it stops them at its edge like the wall (1 damage). Pushing the Warden off its tile cancels its marked line. |
+| Fragment and unit art | **Art team (Nov 9):** the hand holds torn grimoire pages (`public/art/spell_fragments/`), not cards; hovering one (in the hand or on the crafting table) shows its full card big, right of the board (`public/art/info_cards/`; a rune shows its page, name and your note instead). Units are the art team's full-body drawings: monsters from `public/art/sprites/`, the mage from `public/art/mc/` with four poses: running while walking, casting while their spell plays, meditating for a moment after Meditate and while on the sleeping mat, idle otherwise; the mage turns to face the way they walk or cast. **The Wind info card says "PUSH 1"; the game pushes 2. The art team should change it to "PUSH 2".** |
+| Six runes | **Team decision (Nov 9):** Widen and Backfire were cut, so each of the 6 rune fragments the art team drew is one rune card. See [Runes](#runes). |
 | Magma burns on landing | **Team decision (Nov 4), not in the design:** units the Magma cast hits gain Burn 3 right away (after its 2 damage, if they survive), not only units that step onto it later. Page Wards stay fully immune. On screen, every unit that catches fire shows a flame burst and a *Burn 3* pop-up, and each Burn tick shows its damage with the Burn icon. |
 
 > **Note for the team:** Erasure Zones fade at the end of your turn and Page Scraps act before the Redactor, so a

@@ -1300,6 +1300,120 @@ button {
   }
 }
 
+/* ------------------------------------------------------------------ fragments: torn grimoire pages (config/art.ts fragmentArt) */
+
+/* A fragment is a cut-out page, not a card: no frame, no box shadow; highlights glow around the paper's edge. */
+.fragment-card.is-fragment {
+  position: relative;
+  container-type: size;
+  overflow: visible;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  outline: none;
+}
+.fragment-card.is-fragment img {
+  object-fit: contain;
+  filter: drop-shadow(0 0.3rem 0.45rem #000b);
+}
+.fragment-card.is-fragment .kit-seal {
+  top: auto;
+  bottom: 16cqh;
+  right: 20cqw;
+  width: 16cqw;
+  height: 16cqw;
+}
+.fragment-card.is-fragment .kit-seal::after {
+  font-size: 8cqw;
+}
+.hand-card.is-marked .fragment-card.is-fragment,
+.hand-card.is-pulled .fragment-card.is-fragment,
+.table-card:hover .fragment-card.is-fragment,
+.pickup-card .fragment-card.is-fragment {
+  outline: none;
+  box-shadow: none;
+}
+.hand-card.is-marked .fragment-card.is-fragment img {
+  filter: drop-shadow(0 0 0.25rem #ffbf4a) drop-shadow(0 0 0.7rem #ffbf4a);
+}
+.hand-card.is-pulled .fragment-card.is-fragment img {
+  filter: drop-shadow(0 0 0.25rem #d9c8f5) drop-shadow(0 0 0.8rem #c9b3f0);
+}
+.table-card:hover .fragment-card.is-fragment img {
+  filter: drop-shadow(0 0 0.2rem #ffe39a) drop-shadow(0 0.25rem 0.4rem #000a);
+}
+.pickup-card .fragment-card.is-fragment img {
+  filter: drop-shadow(0 0 1rem #ffe2a0aa) drop-shadow(0 0.6rem 1rem #000c);
+}
+.hand-card.is-tutorial .fragment-card.is-fragment {
+  animation: none;
+}
+.hand-card.is-tutorial .fragment-card.is-fragment img {
+  animation: fragment-glow 1.2s ease-in-out infinite;
+}
+@keyframes fragment-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0.3rem #ffd36b88);
+  }
+  50% {
+    filter: drop-shadow(0 0 0.5rem #ffd36b) drop-shadow(0 0 1.2rem #ffd36bcc);
+  }
+}
+
+/* [UI-PLACEMENT] LAYOUT.cardPreview: the hovered fragment's card, big, right of the board. */
+.card-preview {
+  position: fixed;
+  right: var(--preview-right);
+  top: var(--preview-top);
+  width: var(--preview-w);
+  z-index: 60;
+  pointer-events: none;
+  animation: preview-in 0.12s ease-out;
+}
+.card-preview img {
+  display: block;
+  width: 100%;
+  filter: drop-shadow(0 0.6rem 1.2rem #000d);
+}
+.card-preview.is-rune {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+.card-preview.is-rune img {
+  width: 82%;
+}
+.card-preview-name {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: 0.06em;
+  color: #e9d9b4;
+  text-shadow: 0 0.1rem 0.4rem #000;
+}
+.card-preview-note {
+  max-width: 100%;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.6rem;
+  background: #f4efe4;
+  color: #2b1f16;
+  font-size: 0.95rem;
+  text-align: center;
+  box-shadow: 0 0.3rem 0.8rem #000a;
+}
+.card-preview-note.is-empty {
+  color: #8a7f70;
+  font-style: italic;
+}
+@keyframes preview-in {
+  from {
+    opacity: 0;
+    transform: translateX(0.6rem);
+  }
+}
+
 /* ------------------------------------------------------------------ placeholder cards (no art yet) */
 
 /* Wind, Wall and runes have no kit art: a parchment card with the name in its colour (config/art.ts FRAGMENT_COLOR). */
@@ -1351,123 +1465,7 @@ button {
   background: #9c2a22;
   box-shadow: inset 0 0 0 0.15em #c2463b;
 }
-/* Wind and Wall, drawn in the printed kit's card layout (hud/KitCard.tsx). Sizes are container units so the card
-   scales like an image: cqw = % of the card's width, cqh = % of its height. */
-.fragment-card.has-art,
-.fragment-card.kit-card {
-  position: relative;
-  container-type: size;
-}
-.fragment-card.kit-card {
-  background: #1f150e;
-}
-/* The thin light edge around the printed cards' dark frame (a child, so cqw measures this card). */
-.fragment-card.kit-card::before {
-  content: '';
-  position: absolute;
-  inset: 0.6cqw;
-  border: 0.45cqw solid #d9c8a4;
-  border-radius: 0.45rem;
-}
-.kit-paper {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10.5cqh 8cqw 10cqh;
-  box-sizing: border-box;
-  background:
-    radial-gradient(circle at 78% 82%, #e6dac466 0 9cqw, transparent 9.3cqw),
-    radial-gradient(circle at 25% 20%, #fdf9ef, transparent 65%),
-    repeating-linear-gradient(0deg, transparent 0 5.4cqh, #b8a7891c 5.4cqh 5.75cqh),
-    #f2e9d6;
-  color: #231810;
-  text-align: center;
-}
-.kit-label {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 3.6cqw;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #3b2c20;
-}
-.kit-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 78cqw;
-  height: 8.6cqh;
-  margin-top: 2.4cqh;
-  transform: rotate(-1deg);
-  background:
-    repeating-linear-gradient(0deg, transparent 0 1.1cqh, #ffffff30 1.1cqh 1.4cqh),
-    linear-gradient(90deg, transparent, var(--kit-banner) 5%, var(--kit-banner) 93%, transparent);
-  border-radius: 1.2cqw 3cqw 1.5cqw 2.5cqw;
-}
-.kit-banner span {
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 9.2cqw;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  color: #2b1f16;
-  transform: rotate(1deg);
-}
-.kit-picture {
-  width: 76cqw;
-  height: 25cqh;
-  margin-top: 3cqh;
-}
-.kit-picture svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.kit-body {
-  margin-top: 2.2cqh;
-  font-size: 5.3cqw;
-  line-height: 1.25;
-}
-.kit-body b {
-  font-weight: 700;
-}
-.kit-doubled {
-  margin-top: 2.6cqh;
-  font-size: 4.1cqw;
-  line-height: 1.3;
-  font-style: italic;
-  color: #5b4a3b;
-}
-.kit-chip {
-  margin-top: auto;
-  padding: 0.7cqh 2.6cqw 0.5cqh;
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: 4.1cqw;
-  text-transform: uppercase;
-  color: var(--kit-ink);
-  border: 0.5cqw solid var(--kit-ink);
-  border-radius: 1.2cqw;
-  background: color-mix(in srgb, var(--kit-banner) 45%, transparent);
-}
-.kit-card.is-loot .kit-chip {
-  color: #4a3424;
-  border-color: #4a3424;
-  background: #e8dcc5;
-}
-/* The punched holes down the left edge of the dark frame. */
-.kit-holes {
-  position: absolute;
-  left: 0.9cqw;
-  top: 7cqh;
-  bottom: 7cqh;
-  width: 1.6cqw;
-  background: radial-gradient(circle, #e9dfc9 0 32%, transparent 38%) 0 0 / 1.6cqw 6.6cqh repeat-y;
-  opacity: 0.85;
-}
-/* The red wax seal on loot cards (also drawn over kit art that has no loot version, like Cross). */
+/* The red wax seal on loot fragments (sizes in container units of the fragment). */
 .kit-seal {
   position: absolute;
   top: 8.6cqh;

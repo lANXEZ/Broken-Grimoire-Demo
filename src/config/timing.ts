@@ -31,6 +31,8 @@ export const TIMING = {
   restClose: 1100,
   eyesClose: 455,
   wakeBlink: 1820,
+  /** How long the mage holds their meditating pose after Meditate (scene/Unit.tsx). */
+  meditatePose: 1400,
   wakeThought: 5500,
   /**
    * After a defeat (Continue): the screen fades to black, then the rune message appears left to right as if someone

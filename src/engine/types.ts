@@ -11,7 +11,7 @@ export type Dir = 'up' | 'down' | 'left' | 'right';
 export type EnemyKind = 'rat' | 'archer' | 'brute' | 'leech' | 'warden' | 'ward' | 'scrap' | 'redactor';
 
 /** What a rune does. The player never sees these names: runes show only their gibberish symbol. */
-export type RuneEffect = 'echo' | 'amplify' | 'widen' | 'siphon' | 'volatile' | 'free' | 'backfire' | 'fizzle';
+export type RuneEffect = 'echo' | 'amplify' | 'siphon' | 'volatile' | 'free' | 'fizzle';
 
 /** What a fragment card is: an element, a shape or a rune. */
 export type FragmentKind = Element | Shape | 'rune';

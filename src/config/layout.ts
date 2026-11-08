@@ -10,7 +10,7 @@
  *   ┌─────────────────────────────────────────────────────────────┐
  *   │ HP · Grimoire          Room name                Turn · Menu │  topBar
  *   │                                                             │
- *   │                     ◇ isometric board ◇                     │  board
+ *   │                     ◇ isometric board ◇           ╭card╮    │  board / cardPreview (the hovered fragment)
  *   │                                                             │
  *   │            [ crafting table ............ ]  [CAST]          │  craftingTable + castButton (or CLEARED! / Climb out)
  *   │ (mana orb)                                       [Reroll]   │  manaOrb / reroll
@@ -83,6 +83,12 @@ export const LAYOUT = {
    */
   pickup: { top: 400, cardWidth: 150, cardHeight: 210 },
 
+  /**
+   * The card of the fragment under the pointer (hud/CardPreview.tsx): big, in the empty space right of the board
+   * (inside `board.sideMargin`), above the Reroll button. `width` sets its size; the height follows the card art.
+   */
+  cardPreview: { right: 16, top: 140, width: 236 },
+
   /** Loot and error toasts, under the top bar on the right. */
   toasts: { top: 84, right: 24, width: 380 },
 
@@ -150,6 +156,9 @@ export function layoutCssVars(): Record<string, string> {
     '--pickup-top': px(L.pickup.top),
     '--pickup-card-w': px(L.pickup.cardWidth),
     '--pickup-card-h': px(L.pickup.cardHeight),
+    '--preview-right': px(L.cardPreview.right),
+    '--preview-top': px(L.cardPreview.top),
+    '--preview-w': px(L.cardPreview.width),
     '--toasts-top': px(L.toasts.top),
     '--toasts-right': px(L.toasts.right),
     '--toasts-w': px(L.toasts.width),

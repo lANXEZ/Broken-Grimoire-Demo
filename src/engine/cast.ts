@@ -125,7 +125,7 @@ export function playerCast(state: GameState, cardIds: number[], dir: Dir | null,
 
 /** The spell takes effect: damage, statuses, pushes and hazards on its area, then the Grimoire. */
 function resolveSpell(s: GameState, spell: Spell, dir: Dir | null, rune: RuneEffect | null): void {
-  const area = spellArea(s, spell, dir, rune);
+  const area = spellArea(s, spell, dir);
   const passes = rune === 'echo' ? 2 : 1;
   let hits = 0;
   for (let i = 0; i < passes; i++) {
@@ -172,7 +172,7 @@ function applyArea(s: GameState, spell: Spell, area: SpellArea, rune: RuneEffect
     .map((t) => ({ t, e: enemyAt(s, t.pos) }))
     .filter((x): x is { t: (typeof area.tiles)[number]; e: Enemy } => !!x.e)
     .sort((a, b) => manhattan(b.t.pos, origin) - manhattan(a.t.pos, origin));
-  if (targets.length === 0 && !area.self) log(s, 'player', 'The spell hits no one.');
+  if (targets.length === 0) log(s, 'player', 'The spell hits no one.');
 
   let hits = 0;
   for (const { t, e } of targets) {
@@ -191,18 +191,6 @@ function applyArea(s: GameState, spell: Spell, area: SpellArea, rune: RuneEffect
       log(s, 'player', `${enemyName(e)} is caught in the magma and catches fire (Burn ${RULES.burnTicks}).`);
     }
     if (s.phase === 'lost' || s.phase === 'won') return hits;
-  }
-
-  // Backfire: the caster is hit too.
-  if (area.self) {
-    log(s, 'player', 'The spell backfires onto YOU!');
-    if (dmg > 0) damagePlayer(s, dmg, source, 'player');
-    if (s.phase === 'lost') return hits;
-    if (spell.kind === 'basic') applyElement(s, 'player', spell, area.self.push, push);
-    if (hazard === 'magma') {
-      s.player.status.burn = RULES.burnTicks;
-      log(s, 'player', `YOU catch fire in your own magma (Burn ${RULES.burnTicks}).`);
-    }
   }
 
   const tiles = area.tiles.map((t) => t.pos);
@@ -294,7 +282,7 @@ export interface CastFx {
   rune: RuneEffect | null;
   dir: Dir | null;
   origin: { x: number; y: number };
-  /** The real area (Widen, Backfire included); null for a fizzle. */
+  /** The area the spell hit; null for a fizzle. */
   area: SpellArea | null;
   /** 2 with Echo. */
   passes: number;
@@ -315,7 +303,7 @@ export function castFx(state: GameState, cardIds: number[], dir: Dir | null, opt
     return { kind: 'fizzle', spell: combo.kind === 'spell' ? combo.spell : null, rune, runeSymbol, dir, origin, area: null, passes: 0, push: 0, hits: [] };
   }
   const spell = combo.spell;
-  const area = spellArea(state, spell, dir, rune);
+  const area = spellArea(state, spell, dir);
   const elements = spellElements(spell);
   const hazard = spell.kind === 'merge' ? mergeHazard(spell.elements) : undefined;
   const hits = area.tiles.flatMap((t) => {

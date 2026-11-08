@@ -3,9 +3,9 @@ import { encryptRunes, isRuneMap, makeCipher, randomRuneMap, type RuneCipher, ty
 /**
  * Made at random the first time the game runs on a computer, saved, and the same for every run after that (so the
  * player's notes keep working). Clearing the game's saved data makes new ones.
- * - The rune mapping: which of the 8 rune cards does what.
- * - The rune alphabet (engine/cipher.ts): a symbol for every English letter. A rune card shows the symbol of the
- *   first letter of what it does; hidden messages are written with the same symbols (`inRunes`).
+ * - The rune mapping: which of the 6 rune cards does what.
+ * - The rune alphabet (engine/cipher.ts): a symbol for every English letter, for the hidden messages (`inRunes`).
+ *   Rune cards show the art team's fragments instead (config/art.ts `fragmentArt`).
  */
 const RUNES_KEY = 'broken-grimoire/runes/v1';
 const CIPHER_KEY = 'broken-grimoire/cipher/v1';
