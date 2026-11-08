@@ -32,7 +32,7 @@ export const TUTORIAL_KINDS: FragmentKind[] = ['fire', 'beam'];
 const itemCard = (): Card => ({ id: -1, kind: 'fire' });
 
 /**
- * Room 0 in the cutscene, built from a fresh room 0 (`base`). `camp: false` is the room as the wizard falls into
+ * Room 0 in the cutscene, built from a fresh room 0 (`base`). `camp: false` is the room as the mage falls into
  * it: empty, no campfire, rock or mat. `camp: true` is after the blackout: the campfire (not lit), the rock and the
  * mat are there. Both have the grimoire fragment lying on the floor unless `itemTaken`.
  */
@@ -50,7 +50,7 @@ export function introRoom0(base: GameState, { camp, itemTaken = false }: { camp:
   return s;
 }
 
-/** The Cistern in the cutscene: its layout, with just the one brute that comes for the wizard. */
+/** The Cistern in the cutscene: its layout, with just the one brute that comes for the mage. */
 export function introCistern(base: GameState): GameState {
   const s = createGame(base.rng, { runeMap: base.runeMap });
   const from = parseCoord(INTRO_PLACES.bruteFrom);
@@ -79,7 +79,7 @@ export function withInHand(state: GameState, kinds: FragmentKind[]): GameState {
   return s;
 }
 
-/** The tutorial, in the real room 0: the fire is out, the wizard stands in front of it, and Fire and Beam are in hand. */
+/** The tutorial, in the real room 0: the fire is out, the mage stands in front of it, and Fire and Beam are in hand. */
 export function tutorialState(state: GameState): GameState {
   const s = withInHand(state, TUTORIAL_KINDS);
   s.room.fireLit = false;

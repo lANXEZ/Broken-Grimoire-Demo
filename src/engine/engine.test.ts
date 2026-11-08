@@ -327,7 +327,7 @@ describe('merges and hazards', () => {
     expect(plan.final.player.hp).toBe(19);
   });
 
-  it('a stuck wizard can’t move or cast until climbing out (2 actions)', () => {
+  it('a stuck mage can’t move or cast until climbing out (2 actions)', () => {
     let s = board({ player: 'a1', enemies: [dummy()] });
     hazard(s, 'a1', 'quicksand');
     s.player.status.stuck = 2;
@@ -826,7 +826,7 @@ describe('the run', () => {
       expect(s.cards.hand).toHaveLength(5);
     });
 
-    it('the wizard wakes up on the sleeping mat (two tiles), which can be walked off and back onto', () => {
+    it('the mage wakes up on the sleeping mat (two tiles), which can be walked off and back onto', () => {
       const s = wake();
       expect(labels(s.room.mat!)).toEqual(['a1', 'b1']);
       expect(coordLabel(s.player.pos)).toBe('a1');
@@ -1035,14 +1035,14 @@ describe('spell effects (castFx)', () => {
 });
 
 describe('the door', () => {
-  it('is locked until the room is cleared: the wizard can’t step on it, monsters can', () => {
+  it('is locked until the room is cleared: the mage can’t step on it, monsters can', () => {
     const s = board({ player: 'e6', exit: 'f6', enemies: [{ kind: 'rat', at: 'a1' }] });
     expect(() => playerMove(s, 'right')).toThrow(/locked/);
     const r = board({ player: 'a1', exit: 'a3', enemies: [{ kind: 'rat', at: 'a4' }] });
     expect(at(runEnemyTurn(r), '1a')).toBe('a2'); // walked over the door to reach you
   });
 
-  it('a push into the locked door stops the wizard like the wall', () => {
+  it('a push into the locked door stops the mage like the wall', () => {
     const s = board({ player: 'a2', exit: 'a1', enemies: [{ kind: 'archer', at: 'a6' }] });
     const after = runEnemyTurn(s);
     expect(coordLabel(after.player.pos)).toBe('a2');

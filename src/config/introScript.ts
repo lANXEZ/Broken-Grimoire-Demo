@@ -1,23 +1,23 @@
 /**
- * [WRITING] The opening cutscene and tutorial (game/useIntro.ts), and the wizard's other spoken lines. Edit the words
- * here; the order things happen in is in useIntro.ts. Each line shows in a speech bubble over the wizard for a time
- * based on its length (TIMING.speech*), and a click moves on to the next one sooner.
+ * [WRITING] The opening cutscene and tutorial (game/useIntro.ts), and the mage's other spoken lines. Edit the words
+ * here; the order things happen in is in useIntro.ts. Each line shows in a speech bubble over the mage and stays
+ * until the player presses Space (or Enter, or clicks) for the next one.
  *
  * Plays the first time Start is pressed on a computer (a Skip button jumps straight to the game).
  */
 export const INTRO = {
-  /** Room 0, dark and empty: the wizard has just fallen in through the hole in the ceiling. */
+  /** Room 0, dark and empty: the mage has just fallen in through the hole in the ceiling. */
   waking: ['Ahh… What happened?', 'Where is this? Why is it so dark?', 'Maybe that door leads somewhere.'],
   /** The Cistern, the moment the torches light up and show the brute. */
   spotted: ['!!!', 'A monster??', 'Is that a brute?'],
-  /** The brute's first step toward the wizard. */
+  /** The brute's first step toward the mage. */
   panic: ['That’s not good.', 'Don’t come any closer!!'],
   /** Shouted spells: only a puff of air comes out after each. */
   firstSpell: 'HERE! ROCK BEAM!!!',
   noGrimoire: ['Huh??', 'Wait, where the hell is my grimoire?'],
   hellNah: 'Hell nah.',
   moreSpells: ['FIRE BEAM!!!', 'ROCK SPEAR!!'],
-  /** The brute stops in front of the wizard. */
+  /** The brute stops in front of the mage. */
   doomed: 'Naw man.',
   /** Back in room 0, after being thrown out through the door. */
   thrownOut: 'Guess I have to make a plan first.',
@@ -40,11 +40,11 @@ export const INTRO = {
 
 /** Where things are in the cutscene (room 0 is 3×4: door c4, campfire b2, mat a1–b1, moonlight a3–a4). */
 export const INTRO_PLACES = {
-  /** Room 0: where the wizard lands from the hole (in the moonlight). */
+  /** Room 0: where the mage lands from the hole (in the moonlight). */
   fall: 'a3',
   /** Room 0: the item (a grimoire fragment) lying on the far side from the door. */
   item: 'c1',
-  /** Room 0: where the wizard lands when thrown back out of the door. */
+  /** Room 0: where the mage lands when thrown back out of the door. */
   thrown: 'b3',
   /** Room 0: in front of the campfire, facing it (the tutorial is played from here). */
   atFire: 'b1',
@@ -56,5 +56,5 @@ export const INTRO_PLACES = {
   brutePath: ['d2', 'c2', 'b2', 'b1'],
 };
 
-/** The wizard's reaction when they feed the Whispering Lectern their blood. */
+/** The mage's reaction when they feed the Whispering Lectern their blood. */
 export const LECTERN_OUCH = 'Ah! How???';

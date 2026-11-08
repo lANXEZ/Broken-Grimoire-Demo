@@ -33,7 +33,7 @@ export function checkGrimoire(state: GameState): void {
 }
 
 /**
- * Every enemy is dead: CLEARED! Turns stop counting, statuses, hazards and Erasure Zones fade, and the wizard
+ * Every enemy is dead: CLEARED! Turns stop counting, statuses, hazards and Erasure Zones fade, and the mage
  * walks freely to pick up drops before pressing Continue.
  */
 export function checkCleared(state: GameState): void {
@@ -86,7 +86,7 @@ export function damagePlayer(state: GameState, amount: number, source: string, s
   const before = state.player.hp;
   state.player.hp = Math.max(0, before - amount);
   log(state, side, `${source} hits YOU for ${amount} (HP ${before} → ${state.player.hp}).`);
-  if (state.player.hp <= 0) lose(state, 'hp', 'The wizard has fallen. Game over.');
+  if (state.player.hp <= 0) lose(state, 'hp', 'The mage has fallen. Game over.');
 }
 
 /** Deal damage to an enemy, handling death and drops. Returns true if it died. */
@@ -106,7 +106,7 @@ function addDrop(state: GameState, e: Enemy, cards: Card[], toHand: boolean): vo
   state.room.drops.push({ id: state.nextDropId++, pos: { ...e.pos }, cards, toHand, from: e.kind });
 }
 
-/** Give the wizard a rune symbol they don't hold yet this run (null if they have them all). */
+/** Give the mage a rune symbol they don't hold yet this run (null if they have them all). */
 export function newRuneCard(state: GameState): Card | null {
   const free = [0, 1, 2, 3, 4, 5, 6, 7].filter((n) => !state.runesFound.includes(n));
   if (free.length === 0) return null;
@@ -117,7 +117,7 @@ export function newRuneCard(state: GameState): Card | null {
 
 /**
  * Remove a dead enemy. Normal monsters drop a random fragment, the Warden a rune, a Page Scrap the cards it
- * carried; it all lies on the floor until the wizard walks over it. `inHole` = it fell in: its loot is lost.
+ * carried; it all lies on the floor until the mage walks over it. `inHole` = it fell in: its loot is lost.
  */
 export function killEnemy(state: GameState, e: Enemy, inHole = false): void {
   state.enemies = state.enemies.filter((x) => x.id !== e.id);
@@ -161,7 +161,7 @@ export function killEnemy(state: GameState, e: Enemy, inHole = false): void {
   }
 }
 
-/** The wizard picks up everything lying on their tile. */
+/** The mage picks up everything lying on their tile. */
 export function pickUpDrops(state: GameState): void {
   const here = state.room.drops.filter((d) => samePos(d.pos, state.player.pos));
   if (here.length === 0) return;
@@ -187,10 +187,10 @@ export function damagePillar(state: GameState, pos: Pos, amount: number, source:
 }
 
 // ---------------------------------------------------------------------------
-// Units on the board: the wizard and the enemies, for pushes and hazards
+// Units on the board: the mage and the enemies, for pushes and hazards
 // ---------------------------------------------------------------------------
 
-/** The wizard ('player') or an enemy (by id). */
+/** The mage ('player') or an enemy (by id). */
 export type UnitRef = 'player' | string;
 
 export function unitAlive(state: GameState, ref: UnitRef): boolean {
@@ -213,7 +213,7 @@ function hurtUnit(state: GameState, ref: UnitRef, amount: number, source: string
 }
 
 /**
- * A unit arrives on a tile (a step or a push). Magma burns it; Quicksand catches it; the wizard picks up drops.
+ * A unit arrives on a tile (a step or a push). Magma burns it; Quicksand catches it; the mage picks up drops.
  * Floating units ignore hazards. Returns true if Quicksand caught it.
  */
 export function enterTile(state: GameState, ref: UnitRef, side: LogSide): boolean {
@@ -237,7 +237,7 @@ export function enterTile(state: GameState, ref: UnitRef, side: LogSide): boolea
  * Push a unit `dist` tiles along `dir`. It slides until something stops it:
  * - the room's wall: it takes 1;
  * - a pillar or a unit: it and what it hit each take 1 (immunities apply), and it stays put;
- * - a hole: it falls in and dies (the wizard too: game over);
+ * - a hole: it falls in and dies (the mage too: game over);
  * - Quicksand: it's caught there. Magma burns it on the way.
  * Floating and massive units can't be pushed.
  */
@@ -255,7 +255,7 @@ export function pushUnit(state: GameState, ref: UnitRef, dir: Pos, dist: number,
       return;
     }
     if (ref === 'player' && isLockedExit(state, to)) {
-      // The locked door stops the wizard like the room's wall.
+      // The locked door stops the mage like the room's wall.
       log(state, side, 'YOU are pushed into the locked door.');
       hurtUnit(state, ref, dmg, 'The collision', side);
       return;

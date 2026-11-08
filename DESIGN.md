@@ -8,7 +8,7 @@ the two disagree, this file wins for the packaged demo.
 - **Due:** Nov 9, 2026 (`GroupName_GA2.zip`: project files, `.exe`, slides). Presentation Nov 10 / 13.
 - Items marked **(proposed)** still need a team decision.
 
-**Contents:** [The run](#the-run) · [Turns](#turns) · [The wizard](#the-wizard) · [Spells](#spells) ·
+**Contents:** [The run](#the-run) · [Turns](#turns) · [The mage](#the-mage) · [Spells](#spells) ·
 [Merges](#element-merges) · [Statuses](#statuses) · [Runes](#runes) · [The board](#the-board) ·
 [Monsters](#monsters) · [Boss room](#boss-room) · [Rooms](#rooms) · [Cards and drops](#cards-and-drops) ·
 [Event and camp](#event-and-camp) · [Art and UI](#art-and-ui) · [Open items](#open-items) · [Plan](#plan-to-nov-9)
@@ -73,7 +73,7 @@ and you draw 5. Erased cards stay erased.
 | Purple ⊕ | Page Ward summons a Scrap |
 | ‖ | Does nothing (rooted, stuck, cornered or blocked) |
 
-## The wizard
+## The mage
 
 | Stat | Value |
 |---|---|

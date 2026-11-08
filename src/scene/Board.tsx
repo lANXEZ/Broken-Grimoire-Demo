@@ -43,7 +43,7 @@ export function tileHandlers(p: Pos, pointer: TilePointer) {
  */
 export function Board({ room, exitOpen, exitLabel, pointer, unitFeet, pointerOnBoard, torchesLit = true, doorSign = true }: {
   room: RoomRuntime;
-  /** The pillars' torches are burning (they're out when the wizard first walks into a dark room). */
+  /** The pillars' torches are burning (they're out when the mage first walks into a dark room). */
   torchesLit?: boolean;
   /** The open door's EXIT sign shows (not in the opening cutscene). */
   doorSign?: boolean;

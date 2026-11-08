@@ -10,14 +10,14 @@ import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 /**
  * [FX] Spell effects. Each cast plays on exactly the tiles it really hit (engine `castFx`: Widen's lanes and
  * Backfire's own tile included), shaped by how the spell travels and coloured by what it is:
- * - Beam and Cross: a bolt runs out from the wizard and each tile erupts as it passes. Wall: the front row
+ * - Beam and Cross: a bolt runs out from the mage and each tile erupts as it passes. Wall: the front row
  *   erupts from its centre outwards, then the back row. Unstable Fire: a ring blast over the 3×3, with a shake.
  * - Fire: flame column, rising embers, a scorch mark. Water: splash and ripples. Earth: rock spikes and dust.
  *   Wind: streaks blowing the push direction. Merges show their hazard forming (fog, magma, quicksand).
  * - Units hit get a spark; chipped pillars throw debris (a broken one collapses in dust); a pushed unit that
  *   hits something kicks up dust.
  * - A cast with a rune plays in two parts (App.tsx runs the timeline): first the spell itself, exactly like a cast
- *   without the rune (`cast` event); then the rune's symbol glows purple on the 3×3 floor around the wizard
+ *   without the rune (`cast` event); then the rune's symbol glows purple on the 3×3 floor around the mage
  *   (`sigil`); then the rune's own part, in purple (`rune`): Echo replays the spell, Amplify strikes each target,
  *   Widen hits the extra tiles, Siphon draws wisps back to you, Volatile blasts the targets again and lashes back,
  *   Free gives the mana back, Backfire hits your own tile, Fizzle smokes. A rune on a table that makes no spell
@@ -39,7 +39,7 @@ export interface CastEvent {
   grey?: boolean;
 }
 
-/** The rune's symbol glowing on the floor under the wizard, between the two parts of a rune cast. */
+/** The rune's symbol glowing on the floor under the mage, between the two parts of a rune cast. */
 export interface SigilEvent {
   type: 'sigil';
   id: number;
@@ -518,7 +518,7 @@ const TILE_LOOK: Record<Look, (p: TileProps) => ReactNode> = {
 // ---------------------------------------------------------------------------------------------------------------
 // Bolts, sparks, debris, dust and rune extras
 
-/** A glowing bolt running from the wizard to the end of one lane. */
+/** A glowing bolt running from the mage to the end of one lane. */
 function Bolt({ t0, from, to, start, travel, color, scale }: {
   t0: MutableRefObject<number | null>;
   from: [number, number, number];
@@ -677,7 +677,7 @@ function Motes({ t0, from, to, delay, span, color, count, seed, burst = false }:
   );
 }
 
-/** Unstable Fire: a ring blasting outward from the wizard and a white flash over the 3×3. */
+/** Unstable Fire: a ring blasting outward from the mage and a white flash over the 3×3. */
 function Blast({ t0, at, delay }: { t0: MutableRefObject<number | null>; at: [number, number, number]; delay: number }) {
   const ring = useRef<Mesh>(null);
   const flash = useRef<Mesh>(null);
@@ -727,7 +727,7 @@ function ShakeAt({ t0, delay, kind }: { t0: MutableRefObject<number | null>; del
 // ---------------------------------------------------------------------------------------------------------------
 // One cast
 
-/** Lanes a bolt runs down: Beam lanes (Widen adds two) and Cross arms. Each runs from the wizard to its far end. */
+/** Lanes a bolt runs down: Beam lanes (Widen adds two) and Cross arms. Each runs from the mage to its far end. */
 function lanes(fx: CastFx): { from: Pos; to: Pos; steps: number }[] {
   const s = fx.spell!;
   if (!fx.area || s.kind === 'unstable' || s.shape === 'wall') return [];
@@ -761,7 +761,7 @@ function CastEffect({ event, room, tint }: { event: CastEvent; room: RoomSize; t
   const world = (p: Pos, y = 0) => tileToWorld(p, room, y);
   const origin = world(fx.origin);
 
-  // No spell (a rune on a table that makes nothing): grey smoke on the wizard. The rune's price (Volatile, Free)
+  // No spell (a rune on a table that makes nothing): grey smoke on the mage. The rune's price (Volatile, Free)
   // is still paid, so it still sparks red.
   if (fx.kind === 'fizzle' || !fx.area || !fx.spell) {
     const smoke = event.grey ? FX.colors.dud : FX.colors.fizzle;
@@ -882,7 +882,7 @@ function sigilTexture(symbol: number): CanvasTexture {
   return tex;
 }
 
-/** The rune's symbol glowing purple on the 3×3 floor around the wizard, before the rune's part plays. */
+/** The rune's symbol glowing purple on the 3×3 floor around the mage, before the rune's part plays. */
 function Sigil({ event, room }: { event: SigilEvent; room: RoomSize }) {
   const t0 = useRef<number | null>(null);
   const tex = useMemo(() => sigilTexture(event.symbol), [event.symbol]);
@@ -1046,7 +1046,7 @@ function RuneFx({ event, room }: { event: RuneEvent; room: RoomSize }) {
             </group>
           ))}
           <ShakeAt t0={t0} delay={S} kind="volatile" />
-          {/* The backlash on the wizard. */}
+          {/* The backlash on the mage. */}
           <Ring t0={t0} at={world(fx.origin)} delay={S + 0.4} size={0.9} />
           <Motes t0={t0} from={me} delay={S + 0.4} span={0.5} color={purple} count={12} seed={event.id + 3} burst />
           <Spark t0={t0} at={me} delay={S + 0.42} color={FX.colors.selfHurt} />

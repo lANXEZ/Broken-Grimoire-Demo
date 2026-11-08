@@ -14,7 +14,7 @@ import {
 } from '../engine';
 
 /**
- * The "Hmmm..." note (hud/HmmmNote.tsx): the wizard's memory of every card combination cast so far. Pure logic:
+ * The "Hmmm..." note (hud/HmmmNote.tsx): the mage's memory of every card combination cast so far. Pure logic:
  * which lines to show for the cards on the crafting table, which ones the hand can make, and which hand cards a
  * line would add to the table.
  */
@@ -35,7 +35,7 @@ export interface NoteLine {
   effect: string | null;
   /** The hand (crafting table included) holds every card of this line. */
   available: boolean;
-  /** Its cost is more than the wizard's mana right now (known costs only). */
+  /** Its cost is more than the mage's mana right now (known costs only). */
   tooExpensive: boolean;
   /** Per token: is it one of the cards already on the crafting table? */
   onTable: boolean[];

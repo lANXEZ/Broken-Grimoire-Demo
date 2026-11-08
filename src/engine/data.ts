@@ -74,9 +74,9 @@ export const RULES = {
 } as const;
 
 /**
- * The Whispering Lectern's room (team decision, Nov 4): 5x5 and empty but for the lectern in the middle. The wizard
+ * The Whispering Lectern's room (team decision, Nov 4): 5x5 and empty but for the lectern in the middle. The mage
  * comes in at `start`, walks up to `read` (in front of the lectern), and leaves by `exit`, which stays locked until
- * the wizard has reached the lectern. `lines` is what it says in plain words.
+ * the mage has reached the lectern. `lines` is what it says in plain words.
  */
 export const LECTERN_ROOM = {
   id: 'lectern',
@@ -113,18 +113,18 @@ export const PROLOGUE_ROOM = {
   seats: ['a2'],
   moonlight: ['a3', 'a4'],
   /**
-   * The sleeping mat the wizard wakes up on: two tiles, pillow end first (walkable). Standing on it offers
+   * The sleeping mat the mage wakes up on: two tiles, pillow end first (walkable). Standing on it offers
    * "Get some rest?" (back to the title).
    */
   mat: ['a1', 'b1'],
   exit: 'c4',
-  /** What the wizard thinks on waking (shown in a thought cloud). */
+  /** What the mage thinks on waking (shown in a thought cloud). */
   wakeThought: 'Dream of outside again… How long have I been stuck here…',
 } as const;
 
 /**
  * The camp's room (team decision, Nov 4): like the lectern's, but built around a campfire with logs to sit on (the
- * logs block their tiles). The wizard walks up to the fire, rests or tears out a page, and walks out.
+ * logs block their tiles). The mage walks up to the fire, rests or tears out a page, and walks out.
  */
 export const CAMP_ROOM = {
   id: 'camp',

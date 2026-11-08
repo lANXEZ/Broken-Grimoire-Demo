@@ -2,7 +2,7 @@ import { useState, type ReactNode, type PointerEvent as ReactPointerEvent } from
 import { RUNE_NOTE_MAX, setRuneNote, useRuneNote } from '../game/runeNotes';
 
 /**
- * PLACEHOLDER look for the wizard's thoughts: a twisted, foggy, blurry cloud (hud.css `.thought`). Used for the
+ * PLACEHOLDER look for the mage's thoughts: a twisted, foggy, blurry cloud (hud.css `.thought`). Used for the
  * bubble over every rune card and for the whole "Hmmm..." note. `tail` adds the little puffs of a thought bubble
  * trailing down from it.
  */
@@ -42,7 +42,7 @@ export function ThoughtFilters() {
   );
 }
 
-/** What the wizard thinks before the player writes anything. */
+/** What the mage thinks before the player writes anything. */
 export const RUNE_THOUGHT_DEFAULT = 'Hmm, what is it?';
 
 const stop = (e: ReactPointerEvent) => e.stopPropagation();

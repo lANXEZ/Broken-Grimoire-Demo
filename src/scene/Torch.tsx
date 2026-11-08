@@ -10,7 +10,7 @@ import { PLACEHOLDER_COLORS } from '../config/art';
  *
  * Unlit, it's a cold rag on a stick. When `lit` turns on (after `delay` seconds) it catches with a flare and keeps
  * flickering, with a warm light on the floor around the pillar. Rooms start with their torches out the first time
- * the wizard walks in; the dungeon lights them a moment later (App.tsx, `reveal`).
+ * the mage walks in; the dungeon lights them a moment later (App.tsx, `reveal`).
  */
 const glow = { transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false } as const;
 

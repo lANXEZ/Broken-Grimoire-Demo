@@ -15,7 +15,7 @@ import { inRunes } from '../game/runeMap';
  * purple. Until the event is over it chants: its line (config/runeMessages.ts LECTERN_MESSAGE, in this computer's
  * rune alphabet) rises off the book again and again and fades. When it speaks plain words, they float above it in a
  * speech bubble. It's an <Obstacle>, so it fades when
- * the wizard stands behind it.
+ * the mage stands behind it.
  */
 const glow = { transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false } as const;
 

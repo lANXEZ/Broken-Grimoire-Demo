@@ -55,7 +55,7 @@ describe('the tutorial', () => {
     const s = tutorialState(room0());
     const ids = tutorialCardIds(s);
     expect(ids).toHaveLength(2);
-    // The wizard stands at b1 with the fire at b2: up the board.
+    // The mage stands at b1 with the fire at b2: up the board.
     expect(playerCast(s, ids, 'up').room.fireLit).toBe(true);
     expect(playerCast(s, ids, 'right').room.fireLit).toBe(false);
   });

@@ -184,7 +184,7 @@ export function takeFromHand(cards: CardState, ids: number[]): Card[] {
   return taken;
 }
 
-/** Every card the wizard still owns: hand, deck and discard (not erased cards or cards held by Scraps). */
+/** Every card the mage still owns: hand, deck and discard (not erased cards or cards held by Scraps). */
 export function ownedCards(cards: CardState): Card[] {
   return [...cards.hand, ...cards.deck, ...cards.discard];
 }

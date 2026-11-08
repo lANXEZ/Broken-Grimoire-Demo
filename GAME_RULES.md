@@ -12,7 +12,7 @@ which replaced the paper-kit rules. If this file and the PDF disagree, this file
 - Numbers live in `src/engine/data.ts` (`RULES`, `ENEMY_DEFS`, `ROOMS`), so balance changes are data edits.
 
 **Contents:** [The run](#the-run) · [Turns](#turns) · [Intents](#intents-what-enemies-will-do) ·
-[The wizard](#the-wizard-player) · [Spells](#spells) · [Merges](#element-merges) · [Statuses](#statuses) ·
+[The mage](#the-mage-player) · [Spells](#spells) · [Merges](#element-merges) · [Statuses](#statuses) ·
 [Runes](#runes) · [The board](#the-board) · [Monsters](#monsters) · [Boss room](#boss-room) · [Rooms](#rooms) ·
 [Cards and drops](#cards-and-drops) · [Event and camp](#event-and-camp) ·
 [Build decisions](#build-decisions-nov-4) · [Changes](#changes-from-the-previous-rules)
@@ -35,7 +35,7 @@ same fixed sequence:
   moon, the game's name, Start on the right; with a saved run, Continue or New game). A new run opens its eyes (a
   first-person blink) in **room 0, The Waking Room**: 3×4, a campfire (b2) with a rock to sit on (a2), a corner
   where the ceiling has collapsed (a3–a4: moonlight, dust and falling gravel; walkable) and a big dungeon door
-  (c4). The wizard thinks: *"Dream of outside again… How long have I been stuck here…"* There are no enemies;
+  (c4). The mage thinks: *"Dream of outside again… How long have I been stuck here…"* There are no enemies;
   actions and mana never run out and the hand refills after every cast, so it's the place to try spells (casts there
   count for the Grimoire and the "Hmmm..." note; Reroll works too). **The campfire reacts to spells** that reach its
   tile: Water, Earth, Fog and Quicksand put it out; Fire, Unstable Fire and Magma light it again; Wind does nothing.
@@ -44,20 +44,20 @@ same fixed sequence:
   it's out, room 0 is dark but for the moonlight (team decision, Nov 6).
 - **The opening cutscene and tutorial (team decision, Nov 6):** the first time **Start** is pressed on a computer
   (saved per computer; a **Skip** button jumps straight to the game, and quitting midway plays it again next time).
-  The words are in `src/config/introScript.ts`, the order in `src/game/useIntro.ts`. The wizard speaks in speech
-  bubbles (a click moves a line along sooner):
-  1. The eyes open on room 0, dark and empty (no fire, rock or mat; a grimoire fragment lies at c1). The wizard falls
+  The words are in `src/config/introScript.ts`, the order in `src/game/useIntro.ts`. The mage speaks in speech
+  bubbles; each line stays until the player presses **Space** (Enter or a click work too):
+  1. The eyes open on room 0, dark and empty (no fire, rock or mat; a grimoire fragment lies at c1). The mage falls
      through the hole into the moonlight (a3): *"Ahh… What happened?"*, *"Where is this? Why is it so dark?"*,
      *"Maybe that door leads somewhere."*, and walks through the door.
   2. The Cistern, dark; a second later its torches catch and show **one brute** (e2; the room's rat and other brute
-     aren't in the cutscene): *"!!!"*, *"A monster??"*, *"Is that a brute?"* It walks up to the wizard step by step:
+     aren't in the cutscene): *"!!!"*, *"A monster??"*, *"Is that a brute?"* It walks up to the mage step by step:
      *"That's not good."*, *"Don't come any closer!!"*, *"HERE! ROCK BEAM!!!"* (only a puff of air), *"Huh??"*,
      *"Wait, where the hell is my grimoire?"*, *"Hell nah."*, *"FIRE BEAM!!!"*, *"ROCK SPEAR!!"* (puffs), and it
-     stops in front of the wizard: *"Naw man."*
-  3. Back in room 0: a second later the screen's edge flashes red (hurt, off screen), and the wizard is thrown back
+     stops in front of the mage: *"Naw man."*
+  3. Back in room 0: a second later the screen's edge flashes red (hurt, off screen), and the mage is thrown back
      out through the door (lands on b3): *"Guess I have to make a plan first."*
   4. Black for a second, then room 0 with the campfire (not lit), the rock and the mat: *"Now, the first problem:
-     how do I light this up?"*, *"…"*, then *"Wait, is that a…"*. The wizard walks over and picks up the fragment:
+     how do I light this up?"*, *"…"*, then *"Wait, is that a…"*. The mage walks over and picks up the fragment:
      *"A fragment of my grimoire!!!"*, *"Why is it torn up like this?"*, *"Hmm, spells are usually just words put
      together anyway."*, walks to the fire (b1): *"Will this work?"*
   5. **Tutorial** (the real game, HUD back on screen, nothing else to do): the hand holds **Fire** and **Beam** (the
@@ -71,18 +71,18 @@ same fixed sequence:
      here."* The eyes close, and the game starts as usual (waking on the mat).
 - **Torches and dark rooms (team decision, Nov 6):** every pillar carries a torch. Each time a run walks into a fight
   room, the room starts **dark** (torches out, monsters hidden, nothing can be done); a second later the dungeon
-  notices the wizard and lights the torches one after another, and the room and its monsters show as usual.
-- **Hurt (team decision, Nov 6):** whenever the wizard loses HP, the edge of the screen flashes red for half a second.
-- **The sleeping mat and the title (team decision, Nov 5):** the wizard wakes up on a rough old sleeping mat in room 0
+  notices the mage and lights the torches one after another, and the room and its monsters show as usual.
+- **Hurt (team decision, Nov 6):** whenever the mage loses HP, the edge of the screen flashes red for half a second.
+- **The sleeping mat and the title (team decision, Nov 5):** the mage wakes up on a rough old sleeping mat in room 0
   (two tiles, a1–b1, a small old pillow at a1; walkable). Standing on it, once the waking thought has gone, a small
   prompt floats over the pillow: *"Get some rest? (Return to menu)"*. Clicking it closes the eyes and goes back to
   the title screen. A run still in room 0 doesn't count as saved, so the title then shows **Start** (and on the
-  .exe **Quit**, which closes the game); Start wakes the wizard in room 0 again.
+  .exe **Quit**, which closes the game); Start wakes the mage in room 0 again.
 - **Defeat (team decision, Nov 5):** the defeat panel's button says **Continue** (victory keeps New run). Everything
   fades to black, and a line written in the rune alphabet appears in the middle of the screen, letter by letter from
-  left to right as if someone were saying it to the wizard, with a pause after "Wake up,": *"Wake up, you can't
+  left to right as if someone were saying it to the mage, with a pause after "Wake up,": *"Wake up, you can't
   escape your fate."* (players only read it once they've worked out enough runes; punctuation isn't encrypted). It
-  stays a few seconds (Space, Enter or a click moves on once it's fully shown), fades, and the wizard wakes up in
+  stays a few seconds (Space, Enter or a click moves on once it's fully shown), fades, and the mage wakes up in
   room 0 as at the start of a new run.
 - **Finishing a combat room:** kill every enemy. The room's **door** (as in the low-fi demo) stays locked until the
   room is cleared, except in the Cistern, whose door is open the whole time (see [Rooms](#rooms)). When the last enemy dies a big **CLEARED!** appears, turns stop
@@ -143,7 +143,7 @@ which path it will take**.
 | Purple ⊕ | Page Ward summons a Page Scrap |
 | Grey pause ‖ | Does nothing (rooted, stuck, cornered or blocked) |
 
-## The wizard (player)
+## The mage (player)
 
 | Stat | Value |
 |---|---|
@@ -224,7 +224,7 @@ completed grimoire becomes a readable book. Runes are never recorded.
 
 ### "Hmmm..." (the spell note)
 
-A quality-of-life note on the left of the screen, drawn as one of the wizard's foggy thoughts (team decision, Nov 4;
+A quality-of-life note on the left of the screen, drawn as one of the mage's foggy thoughts (team decision, Nov 4;
 not in the design). Unlike the Grimoire it records **exact card combinations**, with what they cost and do:
 
 - **Recording:** the first time a combination is cast successfully, it's added. Fire + Beam and Fire ×2 + Beam are
@@ -270,7 +270,7 @@ keep your own notes; the game never records them.
 
 **How a rune cast looks (team decision, Nov 4):** it plays in two parts so the player can see what the rune
 did. First the spell itself, exactly as if the rune weren't there. Then the rune's symbol glows purple on the 3×3
-floor around the wizard, and the rune's own part plays in purple, with its damage and healing in purple numbers
+floor around the mage, and the rune's own part plays in purple, with its damage and healing in purple numbers
 (Echo replays the spell, Amplify strikes each target, Widen hits the extra tiles, Siphon draws wisps back to you,
 Volatile blasts the targets again and lashes back, Free returns the mana and takes the HP, Backfire hits your tile,
 Fizzle: no spell part, just the glow and purple smoke). A rune on a table that makes no spell only puffs grey
@@ -442,13 +442,13 @@ Its mode is set at the start of each of its turns:
 | 2 · The Scriptorium | 6×6 | a1 | f6 | b5, e5, b2, e2 | c2, d5 | Archer a6, Archer e6, Leech d2, Warden c4 |
 | 3 · The Redactor | 8×8 | d1 | none | b6, g6, b3, g3 | a5, h4 | Fire Ward c7, Water Ward f7, Earth Ward d4, Redactor e5 |
 
-**The door** is locked until every enemy in the room is dead (see [The run](#the-run)). While locked, the wizard
+**The door** is locked until every enemy in the room is dead (see [The run](#the-run)). While locked, the mage
 can't step onto it, but monsters can walk over it; spells and shots pass over it like floor.
 
 **The Cistern's door is always open** (the teaching room, as in the low-fi demo): step onto it on your turn and the
 game asks whether to leave now. Leaving early is allowed, but every enemy still alive keeps what it would have
 dropped, and anything on the floor stays there. A push that would
-carry the wizard onto the locked door stops there like the room's wall (1 damage). The boss room has no door:
+carry the mage onto the locked door stops there like the room's wall (1 damage). The boss room has no door:
 killing the Redactor ends the demo.
 
 ## Cards and drops
@@ -479,8 +479,8 @@ roll is written out in [DESIGN.md](DESIGN.md#cards-and-drops).
 ## Event and camp
 
 **Event · The Whispering Lectern** (team decision, Nov 4; replaces the design's read / copy / leave). A small room
-of its own: **5×5**, empty but for a **lectern** in the middle (c3), which blocks its tile. The wizard comes in at
-a1 and walks up to it by themselves (to c2); the **door (e5) stays locked until the wizard reaches the lectern**. It
+of its own: **5×5**, empty but for a **lectern** in the middle (c3), which blocks its tile. The mage comes in at
+a1 and walks up to it by themselves (to c2); the **door (e5) stays locked until the mage reaches the lectern**. It
 whispers in a familiar voice, in a language you don't understand: its line rises off its open book again and
 again, *"Hail the rune lord"* written in the rune alphabet (also shown in its choice panel), readable only once
 you've worked out enough runes.
@@ -488,20 +488,20 @@ you've worked out enough runes.
 1. **Take a rune fragment** or **Leave it.** Leaving ends the event.
 2. If you took one, the lectern speaks plain words: *"…Still lost, would you? Though I am so thirsty… let me
    taste your blood."* The choices are plain on purpose (team decision, Nov 6: nothing says what they cost or give):
-   **Sate the lectern's desire.** loses **2 HP** (this **can kill**) and gives a second rune: the wizard is hurt and
+   **Sate the lectern's desire.** loses **2 HP** (this **can kill**) and gives a second rune: the mage is hurt and
    cries *"Ah! How???"*, then the rune is shown and the lectern answers *"Hmm… my favorite."* Or **Leave** with the
    one rune.
 
 Runes taken are shown, then go into your deck (2 at most, each a symbol you don't have yet). When the event ends, the
-wizard walks out through the door by themselves. The player never moves the wizard in this room (clicks on the board
+mage walks out through the door by themselves. The player never moves the mage in this room (clicks on the board
 do nothing), and combat controls are hidden.
 
 **Camp** (team decision, Nov 4: a room like the lectern's). 5×5, with a **campfire** in the middle (c3) and **logs to
-sit on** around it (b3, d3, c4); the fire and the logs block their tiles. The wizard comes in at a1 and walks up to the
-fire by themselves (to c2); the **door (e5) stays locked until the wizard reaches the fire**. Choose one: **Rest**
+sit on** around it (b3, d3, c4); the fire and the logs block their tiles. The mage comes in at a1 and walks up to the
+fire by themselves (to c2); the **door (e5) stays locked until the mage reaches the fire**. Choose one: **Rest**
 (heal to full, 20 HP) or **Tear out a page** (remove one fragment from your deck for good; never one that would break
-your grimoire). Then the wizard walks out through the door by themselves. As in the lectern's room, the player never
-moves the wizard here and combat controls are hidden.
+your grimoire). Then the mage walks out through the door by themselves. As in the lectern's room, the player never
+moves the mage here and combat controls are hidden.
 
 ---
 
@@ -519,7 +519,7 @@ section wins.
 | Several units pushed | The **farthest from you moves first**, so a line of units slides together instead of bumping into each other. |
 | Pushes over hazards | Sliding into **Quicksand stops the push** there (the unit is stuck). Sliding over or onto **Magma burns**. |
 | Holes | Holes don't block spells, sight or shots; only walking. |
-| You and statuses | Only Backfire can Root or Stun you. A Stunned wizard can't cast; a Rooted one can't move. On your own turn the effect lasts for the rest of it and your next turn. |
+| You and statuses | Only Backfire can Root or Stun you. A Stunned mage can't cast; a Rooted one can't move. On your own turn the effect lasts for the rest of it and your next turn. |
 
 **Merges and hazards**
 
@@ -563,7 +563,7 @@ section wins.
 | Topic | Decision |
 |---|---|
 | Map | Not built yet (a teammate's work): the run goes Cistern → Event → Scriptorium → Camp → Boss directly. |
-| After CLEARED! | Click any tile and the wizard walks there (no actions); every tile passed picks up its drops. |
+| After CLEARED! | Click any tile and the mage walks there (no actions); every tile passed picks up its drops. |
 | The door | Kept from the low-fi demo (team decision, Nov 4), not in the design: see [Rooms](#rooms). Continue walks you to it; clicking the open door does the same. The Cistern's door is always open, so you can leave it early (losing the survivors' drops); everywhere else there's no early exit. |
 | Grimoire pages | 22: Fire/Water/Earth/Wind × Beam/Cross/Wall (doubling doesn't matter), the 3 merges × 3 shapes, and Unstable Fire. |
 | Grimoire save | **Across runs**, saved on the computer like the rune mapping. A spell that fizzles writes nothing. |
