@@ -33,12 +33,17 @@ export const BIG_DOOR_SCALE = 1.45;
 /** Height of the open door's light column (scaled with the big door: about 2.47, reaching world y ≈ 2.61). */
 export const DOOR_BEAM_HEIGHT = 1.7;
 
-export function Door({ pos, room, open, label, big = false, sign = true, pointer, unitFeet, pointerOnBoard }: {
+export function Door({ pos, room, open, label, big = false, hinge = 'left', sign = true, pointer, unitFeet, pointerOnBoard }: {
   pos: Pos;
   room: RoomSize;
   open: boolean;
   /** Room 0's big dungeon door. */
   big?: boolean;
+  /**
+   * Which post the door leaf hangs on (seen from the room). It swings open into the room on that side, so a door by
+   * the room's right edge (room 0's) hinges right: open, it lies along the wall instead of across the floor.
+   */
+  hinge?: 'left' | 'right';
   /** Where the door leads ("The Whispering Lectern"), shown on the EXIT sign while it's open. */
   label: string;
   /** Show the EXIT sign (not in the opening cutscene). */
@@ -68,6 +73,8 @@ export function Door({ pos, room, open, label, big = false, sign = true, pointer
   const at = tileToWorld(pos, room, TILE_TOP);
   const C = PLACEHOLDER_COLORS;
   const half = ARCH.width / 2 - ARCH.post / 2;
+  // The leaf hangs from the hinge post and reaches toward the other one: +x from a left hinge, -x from a right one.
+  const side = hinge === 'right' ? -1 : 1;
 
   const k = big ? BIG_DOOR_SCALE : 1;
   const beamH = DOOR_BEAM_HEIGHT;
@@ -92,21 +99,21 @@ export function Door({ pos, room, open, label, big = false, sign = true, pointer
           <meshStandardMaterial color={C.doorFrame} roughness={0.85} />
         </mesh>
 
-        {/* The door leaf, hinged on the left post: shut and barred while locked, swung wide open once unlocked. */}
-        <group position={[-ARCH.opening / 2, 0, 0]} rotation={[0, open ? -1.95 : 0, 0]}>
-          <mesh position={[ARCH.opening / 2, (ARCH.height - 0.05) / 2, 0]} castShadow>
+        {/* The door leaf, on its hinge post: shut and barred while locked, swung wide open once unlocked. */}
+        <group position={[(-side * ARCH.opening) / 2, 0, 0]} rotation={[0, open ? -1.95 * side : 0, 0]}>
+          <mesh position={[(side * ARCH.opening) / 2, (ARCH.height - 0.05) / 2, 0]} castShadow>
             <boxGeometry args={[ARCH.opening, ARCH.height - 0.05, 0.05]} />
             <meshStandardMaterial color={C.doorWood} roughness={0.8} />
           </mesh>
           {!open &&
             [0.12, 0.3, 0.48].map((x) => (
-              <mesh key={x} position={[x, (ARCH.height - 0.05) / 2, 0.035]}>
+              <mesh key={x} position={[side * x, (ARCH.height - 0.05) / 2, 0.035]}>
                 <boxGeometry args={[0.05, ARCH.height - 0.12, 0.03]} />
                 <meshStandardMaterial color={C.exitBars} metalness={0.5} roughness={0.45} />
               </mesh>
             ))}
           {!open && (
-            <mesh position={[ARCH.opening / 2, ARCH.height * 0.55, 0.035]}>
+            <mesh position={[(side * ARCH.opening) / 2, ARCH.height * 0.55, 0.035]}>
               <boxGeometry args={[ARCH.opening - 0.06, 0.06, 0.03]} />
               <meshStandardMaterial color={C.exitBars} metalness={0.5} roughness={0.45} />
             </mesh>
