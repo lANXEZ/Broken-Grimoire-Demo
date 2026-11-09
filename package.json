@@ -2,7 +2,7 @@
   "name": "broken-grimoire",
   "productName": "Broken Grimoire",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Broken Grimoire demo: a tactical deck-building spellcaster.",
   "author": "Broken Grimoire team (CSS481)",
   "type": "module",
