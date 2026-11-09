@@ -119,7 +119,11 @@ export function PickupReveal({ pickup, onDone }: { pickup: Pickup; onDone: (id: 
 export function LogDrawer({ state, onClose }: { state: GameState; onClose: () => void }) {
   const end = useRef<HTMLDivElement>(null);
   const entries = state.log.filter((l) => l.roomIndex === state.roomIndex);
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [entries.length]);
+  // Braces matter: newer Chromium returns a Promise from scrollIntoView, and React would call it as the cleanup
+  // when the drawer closes ("destroy is not a function"), unmounting the whole game to a black screen.
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'end' });
+  }, [entries.length]);
   return (
     <div className="log-drawer">
       <div className="log-head">
