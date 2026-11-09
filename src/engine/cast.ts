@@ -215,7 +215,7 @@ function applyArea(s: GameState, spell: Spell, area: SpellArea, rune: RuneEffect
       s.room.hazards = s.room.hazards.filter((h) => !samePos(h.pos, p));
       s.room.hazards.push({ pos: { ...p }, kind: hazard, until });
       const e = enemyAt(s, p);
-      if (hazard === 'quicksand' && e && unitSize(e) !== 'float' && e.status.stuck === 0) {
+      if (hazard === 'quicksand' && e && unitSize(e) !== 'float' && e.status.stuck === 0 && !immunityReason(s, e, { elements, hazard })) {
         e.status.stuck = RULES.quicksandEscape;
         log(s, 'player', `${enemyName(e)} is caught in the quicksand.`);
       }

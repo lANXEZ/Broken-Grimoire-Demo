@@ -10,6 +10,7 @@ export const RULES = {
   roomStartMana: 3,
   actionsPerTurn: 3,
   meditateMana: 3,
+  /** Non-rune fragments a full hand holds. Runes drawn on top don't count, so a hand is never mostly runes. */
   handSize: 5,
 
   burnTicks: 3,

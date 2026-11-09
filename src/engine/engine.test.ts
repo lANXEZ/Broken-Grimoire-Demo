@@ -8,6 +8,10 @@ import {
   eventChoice,
   freeStep,
   freeWalkPath,
+  freshShuffle,
+  handFragmentCount,
+  playerReroll,
+  refillHand,
   comboFromCards,
   coordLabel,
   createGame,
@@ -612,6 +616,50 @@ describe('boss room', () => {
     expect(after.enemies[0].status.burn).toBe(2);
   });
 
+  it('the guarded Redactor steps onto Magma or Quicksand unharmed; once the Wards fall, Magma burns it', () => {
+    const redactorOn = (kind: 'magma' | 'quicksand', wards: boolean) => {
+      const s = board({
+        size: 8,
+        player: 'a1',
+        enemies: [...(wards ? [{ kind: 'ward' as const, at: 'h8', element: 'fire' as const }] : []), { kind: 'redactor', at: 'c1' }],
+      });
+      // Every tile next to the mage, so it has to step in (monsters path around hazards when they can).
+      for (const t of ['a2', 'b1', 'b2']) hazard(s, t, kind);
+      const after = runEnemyTurn(s);
+      return after.enemies.find((e) => e.kind === 'redactor')!;
+    };
+    const magma = redactorOn('magma', true);
+    expect(['a2', 'b1', 'b2']).toContain(coordLabel(magma.pos));
+    expect(magma.status.burn).toBe(0);
+    expect(redactorOn('quicksand', true).status.stuck).toBe(0);
+    expect(redactorOn('magma', false).status.burn).toBe(3);
+  });
+
+  it('the guarded Redactor walks straight through Magma; once the Wards fall, it goes around', () => {
+    const firstStep = (wards: boolean) => {
+      const s = board({
+        size: 8,
+        player: 'a1',
+        enemies: [...(wards ? [{ kind: 'ward' as const, at: 'h8', element: 'fire' as const }] : []), { kind: 'redactor', at: 'a5' }],
+      });
+      // Magma on a4 and a3, straight below it; b5 → b4 → b3 → b2 is a clean way around.
+      hazard(s, 'a4', 'magma');
+      hazard(s, 'a3', 'magma');
+      const plan = planEnemyTurn(toEnemyTurn(s));
+      const r = plan.final.enemies.find((e) => e.kind === 'redactor')!;
+      return { pos: coordLabel(r.pos), burn: r.status.burn };
+    };
+    expect(firstStep(true)).toEqual({ pos: 'a3', burn: 0 });
+    expect(firstStep(false).pos).not.toMatch(/^a[34]$/);
+  });
+
+  it('Quicksand cast under the guarded Redactor doesn’t catch it', () => {
+    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'ward', at: 'h8', element: 'fire' }, { kind: 'redactor', at: 'a3' }] });
+    const after = cast(s, ['water', 'earth', 'beam'], 'up');
+    expect(after.room.hazards.some((h) => h.kind === 'quicksand' && coordLabel(h.pos) === 'a3')).toBe(true);
+    expect(after.enemies.find((e) => e.kind === 'redactor')!.status.stuck).toBe(0);
+  });
+
   it('stun doesn’t stop a summon (it isn’t an attack)', () => {
     expect(scrapCount(runEnemyTurn(wardRoom({ stun: 1 }, 2)))).toBe(1);
   });
@@ -990,6 +1038,59 @@ describe('the run', () => {
     expect(ROOMS.map((r) => r.holes)).toEqual([['b4', 'e5'], ['c2', 'd5'], ['a5', 'h4']]);
     expect(ROOMS[2].enemies.find((e) => e.at === 'd4')?.element).toBe('earth');
     expect(createGame(1).cards.deck.length + createGame(1).cards.hand.length).toBe(14);
+  });
+});
+
+describe('drawing: runes don’t count toward the hand size', () => {
+  // The deck draws from the end of its array, so `stack('a', 'b')` draws a first, then b.
+  let nextId = 500;
+  const card = (kind: FragmentKind): Card => ({ id: nextId++, kind, ...(kind === 'rune' ? { rune: 1 } : {}) });
+  const stack = (...kinds: FragmentKind[]): Card[] => kinds.map(card).reverse();
+  const kinds = (cs: Card[]) => cs.map((c) => c.kind);
+
+  it('the turn draw tops up to 5 non-rune fragments; runes in hand or drawn ride along', () => {
+    const s = board({ player: 'a1', enemies: [dummy()] });
+    s.cards.hand = [card('rune'), card('fire')];
+    s.cards.deck = stack('rune', 'water', 'beam', 'rune', 'earth', 'wall', 'cross', 'wind');
+    s.cards.discard = [];
+    const drawn = refillHand(s).drawn;
+    expect(kinds(drawn)).toEqual(['rune', 'water', 'beam', 'rune', 'earth', 'wall']);
+    expect(handFragmentCount(s.cards)).toBe(5);
+    expect(s.cards.hand).toHaveLength(8);
+    expect(kinds(s.cards.deck)).toEqual(['wind', 'cross']);
+    // A full hand of fragments draws nothing, however many runes it has.
+    expect(refillHand(s).drawn).toEqual([]);
+  });
+
+  it('a new room’s fresh hand is 5 non-rune fragments plus any runes drawn on the way', () => {
+    const s = createGame(3);
+    s.cards.deck.push(card('rune'), card('rune'), card('rune'));
+    for (let i = 0; i < 20; i++) {
+      freshShuffle(s);
+      expect(handFragmentCount(s.cards)).toBe(5);
+      expect(s.cards.hand[s.cards.hand.length - 1].kind).not.toBe('rune');
+    }
+  });
+
+  it('Reroll brings back one non-rune fragment per card swapped, a swapped rune included', () => {
+    const s = board({ player: 'a1', enemies: [dummy()] });
+    const rune = card('rune');
+    s.cards.hand = [rune, card('fire'), card('beam')];
+    s.cards.deck = stack('rune', 'water', 'wall', 'earth');
+    s.cards.discard = [];
+    const next = playerReroll(s, [rune.id, s.cards.hand[1].id]);
+    expect(kinds(next.cards.hand)).toEqual(['beam', 'rune', 'water', 'wall']);
+    expect(kinds(next.cards.deck)).toEqual(['earth']);
+  });
+
+  it('stops when the deck and discard pile run dry, even short of 5', () => {
+    const s = board({ player: 'a1', enemies: [dummy()] });
+    s.cards.hand = [];
+    s.cards.deck = stack('rune', 'fire', 'rune');
+    s.cards.discard = [card('beam')];
+    expect(kinds(refillHand(s).drawn)).toEqual(['rune', 'fire', 'rune', 'beam']);
+    expect(s.cards.deck).toEqual([]);
+    expect(s.cards.discard).toEqual([]);
   });
 });
 

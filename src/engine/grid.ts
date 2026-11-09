@@ -145,19 +145,22 @@ export function ray(state: GameState, from: Pos, d: Pos, maxLen = Infinity): Pos
   return out;
 }
 
-/** Monsters avoid Magma and Quicksand: stepping onto one costs this much extra, so they only do it if there's no other way. */
+/**
+ * Monsters avoid Magma and Quicksand: stepping onto one costs this much extra, so they only do it if there's no other
+ * way. A `fearless` unit (immune, so the floor can't hurt it: the Redactor while a Ward stands) walks straight over.
+ */
 const HAZARD_PENALTY = 50;
 
-function stepCost(state: GameState, p: Pos): number {
+function stepCost(state: GameState, p: Pos, fearless = false): number {
   const h = hazardAt(state, p);
-  return 1 + (h && h.kind !== 'fog' ? HAZARD_PENALTY : 0);
+  return 1 + (!fearless && h && h.kind !== 'fog' ? HAZARD_PENALTY : 0);
 }
 
 /**
- * Walking cost from every reachable tile to the nearest goal tile (Dijkstra; a step costs 1, more onto a hazard).
- * Other units, pillars and holes are walls; `selfId`'s own tile counts as walkable.
+ * Walking cost from every reachable tile to the nearest goal tile (Dijkstra; a step costs 1, more onto a hazard
+ * unless `fearless`). Other units, pillars and holes are walls; `selfId`'s own tile counts as walkable.
  */
-export function distanceField(state: GameState, goals: Pos[], selfId: string): Map<string, number> {
+export function distanceField(state: GameState, goals: Pos[], selfId: string, fearless = false): Map<string, number> {
   const dist = new Map<string, number>();
   const open: Pos[] = [];
   for (const g of goals) {
@@ -170,7 +173,7 @@ export function distanceField(state: GameState, goals: Pos[], selfId: string): M
     for (let i = 1; i < open.length; i++) if (dist.get(posKey(open[i]))! < dist.get(posKey(open[bi]))!) bi = i;
     const q = open.splice(bi, 1)[0];
     const dq = dist.get(posKey(q))!;
-    const cost = dq + stepCost(state, q);
+    const cost = dq + stepCost(state, q, fearless);
     for (const p of neighbors4(state, q)) {
       if (!isWalkable(state, p, selfId)) continue;
       const known = dist.get(posKey(p));
@@ -186,11 +189,11 @@ export function distanceField(state: GameState, goals: Pos[], selfId: string): M
  * Next step along a cheapest path toward any goal tile. Equally good steps are chosen at random.
  * Returns null if already on a goal or no path exists.
  */
-export function stepToward(state: GameState, enemy: Enemy, goals: Pos[]): Pos | null {
-  const dist = distanceField(state, goals, enemy.id);
+export function stepToward(state: GameState, enemy: Enemy, goals: Pos[], fearless = false): Pos | null {
+  const dist = distanceField(state, goals, enemy.id, fearless);
   const here = dist.get(posKey(enemy.pos));
   if (here === 0) return null;
-  const total = (q: Pos) => dist.get(posKey(q))! + stepCost(state, q);
+  const total = (q: Pos) => dist.get(posKey(q))! + stepCost(state, q, fearless);
   const options = neighbors4(state, enemy.pos).filter((q) => dist.has(posKey(q)) && isWalkable(state, q, enemy.id) && (here === undefined || total(q) <= here));
   if (options.length === 0) return null;
   const best = Math.min(...options.map(total));
@@ -201,10 +204,10 @@ export function stepToward(state: GameState, enemy: Enemy, goals: Pos[]): Pos | 
  * One step that increases the distance from `threat` as much as possible (hazards only if nothing else works).
  * Returns null when every open step would bring the unit closer.
  */
-export function stepAway(state: GameState, enemy: Enemy, threat: Pos): Pos | null {
+export function stepAway(state: GameState, enemy: Enemy, threat: Pos, fearless = false): Pos | null {
   const current = manhattan(enemy.pos, threat);
   const all = neighbors4(state, enemy.pos).filter((q) => isWalkable(state, q, enemy.id));
-  const safe = all.filter((q) => stepCost(state, q) === 1);
+  const safe = all.filter((q) => stepCost(state, q, fearless) === 1);
   const options = safe.length ? safe : all;
   if (options.length === 0) return null;
   const score = (q: Pos) => manhattan(q, threat) * 10 + chebyshev(q, threat);

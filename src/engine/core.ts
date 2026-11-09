@@ -226,6 +226,13 @@ export function enterTile(state: GameState, ref: UnitRef, side: LogSide): boolea
   if (ref === 'player') pickUpDrops(state);
   if (u.size === 'float') return false;
   const h = hazardAt(state, u.pos);
+  // An immune unit (the Redactor while a Ward stands) takes no status from the floor either.
+  const enemy = ref === 'player' ? null : state.enemies.find((x) => x.id === ref);
+  const immune = enemy && (h?.kind === 'magma' || h?.kind === 'quicksand') ? immunityReason(state, enemy, null) : null;
+  if (immune) {
+    log(state, side, `${u.name} steps onto the ${h!.kind} unharmed (${immune}).`);
+    return false;
+  }
   if (h?.kind === 'magma') {
     u.status.burn = RULES.burnTicks;
     log(state, side, `${u.name} step${ref === 'player' ? '' : 's'} onto the magma and catch${ref === 'player' ? '' : 'es'} fire (Burn ${RULES.burnTicks}).`);

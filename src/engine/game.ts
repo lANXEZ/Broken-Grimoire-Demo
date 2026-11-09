@@ -1,4 +1,4 @@
-import { cardsLabel, drawCards, freshShuffle, grimoireBroken, newCardState, ownedCards, refillHand, takeFromHand, type DrawResult } from './cards';
+import { cardsLabel, drawFragments, freshShuffle, grimoireBroken, newCardState, ownedCards, refillHand, takeFromHand, type DrawResult } from './cards';
 import { CAMP_ROOM, ENDLESS, ENEMY_DEFS, LECTERN_ROOM, PROLOGUE_ROOM, ROOMS, RULES, RUN, coordLabel, parseCoord, type RoomDef } from './data';
 import { generateRoom } from './generate';
 import {
@@ -313,7 +313,7 @@ export function rerollError(state: GameState, cardIds: number[] = []): string | 
   return null;
 }
 
-/** Reroll: discard the chosen cards from your hand, then draw that many from the deck. */
+/** Reroll: discard the chosen cards from your hand, then draw that many non-rune fragments (runes drawn don't count). */
 export function playerReroll(state: GameState, cardIds: number[] = []): GameState {
   assertPlayerAction(state);
   const err = rerollError(state, cardIds);
@@ -322,7 +322,7 @@ export function playerReroll(state: GameState, cardIds: number[] = []): GameStat
     const swapped = takeFromHand(s.cards, cardIds);
     s.cards.discard.push(...swapped);
     log(s, 'player', `Reroll: discard ${cardsLabel(swapped)}.`);
-    logDraw(s, drawCards(s, swapped.length), 'You draw');
+    logDraw(s, drawFragments(s, swapped.length), 'You draw');
   });
 }
 

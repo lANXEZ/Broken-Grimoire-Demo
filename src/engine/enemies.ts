@@ -275,16 +275,19 @@ function moveTo(s: GameState, e: Enemy, to: Pos, kind: 'move' | 'retreat' | 'wan
   });
 }
 
+/** An immune unit has nothing to fear from Magma or Quicksand, so it doesn't path around them. */
+const fearless = (s: GameState, e: Enemy) => !!immunityReason(s, e, null);
+
 function approach(s: GameState, e: Enemy, goals: Pos[]): Decision {
   if (e.status.root > 0) return stop('is rooted and can’t move.');
-  const step = stepToward(s, e, goals);
+  const step = stepToward(s, e, goals, fearless(s, e));
   if (!step) return stop('has no open path, so it waits.');
   return moveTo(s, e, step);
 }
 
 function flee(s: GameState, e: Enemy): Decision {
   if (e.status.root > 0) return stop('is rooted and can’t run.');
-  const step = stepAway(s, e, s.player.pos);
+  const step = stepAway(s, e, s.player.pos, fearless(s, e));
   if (!step) return stop('is cornered and holds position.');
   return moveTo(s, e, step, 'retreat');
 }
