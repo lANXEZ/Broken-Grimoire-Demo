@@ -88,9 +88,32 @@ export function drawCards(state: GameState, n: number): DrawResult {
   return { drawn, reshuffled };
 }
 
-/** Start of the player's turn: draw back up to the hand size. */
+/**
+ * Draw until `n` non-rune fragments have come in. Runes drawn along the way go to the hand too but don't count, so
+ * a hand is never clogged with runes. Stops early if the deck and discard pile run dry.
+ */
+export function drawFragments(state: GameState, n: number): DrawResult {
+  const drawn: Card[] = [];
+  let reshuffled = false;
+  let count = 0;
+  while (count < n) {
+    const one = drawCards(state, 1);
+    if (one.drawn.length === 0) break;
+    reshuffled ||= one.reshuffled;
+    drawn.push(one.drawn[0]);
+    if (one.drawn[0].kind !== 'rune') count++;
+  }
+  return { drawn, reshuffled };
+}
+
+/** Non-rune fragments in the hand (what the hand size counts). */
+export function handFragmentCount(cards: CardState): number {
+  return cards.hand.filter((c) => c.kind !== 'rune').length;
+}
+
+/** Start of the player's turn: draw back up to the hand size, runes not counted. */
 export function refillHand(state: GameState): DrawResult {
-  return drawCards(state, Math.max(0, RULES.handSize - state.cards.hand.length));
+  return drawFragments(state, Math.max(0, RULES.handSize - handFragmentCount(state.cards)));
 }
 
 /** New room: hand, deck and discard all go back into one shuffled deck, then draw a fresh hand. */
@@ -100,7 +123,7 @@ export function freshShuffle(state: GameState): DrawResult {
   cards.hand = [];
   cards.discard = [];
   shuffleInPlace(state, cards.deck);
-  return drawCards(state, RULES.handSize);
+  return drawFragments(state, RULES.handSize);
 }
 
 /**

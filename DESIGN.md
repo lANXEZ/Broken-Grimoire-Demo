@@ -37,7 +37,7 @@ and you draw 5. Erased cards stay erased.
 ## Turns
 
 - Turns alternate: your turn, then the enemy turn. The turn counter restarts at 1 in each room.
-- **Your turn:** 3 actions, any order. Start of your turn: draw back up to 5.
+- **Your turn:** 3 actions, any order. Start of your turn: draw back up to 5 (runes don't count; GAME_RULES.md, Cards and drops).
 - **Enemy turn:** each enemy takes its own turn in order of type number (Rat 1 → Redactor 8), then deploy order. The
   Redactor always goes last. Each enemy spends its actions one at a time, and **attacks resolve immediately**.
 - **One attack per monster per turn**, and a normal monster ends its turn after attacking. The Redactor is the only
@@ -87,7 +87,7 @@ and you draw 5. Erased cards stay erased.
 | Move | 1 tile orthogonally; never into a hole, unit or pillar |
 | Cast | Fire what's on the crafting board (see [Spells](#spells)) |
 | Meditate | +3 mana (max 6); doesn't end your turn |
-| Reroll | Pick any cards in your hand (at least one), discard them, draw that many |
+| Reroll | Pick any cards in your hand (at least one), discard them, draw that many (runes drawn don't count) |
 
 There is no potion. Healing happens only at the camp.
 

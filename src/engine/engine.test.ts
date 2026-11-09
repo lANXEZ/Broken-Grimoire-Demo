@@ -8,6 +8,10 @@ import {
   eventChoice,
   freeStep,
   freeWalkPath,
+  freshShuffle,
+  handFragmentCount,
+  playerReroll,
+  refillHand,
   comboFromCards,
   coordLabel,
   createGame,
@@ -990,6 +994,59 @@ describe('the run', () => {
     expect(ROOMS.map((r) => r.holes)).toEqual([['b4', 'e5'], ['c2', 'd5'], ['a5', 'h4']]);
     expect(ROOMS[2].enemies.find((e) => e.at === 'd4')?.element).toBe('earth');
     expect(createGame(1).cards.deck.length + createGame(1).cards.hand.length).toBe(14);
+  });
+});
+
+describe('drawing: runes don’t count toward the hand size', () => {
+  // The deck draws from the end of its array, so `stack('a', 'b')` draws a first, then b.
+  let nextId = 500;
+  const card = (kind: FragmentKind): Card => ({ id: nextId++, kind, ...(kind === 'rune' ? { rune: 1 } : {}) });
+  const stack = (...kinds: FragmentKind[]): Card[] => kinds.map(card).reverse();
+  const kinds = (cs: Card[]) => cs.map((c) => c.kind);
+
+  it('the turn draw tops up to 5 non-rune fragments; runes in hand or drawn ride along', () => {
+    const s = board({ player: 'a1', enemies: [dummy()] });
+    s.cards.hand = [card('rune'), card('fire')];
+    s.cards.deck = stack('rune', 'water', 'beam', 'rune', 'earth', 'wall', 'cross', 'wind');
+    s.cards.discard = [];
+    const drawn = refillHand(s).drawn;
+    expect(kinds(drawn)).toEqual(['rune', 'water', 'beam', 'rune', 'earth', 'wall']);
+    expect(handFragmentCount(s.cards)).toBe(5);
+    expect(s.cards.hand).toHaveLength(8);
+    expect(kinds(s.cards.deck)).toEqual(['wind', 'cross']);
+    // A full hand of fragments draws nothing, however many runes it has.
+    expect(refillHand(s).drawn).toEqual([]);
+  });
+
+  it('a new room’s fresh hand is 5 non-rune fragments plus any runes drawn on the way', () => {
+    const s = createGame(3);
+    s.cards.deck.push(card('rune'), card('rune'), card('rune'));
+    for (let i = 0; i < 20; i++) {
+      freshShuffle(s);
+      expect(handFragmentCount(s.cards)).toBe(5);
+      expect(s.cards.hand[s.cards.hand.length - 1].kind).not.toBe('rune');
+    }
+  });
+
+  it('Reroll brings back one non-rune fragment per card swapped, a swapped rune included', () => {
+    const s = board({ player: 'a1', enemies: [dummy()] });
+    const rune = card('rune');
+    s.cards.hand = [rune, card('fire'), card('beam')];
+    s.cards.deck = stack('rune', 'water', 'wall', 'earth');
+    s.cards.discard = [];
+    const next = playerReroll(s, [rune.id, s.cards.hand[1].id]);
+    expect(kinds(next.cards.hand)).toEqual(['beam', 'rune', 'water', 'wall']);
+    expect(kinds(next.cards.deck)).toEqual(['earth']);
+  });
+
+  it('stops when the deck and discard pile run dry, even short of 5', () => {
+    const s = board({ player: 'a1', enemies: [dummy()] });
+    s.cards.hand = [];
+    s.cards.deck = stack('rune', 'fire', 'rune');
+    s.cards.discard = [card('beam')];
+    expect(kinds(refillHand(s).drawn)).toEqual(['rune', 'fire', 'rune', 'beam']);
+    expect(s.cards.deck).toEqual([]);
+    expect(s.cards.discard).toEqual([]);
   });
 });
 

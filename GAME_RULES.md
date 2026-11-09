@@ -113,7 +113,7 @@ you pick, it's the next stop below. Your picks are kept for the whole run, so th
 - There are **no rounds**. Turns alternate: your turn, then the enemy turn. Player turn *N* is followed by enemy turn
   *N*. The turn counter restarts at 1 in each room.
 - **Your turn:** 3 actions, in any order. It ends when all 3 are spent, or earlier if you end it. At the start of your
-  turn you draw back up to 5 cards.
+  turn you draw back up to 5 fragments; runes don't count (see [Cards and drops](#cards-and-drops)).
 - **Enemy turn:** each enemy takes its own turn, one after another, in order of **type number** (Rat 1 → Redactor 8),
   then **deploy order** within a type. The Redactor always goes last. Each enemy spends its actions one at a time,
   and **attacks resolve immediately**.
@@ -175,7 +175,7 @@ which path it will take**.
 | Move | 1 tile up, down, left or right. Never into a hole, a unit or a pillar. |
 | Cast | Fire what's on the crafting table (see [Spells](#spells)). |
 | Meditate | +3 mana (max 6). Doesn't end your turn. |
-| Reroll | Choose any of the cards in your hand (at least one), discard them, and draw that many from the deck. |
+| Reroll | Choose any of the cards in your hand (at least one), discard them, and draw that many non-rune fragments from the deck (runes drawn on the way come too but don't count). |
 
 - **There is no potion.** Healing happens only at the [camp](#event-and-camp).
 - **End of your turn:** if you're standing in an [Erasure Zone](#erasure-zone), a random fragment from your hand is
@@ -486,10 +486,10 @@ killing the Redactor ends the demo.
 | | |
 |---|---|
 | Starting deck (14) | Fire ×3, Water ×2, Earth ×2, Wind ×2, Beam ×2, Cross ×2, Wall ×1. |
-| Hand | 5 cards. At the start of each of your turns, draw back up to 5. |
+| Hand | 5 non-rune fragments. At the start of each of your turns, draw back up to 5. **Runes don't count (team decision, Nov 9):** a rune drawn goes to your hand but you keep drawing, so a full hand is always 5 fragments plus any runes. There is no cap; the fan squeezes to fit. This keeps a hand from filling up with runes and leaving nothing to cast. |
 | Deck runs out | The discard pile is shuffled into a new deck. |
-| Reroll | Pick the hand cards to swap: they go to the discard pile first, then you draw that many (reshuffling the discard pile in if the deck runs out). |
-| New room | Hand, deck and discard pile are shuffled together into one deck, then you draw 5. Erased cards stay erased. |
+| Reroll | Pick the hand cards to swap: they go to the discard pile first, then you draw that many non-rune fragments, runes not counted, swapped runes included (reshuffling the discard pile in if the deck runs out). |
+| New room | Hand, deck and discard pile are shuffled together into one deck, then you draw 5 fragments (runes not counted). Erased cards stay erased. |
 | Page Scrap steal | Takes a **random** card from your hand. With an empty hand there's nothing to steal, and it waits. |
 | Erasure Zone | Ending your turn inside one erases a **random** hand card for good (the top card of the deck if your hand is empty). |
 
