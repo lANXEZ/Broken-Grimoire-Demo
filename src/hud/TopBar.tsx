@@ -1,4 +1,4 @@
-import { GRIMOIRE_PAGES, RUN, ownedCards, type GameState } from '../engine';
+import { GRIMOIRE_PAGES, RUN, ownedCards, seedLabel, type GameState } from '../engine';
 import { CARD_BACK_ART } from '../config/art';
 
 /**
@@ -33,10 +33,20 @@ export function TopBar({ state, onGrimoire, onDeck, onToggleLog, onMenu }: {
         </button>
       </div>
 
-      <div className="top-center" title={stage?.kind === 'room' ? state.room.blurb : undefined}>
-        <span className="room-index">{state.stage < 0 ? 'Room 0' : `Stop ${state.stage + 1}/${RUN.length}`}</span>
-        <span className="room-name">{where}</span>
-      </div>
+      {state.endless ? (
+        <div className="top-center is-endless" title={state.phase === 'camp' ? undefined : state.room.blurb}>
+          <span className="room-index">Endless &middot; Room {state.endless.cleared + 1}</span>
+          <span className="room-name">{state.room.name}</span>
+          <span className="endless-info">
+            Hardness {state.endless.hardness} &middot; Seed {seedLabel(state.endless.roomSeed)}
+          </span>
+        </div>
+      ) : (
+        <div className="top-center" title={stage?.kind === 'room' ? state.room.blurb : undefined}>
+          <span className="room-index">{state.stage < 0 ? 'Room 0' : `Stop ${state.stage + 1}/${RUN.length}`}</span>
+          <span className="room-name">{where}</span>
+        </div>
+      )}
 
       <div className="top-right">
         {(state.phase === 'player' || state.phase === 'enemy') && state.stage >= 0 && <div className="turn-counter">Turn {state.turn}</div>}

@@ -9,6 +9,8 @@
 :root {
   color-scheme: dark;
   --gold: #d9b768;
+  /* Endless mode's curse purple (the same as a dropped rune's glow, RUNE_DROP_GLOW). */
+  --endless-purple: #b866ff;
   --gold-dim: #8f7444;
   --ink: #f1e6cf;
   --ink-dim: #b5a68b;
@@ -196,6 +198,23 @@ button {
   font-weight: 700;
   font-size: 1.45rem;
   color: var(--ink);
+}
+/* Endless mode: the room, its hardness and its seed (the generator at work, for anyone watching). */
+.top-center.is-endless .room-index {
+  color: var(--endless-purple);
+}
+.endless-info {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  color: #cfa8ff;
+  font-variant-numeric: tabular-nums;
+}
+.endless-score {
+  font-size: 1.15rem;
+}
+.endless-score b {
+  color: var(--endless-purple);
+  font-size: 1.5rem;
 }
 .turn-counter {
   font-size: 1.15rem;
@@ -1722,6 +1741,21 @@ button {
 .camp-card:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+/* Endless camp: the pages picked to tear out (up to 4). */
+.camp-card.is-picked {
+  transform: translateY(-0.4rem);
+  outline: 0.18rem solid var(--endless-purple);
+  outline-offset: 0.15rem;
+  border-radius: 0.3rem;
+  box-shadow: 0 0 1rem #b866ff88;
+}
+.camp-confirm {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.6rem;
 }
 .grimoire-button {
   font-size: 0.95rem;

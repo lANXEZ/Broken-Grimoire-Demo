@@ -7,6 +7,7 @@ import {
   exitOpen,
   campChoice,
   continueRun,
+  enterEndless,
   devRemoveEnemy,
   endPlayerTurn,
   enemyAt,
@@ -267,7 +268,8 @@ export function App() {
   useEffect(() => {
     if (state.stage !== lastMapStage.current) {
       lastMapStage.current = state.stage;
-      if (state.stage >= 0) setMapShown(true);
+      // Endless mode has no map (its stage is just parked on the last stop).
+      if (state.stage >= 0 && !state.endless) setMapShown(true);
     }
   }, [state.stage]);
   // Stuck in quicksand: no casting, so the crafting table makes way for the Climb out button (cards go back to the hand).
@@ -308,6 +310,11 @@ export function App() {
     resetCasting();
     setIntro('resting');
     window.setTimeout(() => setIntro('title'), TIMING.restClose);
+  };
+  /** Victory's Continue (and the dev Endless button): the curse, then endless mode (engine/game.ts enterEndless). */
+  const startEndless = () => {
+    resetCasting();
+    game.run(enterEndless);
   };
   /** After the rune message on the black screen (a defeat): a new run, waking up in room 0 like at the start. */
   const afterFate = () => {
@@ -458,12 +465,14 @@ export function App() {
   // The lectern's and the camp's rooms: on arrival the mage walks up to the lectern / fire by themselves; once it's over they
   // walk out (after a moment to read what it said). Each happens once per visit, so a click can still override.
   const eventStep = inEvent ? state.event?.step ?? null : null;
-  const autoWalked = useRef({ in: -1, out: -1 });
+  const autoWalked = useRef({ in: '', out: '' });
   // The timers read the latest state and leave function when they fire (the mage may have moved meanwhile).
   const latest = useRef({ state, startLeaving });
   latest.current = { state, startLeaving };
+  // Once per visit: endless mode visits the camp again and again on the same stage, so its room number counts too.
+  const visit = `${state.stage}:${state.roomIndex}`;
   useEffect(() => {
-    const stage = state.stage;
+    const stage = visit;
     if (eventStep === 'approach' && autoWalked.current.in !== stage) {
       const t = window.setTimeout(() => {
         autoWalked.current.in = stage;
@@ -481,7 +490,7 @@ export function App() {
       return () => window.clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the event moves on, not on every state change
-  }, [eventStep, state.stage]);
+  }, [eventStep, visit]);
 
   // "Your turn" / "Enemy turn" / room name banner.
   const bannerKey = `${state.stage}-${state.roomIndex}-${state.turn}-${state.phase}`;
@@ -493,7 +502,7 @@ export function App() {
         : state.phase === 'enemy'
         ? { title: 'Enemy Turn', kind: 'enemy' as const }
         : state.turn === 1
-          ? { title: state.room.name, sub: `Room ${state.roomIndex + 1}`, kind: 'room' as const }
+          ? { title: state.room.name, sub: state.endless ? `Hardness ${state.endless.hardness}` : `Room ${state.roomIndex + 1}`, kind: 'room' as const }
           : { title: 'Your Turn', sub: `Turn ${state.turn}`, kind: 'player' as const };
     const id = nextId++;
     setBanner({ ...b, id });
@@ -909,7 +918,7 @@ export function App() {
       {(!cut.active || tutorial) && (
       <div className="hud">
         <TopBar state={view} onGrimoire={() => setBookOpen(true)} onDeck={() => setDeckOpen(true)} onToggleLog={() => setLogOpen((o) => !o)} onMenu={() => setMenuOpen(true)} />
-        {dev && <DevBar game={game} hover={hover} />}
+        {dev && <DevBar game={game} hover={hover} onEndless={startEndless} />}
 
         {showNote && !tutorial && (
           <HmmmNote view={note} tableUsed={onTable.length > 0} interactive={noteInteractive} fresh={freshCombos} onHover={(l) => setNoteHover(l?.key ?? null)} onPick={pickNote} />
@@ -1012,6 +1021,7 @@ export function App() {
       {finished && !castPlaying && intro !== 'fate' && (
         <GameOverDialog
           state={state}
+          onEndless={startEndless}
           onNewRun={() => {
             // Defeat: everything goes dark and the rune message shows first (FateScreen), then the same waking.
             if (state.phase === 'lost') return setIntro('fate');

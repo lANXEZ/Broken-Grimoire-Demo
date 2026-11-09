@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import {
   GRIMOIRE_PAGES,
   campError,
+  campRestHeal,
+  campTearMax,
   stageName,
   cardName,
   isElementKind,
@@ -15,6 +17,7 @@ import {
 import { FragmentCard } from './Hand';
 import { RuneText } from './RuneLetter';
 import { LECTERN_MESSAGE } from '../config/runeMessages';
+import { recordEndlessBest } from '../game/endlessBest';
 
 /** The bridge the Electron app exposes (electron/preload.cjs). Undefined when running in a browser. */
 declare global {
@@ -48,8 +51,10 @@ export function ClearedPanel({ state, itemsLeft, asking, leaving, onContinue, on
   onConfirm: () => void;
   onStay: () => void;
 }) {
-  const nextName = stageName(state.stage + 1);
+  const endless = !!state.endless;
+  const nextName = endless ? 'Camp' : stageName(state.stage + 1);
   const onFloor = state.room.drops.reduce((n, d) => n + d.cards.length, 0);
+  const way = endless ? '' : ' The door is open.';
   return (
     <div className="cleared-panel">
       <div className="cleared-title">Cleared!</div>
@@ -57,8 +62,8 @@ export function ClearedPanel({ state, itemsLeft, asking, leaving, onContinue, on
         {leaving
           ? 'Walking to the door…'
           : onFloor > 0
-            ? `Click the board to walk over and pick up ${onFloor === 1 ? 'the drop' : `the ${onFloor} drops`}. The door is open.`
-            : 'Nothing left on the floor. The door is open.'}
+            ? `Click the board to walk over and pick up ${onFloor === 1 ? 'the drop' : `the ${onFloor} drops`}.${way}`
+            : `Nothing left on the floor.${way}`}
       </div>
       {asking ? (
         <div className="confirm-row">
@@ -74,7 +79,7 @@ export function ClearedPanel({ state, itemsLeft, asking, leaving, onContinue, on
         </div>
       ) : (
         <button className="hud-button primary" disabled={leaving} onClick={onContinue}>
-          Continue to {nextName}
+          {endless ? `Next: ${nextName}` : `Continue to ${nextName}`}
         </button>
       )}
     </div>
@@ -166,6 +171,10 @@ export function EventPanel({ state, onChoose }: { state: GameState; onChoose: (c
  */
 export function CampPanel({ state, onChoose }: { state: GameState; onChoose: (c: CampChoice) => void }) {
   const [tearing, setTearing] = useState(false);
+  /** Endless mode: the pages picked so far (up to campTearMax). */
+  const [picked, setPicked] = useState<number[]>([]);
+  const max = campTearMax(state);
+  const heal = campRestHeal(state);
   const ev = state.event;
   if (!ev) return null;
   const deck = ownedCards(state.cards)
@@ -183,12 +192,18 @@ export function CampPanel({ state, onChoose }: { state: GameState; onChoose: (c:
               <button className="choice" onClick={() => onChoose({ kind: 'rest' })}>
                 <b>Rest</b>
                 <span>
-                  Heal to full ({state.player.hp} &rarr; {state.player.maxHp} HP).
+                  {state.endless ? 'Heal 70% of your missing HP' : 'Heal to full'} ({state.player.hp} &rarr; {state.player.hp + heal} HP).
                 </span>
               </button>
-              <button className="choice" onClick={() => setTearing(true)}>
-                <b>Tear out a page</b>
-                <span>Remove one fragment from your deck for good.</span>
+              <button
+                className="choice"
+                onClick={() => {
+                  setPicked([]);
+                  setTearing(true);
+                }}
+              >
+                <b>{max > 1 ? 'Tear out pages' : 'Tear out a page'}</b>
+                <span>{max > 1 ? `Remove up to ${max} fragments from your deck for good.` : 'Remove one fragment from your deck for good.'}</span>
               </button>
             </div>
           </>
@@ -202,18 +217,28 @@ export function CampPanel({ state, onChoose }: { state: GameState; onChoose: (c:
       </div>
       {tearing && ev.step === 'offer' && (
         <Modal className="camp-modal">
-          <h2>Tear out a page</h2>
-          <p>Pick the fragment to remove from your deck for good.</p>
+          <h2>{max > 1 ? 'Tear out pages' : 'Tear out a page'}</h2>
+          <p>
+            {max > 1
+              ? `Pick up to ${max} fragments to remove from your deck for good (${picked.length}/${max} picked).`
+              : 'Pick the fragment to remove from your deck for good.'}
+          </p>
           <div className="camp-cards">
             {deck.map((c) => {
-              const err = campError(state, { kind: 'tear', cardIds: [c.id] });
+              const isPicked = picked.includes(c.id);
+              // Picking it too must still leave a deck that makes a spell (and stay within the limit).
+              const err = isPicked ? null : campError(state, { kind: 'tear', cardIds: max > 1 ? [...picked, c.id] : [c.id] });
               return (
                 <button
                   key={c.id}
-                  className="camp-card"
+                  className={`camp-card ${isPicked ? 'is-picked' : ''}`}
                   disabled={!!err}
-                  title={err ?? `Tear out ${cardName(c)}`}
+                  title={err ?? (isPicked ? `Keep ${cardName(c)}` : `Tear out ${cardName(c)}`)}
                   onClick={() => {
+                    if (max > 1) {
+                      setPicked((cur) => (cur.includes(c.id) ? cur.filter((x) => x !== c.id) : [...cur, c.id]));
+                      return;
+                    }
                     setTearing(false);
                     onChoose({ kind: 'tear', cardIds: [c.id] });
                   }}
@@ -223,9 +248,23 @@ export function CampPanel({ state, onChoose }: { state: GameState; onChoose: (c:
               );
             })}
           </div>
-          <button className="text-button" onClick={() => setTearing(false)} autoFocus>
-            Back
-          </button>
+          <div className="camp-confirm">
+            {max > 1 && (
+              <button
+                className="hud-button danger"
+                disabled={!picked.length}
+                onClick={() => {
+                  setTearing(false);
+                  onChoose({ kind: 'tear', cardIds: picked });
+                }}
+              >
+                Tear out {picked.length === 1 ? '1 page' : `${picked.length} pages`}
+              </button>
+            )}
+            <button className="text-button" onClick={() => setTearing(false)} autoFocus>
+              Back
+            </button>
+          </div>
         </Modal>
       )}
     </>
@@ -320,8 +359,25 @@ export function DeckView({ state, onClose }: { state: GameState; onClose: () => 
  * The end of a run. Victory: New run. Defeat: Continue, which goes dark and shows the rune message before the
  * mage wakes up in room 0 again (App.tsx, hud/TitleScreen.tsx FateScreen).
  */
-export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun: () => void }) {
+export function GameOverDialog({ state, onNewRun, onEndless }: { state: GameState; onNewRun: () => void; onEndless: () => void }) {
   const won = state.phase === 'won';
+  const endless = state.endless;
+  // An endless run's score, recorded once as the dialog opens.
+  const [best] = useState(() => (endless && !won ? recordEndlessBest(endless.cleared) : 0));
+  if (endless && !won) {
+    return (
+      <Modal className="is-lost is-endless">
+        <h2>The curse claims you</h2>
+        <p className="endless-score">
+          Rooms cleared: <b>{endless.cleared}</b> (best: {best})
+        </p>
+        <p>{state.lostReason === 'grimoire' ? 'Your grimoire is broken: your cards can no longer make a spell.' : state.lostReason === 'hole' ? 'The mage fell into a hole.' : 'The mage has fallen.'}</p>
+        <button className="hud-button primary" onClick={onNewRun} autoFocus>
+          Continue
+        </button>
+      </Modal>
+    );
+  }
   return (
     <Modal className={won ? 'is-won' : 'is-lost'}>
       <h2>{won ? 'Victory' : 'Defeat'}</h2>
@@ -334,9 +390,20 @@ export function GameOverDialog({ state, onNewRun }: { state: GameState; onNewRun
               ? 'The mage fell into a hole.'
               : 'The mage has fallen.'}
       </p>
-      <button className="hud-button primary" onClick={onNewRun} autoFocus>
-        {won ? 'New run' : 'Continue'}
-      </button>
+      {won ? (
+        <div className="confirm-row">
+          <button className="hud-button primary" onClick={onEndless} autoFocus>
+            Continue
+          </button>
+          <button className="text-button" onClick={onNewRun}>
+            New run
+          </button>
+        </div>
+      ) : (
+        <button className="hud-button primary" onClick={onNewRun} autoFocus>
+          Continue
+        </button>
+      )}
     </Modal>
   );
 }

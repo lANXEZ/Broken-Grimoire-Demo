@@ -41,7 +41,7 @@ hardness = same room.
 - [x] 1. Generator: `src/engine/generate.ts` (`generateRoom(seed, hardness)` -> RoomDef), `ENDLESS` settings, tests
 - [x] 2. Engine flow: `endless: { seed, hardness, cleared } | null` on GameState; `enterEndless`; Continue alternates
       fight <-> camp; Redactor kill in endless is a normal kill; endless camp choices (70% rest, tear 4); saving
-- [ ] 3. Screens: top bar (Endless · Room N · Hardness H · Seed XXXX), clear panel labels with no door walk, camp
+- [x] 3. Screens: top bar (Endless · Room N · Hardness H · Seed XXXX), clear panel labels with no door walk, camp
       panel (70% rest + pick-4 picker), death screen with best score (`broken-grimoire/endless-best/v1`)
 - [ ] 4. The curse transition: `src/hud/EndlessCurse.tsx`, timings in `config/timing.ts`, Victory -> Continue
 - [ ] 5. Dev: Endless button (anywhere), in endless Reroll and Hardness -3/+3; scripted playthrough; docs
@@ -77,3 +77,11 @@ hardness = same room.
   App's map effect must ignore endless. Tests: `src/engine/endless.test.ts`.
 - Note for step 3: App's camp auto-walk (`autoWalked`) is keyed on `state.stage`; in endless the stage never
   changes, so key it on roomIndex too. Leaving the endless camp still auto-walks to its door, then continueRun.
+- Step 3 done (screens): top bar in endless (Endless · Room N, the room, Hardness · Seed), clear panel "Next: Camp"
+  with no door, camp Rest shows the 70% heal and Tear out pages picks up to 4 then confirms, the endless death
+  dialog ("The curse claims you", rooms cleared + best, `src/game/endlessBest.ts`), Victory has Continue (->
+  endless) + New run. App: no map in endless; camp auto-walk keyed on stage + roomIndex. Dev buttons (part of
+  step 5) are in too: Endless (outside endless), Reroll / Hard -3 / Hard +3 (in endless). Checked in Electron:
+  dev Endless -> room 1 (12) -> clear -> camp -> tear 3 -> room 2 (15) -> 7x7 (21) -> 8x8 with the Redactor (30).
+- NEXT: step 4, the curse transition. Victory's Continue and the dev Endless button both call `startEndless` in
+  App.tsx, which today just runs `enterEndless`; the curse goes in front of it.
