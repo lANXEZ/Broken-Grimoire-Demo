@@ -101,6 +101,7 @@ pages, and the "Hmmm..." note's card combinations.
 | Pillar torches and dark rooms | The torch: `src/scene/Torch.tsx` (colours `torch*` in `src/config/art.ts`). How dark a dark room is: `src/scene/Lighting.tsx`. How long it stays dark: `roomDark` / `roomLighting` in `src/config/timing.ts` |
 | Animation speeds | `src/config/timing.ts` |
 | Spell effects (timing, size, colours, camera shake on/off) | `src/config/fx.ts`; the effects themselves are in `src/scene/SpellFx.tsx` |
+| Sound effects and background sounds (all made in code, no sound files) | How loud each one is, the echo, the background layers: `src/config/sound.ts`. The sounds themselves: `src/audio/synth.ts`. What plays when: `src/audio/gameSounds.ts` (casts, the board changing) and `App.tsx` (turn banners, cards, waking up). Volume and mute: Menu → Settings, saved as `broken-grimoire/sound/v1` |
 | Balance numbers, enemies, rooms, the run order | `src/engine/data.ts` (`RULES`, `ENEMY_DEFS`, `ROOMS`, `RUN`) |
 | Room 0's layout (campfire, sealed door and its spell trail, the sleeping mat's tiles) | `src/engine/data.ts` (`PROLOGUE_ROOM`); the mat's look and its "Get some rest?" prompt are `src/scene/Mat.tsx` |
 | Rune cards' made-up names | `src/engine/runes.ts` (`RUNE_SYMBOLS`) |

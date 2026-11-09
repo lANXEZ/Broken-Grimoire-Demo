@@ -18,6 +18,8 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      // The game's sounds (src/audio) may start before the first click: the title screen's night forest.
+      autoplayPolicy: 'no-user-gesture-required',
     },
   });
   win.once('ready-to-show', () => win.show());

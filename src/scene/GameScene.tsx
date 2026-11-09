@@ -55,7 +55,8 @@ interface Props {
   onRightClick: () => void;
 }
 
-function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitView[] {
+/** Every unit on the board as drawn (and as its card describes it, hud/BoardInfo.tsx). */
+export function unitViews(state: GameState, intents: Record<string, Intent[]>): UnitView[] {
   const p = state.player;
   const views: UnitView[] = [
     {
@@ -165,7 +166,7 @@ export function GameScene({
         <CameraShake />
         <SceneLights dark={dark} />
         <Board room={room} exitOpen={exitOpen(state)} exitLabel={stageName(state.stage + 1)} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} torchesLit={torchesLit} doorSign={!bare} />
-        <Hazards hazards={room.hazards} room={room} hover={hover} turn={state.turn} cards={!bare} />
+        <Hazards hazards={room.hazards} room={room} />
         {room.sealedDoor && (
           <SealedDoor pos={room.sealedDoor} trail={room.spellTrail ?? []} room={room} pointer={pointer} unitFeet={unitFeet} pointerOnBoard={pointerOnBoard} />
         )}

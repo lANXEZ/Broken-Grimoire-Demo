@@ -1,16 +1,14 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
 import { AdditiveBlending, CanvasTexture, type Group, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type PointLight } from 'three';
-import { HAZARD_INFO, RULES, type Drop, type Hazard, type HazardKind, type Pos } from '../engine';
+import type { Drop, Hazard } from '../engine';
 import { FRAGMENT_COLOR, HAZARD_COLOR, RUNE_DROP_GLOW } from '../config/art';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 
 /**
  * PLACEHOLDER merge hazards and floor drops. None of these catch the mouse: clicks go to the tile underneath.
  * - Magma: a glowing orange pool. Quicksand: a sandy, slowly swirling puddle. Fog: a low translucent cloud.
- *   Hovering a hazard's tile shows a card saying what it does and when it fades (left of the tile, so it doesn't cover
- *   the card of a unit standing in it).
+ *   Hovering a hazard's tile shows what it does and when it fades, top right (hud/BoardInfo.tsx).
  * - Drops: a small gem bobbing over the tile, in the colour of the card it holds. A drop holding a rune glows bright
  *   purple (RUNE_DROP_GLOW): a glowing gem in a pulsing halo, a purple pool of light on the floor and a purple light.
  */
@@ -80,45 +78,9 @@ function Fog({ hazard, room }: { hazard: Hazard; room: RoomSize }) {
   );
 }
 
-/** [TEXT] What each hazard does, on its hover card. */
-const HAZARD_HOVER_TEXT: Record<HazardKind, string> = {
-  fog: 'Blocks sight: Archers and the Warden can’t see or shoot through it. A monster inside wanders at random and doesn’t attack. Doesn’t affect you. Wind blows it away.',
-  magma: `A unit that steps onto it catches Burn (1 damage at the start of each of its next ${RULES.burnTicks} turns). Monsters avoid it. Water turns it back to floor.`,
-  quicksand: `A unit in it can’t move, attack or cast until it spends ${RULES.quicksandEscape} actions to climb out, which clears it. Monsters avoid stepping in.`,
-};
-
-function fadesText(hazard: Hazard, turn: number): string {
-  const left = hazard.until - turn;
-  if (left <= 0) return 'Fades at the end of this turn.';
-  if (left === 1) return 'Fades at the end of your next turn.';
-  return `Fades at the end of your turn ${hazard.until}.`;
-}
-
-function HazardCard({ hazard, room, turn }: { hazard: Hazard; room: RoomSize; turn: number }) {
-  return (
-    <Html position={tileToWorld(hazard.pos, room, TILE_TOP + 0.45)} zIndexRange={[60, 50]} style={{ pointerEvents: 'none' }}>
-      <div className={`unit-card hazard-card is-${hazard.kind}`}>
-        <div className="unit-card-title">{HAZARD_INFO[hazard.kind].name}</div>
-        <p className="unit-card-text">{HAZARD_HOVER_TEXT[hazard.kind]}</p>
-        <p className="hazard-card-fades">{fadesText(hazard, turn)}</p>
-      </div>
-    </Html>
-  );
-}
-
-export function Hazards({ hazards, room, hover = null, turn = 0, cards = true }: {
-  hazards: Hazard[];
-  room: RoomSize;
-  /** The tile under the mouse: a hazard there shows its card. */
-  hover?: Pos | null;
-  turn?: number;
-  /** false hides the hover card (cutscenes). */
-  cards?: boolean;
-}) {
-  const hovered = cards && hover ? hazards.find((h) => h.pos.x === hover.x && h.pos.y === hover.y) : undefined;
+export function Hazards({ hazards, room }: { hazards: Hazard[]; room: RoomSize }) {
   return (
     <group>
-      {hovered && <HazardCard hazard={hovered} room={room} turn={turn} />}
       {hazards.map((h, i) => {
         // The index keeps keys unique even if a tile were ever listed twice (a repeated key leaves a mesh behind).
         const key = `${h.kind}-${h.pos.x},${h.pos.y}-${i}`;

@@ -354,7 +354,9 @@ written in the dungeon's own tongue. You'll have to work out what they mean your
 
 - **Card detail panel:** hovering a torn-page fragment in your hand shows that card's existing card asset (the card art
   the team already has) in a panel on the right side of the screen. The torn pages are new art; the card assets are
-  reused as-is for the panel. A rune shows only its symbol there.
+  reused as-is for the panel. A rune shows only its symbol there. Hovering the board shows what's under the pointer
+  in the same spot (team decision, Nov 9): the unit standing there (name, HP, statuses, what it does, its next turn)
+  and the hazard on the tile, so no card covers the board.
 
 ## Open items
 

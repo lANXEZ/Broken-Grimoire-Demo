@@ -4,6 +4,7 @@ import { CREDITS } from '../config/credits';
 import { TIMING } from '../config/timing';
 import { FATE_MESSAGE } from '../config/runeMessages';
 import { inRunes } from '../game/runeMap';
+import { play } from '../audio/audio';
 
 /**
  * [UI-PLACEMENT] The title screen, shown when the game opens: a night forest under the moon (see
@@ -216,7 +217,8 @@ export function spokenTimeline(text: string): { delays: number[]; total: number 
  * After a defeat: everything fades to black, then the rune message (config/runeMessages.ts FATE_MESSAGE, in this
  * computer's rune alphabet) appears in the middle of the screen from left to right, the way the mage hears it
  * (spokenTimeline), stays, and fades out. Then `onDone`: the mage wakes up in room 0 (App.tsx). Once it's fully
- * shown, a click (or Space / Enter) moves on to the fade-out. Timing: TIMING.fate*.
+ * shown, a click (or Space / Enter) moves on to the fade-out. Timing: TIMING.fate*. Sound: a deep swell, and a
+ * whisper as each word appears.
  */
 export function FateScreen({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<'dark' | 'in' | 'out'>('dark');
@@ -235,6 +237,14 @@ export function FateScreen({ onDone }: { onDone: () => void }) {
     ];
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [total]);
+  useEffect(() => play('fate'), []);
+  useEffect(() => {
+    if (step !== 'in') return;
+    plain.forEach((c, i) => {
+      if (c !== ' ' && (i === 0 || plain[i - 1] === ' ')) play('whisper', delays[i]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, as the message starts
+  }, [step]);
   useEffect(() => {
     if (step !== 'out') return;
     const t = window.setTimeout(() => done.current(), TIMING.fateMessageOut);

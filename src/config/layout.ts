@@ -86,6 +86,7 @@ export const LAYOUT = {
   /**
    * The card of the fragment under the pointer (hud/CardPreview.tsx): big, in the empty space right of the board
    * (inside `board.sideMargin`), above the Reroll button. `width` sets its size; the height follows the card art.
+   * The unit and hazard under the pointer on the board show in the same spot (hud/BoardInfo.tsx).
    */
   cardPreview: { right: 16, top: 140, width: 236 },
 
