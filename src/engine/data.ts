@@ -387,6 +387,52 @@ export const RUN: Stage[] = [
   { kind: 'room', room: 2 },
 ];
 
+/**
+ * Endless mode (after the Redactor): generated rooms (engine/generate.ts). Every room is built to a HARDNESS: the
+ * generator adds holes and monsters until their costs add up to it exactly. Tune endless here.
+ */
+export const ENDLESS = {
+  /** Hardness of the first endless room, and how much each room cleared adds. */
+  startHardness: 12,
+  hardnessStep: 3,
+  /** What each piece adds to a room's hardness. Pillars are free (they help the player: cover, and they break). */
+  holeCost: 1,
+  /** The Redactor's whole team (the Redactor and its 3 Page Wards) costs `redactorTeam`. Scraps are free. */
+  cost: { rat: 2, leech: 2, brute: 4, archer: 4, warden: 7 } as Partial<Record<EnemyKind, number>>,
+  redactorTeam: 20,
+  /** How often each monster is picked, before the "not in this room yet" bonus. */
+  weight: { rat: 3, leech: 2, brute: 3, archer: 3, warden: 2 } as Partial<Record<EnemyKind, number>>,
+  redactorWeight: 1,
+  /** A monster not yet in the room is this much more likely to be picked (variety). */
+  newKindBonus: 2,
+  /** The lowest hardness each monster shows up at (missing = always). */
+  unlock: { archer: 12, warden: 15 } as Partial<Record<EnemyKind, number>>,
+  redactorUnlock: 24,
+  /** Most Wardens in one room: 1 below hardness 25, 2 from 25, 3 from 40. */
+  wardenMax: [
+    { from: 0, max: 1 },
+    { from: 25, max: 2 },
+    { from: 40, max: 3 },
+  ],
+  /** Room size by hardness: the first size whose `upTo` the hardness doesn't pass. */
+  sizes: [
+    { upTo: 17, size: 6, monsters: 7, pillars: [2, 3] },
+    { upTo: 26, size: 7, monsters: 9, pillars: [2, 4] },
+    { upTo: Infinity, size: 8, monsters: 12, pillars: [3, 4] },
+  ] as { upTo: number; size: number; monsters: number; pillars: [number, number] }[],
+  /** Holes: about this share of the budget, at least `holesMin`, at most `holesMax`. */
+  holeShare: 0.2,
+  holesMin: 1,
+  holesMax: 5,
+  /** No monster within this many tiles of the mage's start (counting diagonals as 1). */
+  safeRadius: 2,
+  /** The Page Wards' elements when the Redactor's team shows up (the three Ward drawings). */
+  wardElements: ['fire', 'water', 'earth'] as Element[],
+  /** Camp: Rest heals this share of the missing HP (rounded up); Tear removes up to this many fragments. */
+  restShare: 0.7,
+  tearCount: 4,
+};
+
 /** What a stop on the run is called ("The Scriptorium", "The Whispering Lectern", "Camp"); "the end" past the last. */
 export function stageName(stage: number): string {
   const st = RUN[stage];
