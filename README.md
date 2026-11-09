@@ -70,13 +70,13 @@ pages, and the "Hmmm..." note's card combinations.
 | Combat log | L, or the Log button |
 | Menu | Esc |
 | Dev mode on / off | Menu (Esc or ⚙) → Settings → **Dev mode** switch. Saved on the computer |
-| Dev mode only | Ctrl+Z / Ctrl+Y undo and redo, K kills the enemy under the pointer, plus the DEV toolbar (Clear room, Next stop, **Endless**: skip to endless mode from anywhere, the curse included; in endless **Reroll** (a new room, same hardness) and **Hard −3 / +3** (this room easier or harder), …, and **Forget everything**: wipes the Grimoire and the "Hmmm..." note, on the computer too; click twice to confirm. Rune notes stay; and **New account**: play as a brand-new player, wiping everything saved on the computer but the dev mode switch, so the title offers Start, the opening cutscene plays and the rune meanings are new; click twice) |
+| Dev mode only | Ctrl+Z / Ctrl+Y undo and redo, K kills the enemy under the pointer, plus the DEV toolbar (Clear room, Next stop, **Endless**: skip to endless mode from anywhere, the notice included; in endless **Reroll** (a new room, same hardness) and **Hard −3 / +3** (this room easier or harder), …, and **Forget everything**: wipes the Grimoire and the "Hmmm..." note, on the computer too; click twice to confirm. Rune notes stay; and **New account**: play as a brand-new player, wiping everything saved on the computer but the dev mode switch, so the title offers Start, the opening cutscene plays and the rune meanings are new; click twice) |
 
 ## Where to change things
 
 | To change… | Edit |
 |---|---|
-| Endless mode: costs, starting hardness and step, unlocks, room sizes, holes, the camp's 70% / 4 pages | `ENDLESS` in `src/engine/data.ts`. The generator is `src/engine/generate.ts`; the curse is `src/hud/EndlessCurse.tsx` (its timings `curse*` in `src/config/timing.ts`) |
+| Endless mode: costs, starting hardness and step, unlocks, room sizes, holes, the camp's 70% / 4 pages | `ENDLESS` in `src/engine/data.ts`. The generator is `src/engine/generate.ts`; the notice before it is `src/hud/EndlessCurse.tsx` (its timings `curse*` in `src/config/timing.ts`) |
 | Where a HUD piece sits on screen | `src/config/layout.ts`. Every placement is tagged `[UI-PLACEMENT]` in the code, so search for that tag |
 | Camera angle, tilt, board size on screen | `src/config/camera.ts` (`elevationDeg` must match the artist's isometric angle, see the note there) |
 | How obstacles fade (unit behind them, mouse nearby) | `OBSTACLE_FADE` in `src/config/camera.ts`. New obstacle types go inside `<Obstacle>` (`src/scene/Obstacle.tsx`) to get the same behaviour |

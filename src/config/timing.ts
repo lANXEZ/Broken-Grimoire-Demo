@@ -77,13 +77,11 @@ export const TIMING = {
   introAfterCast: 1100,
   introDoze: 1100,
   /**
-   * Endless mode's curse (hud/EndlessCurse.tsx): the screen darkening to purple, each letter of the curse typing
-   * out, the words staying up before the flash (Space or a click skips), the flash rising to white-purple (endless
-   * mode starts underneath at its brightest), and the flash fading on the first endless room.
+   * Endless mode's notice (hud/EndlessCurse.tsx): the screen dimming before the notice pops up (it then waits for
+   * OK), the flash rising to white-purple (endless mode starts underneath at its brightest), and the flash fading on
+   * the first endless room.
    */
-  curseDarken: 1200,
-  curseChar: 42,
-  curseHold: 2600,
+  curseDim: 700,
   curseFlash: 900,
   curseFade: 900,
   /** Toasts (loot, errors) auto-dismiss after this. */

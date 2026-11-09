@@ -56,7 +56,9 @@ hardness = same room.
 ## Decisions (Nov 9, before the user went to sleep)
 
 - Commit AND push `endless-mode` after each finished step. Never merge into main.
-- Curse text: "There is no more content in this demo. NOW GO SUFFER THE DEMO'S ENDLESS CURSE (PCG applied)."
+- Curse text: "There is no more content in this demo. NOW GO SUFFER THE DEMO'S ENDLESS CURSE. (PCG applied)".
+  Nov 10: toned down from a dramatic glitch effect to a small deadpan notice with an OK button (user: "just a
+  notice that's a little bit funny"). The mage's purple glow and the flash stay.
 - Camp "Tear out pages": the player picks UP TO 4 (1 to 4), then confirms.
 - Don't restore the deleted remote `map-choice-fix`: its commit is inside `endless-mode`.
 - Victory shows first (not evil), then Continue starts the curse.

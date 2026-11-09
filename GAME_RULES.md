@@ -538,10 +538,10 @@ moves the mage here and combat controls are hidden.
 ## Endless mode (the Demo's Endless Curse)
 
 **Team decision (Nov 9):** the demo's content ends at the Redactor. Beating it shows **Victory** as before, but its
-button is now **Continue** (with **New run** beside it). Continue breaks the fourth wall: the screen darkens to
-purple, the mage glows purple with arms raised, and the curse types itself out in glitchy purple: *"There is no more
-content in this demo. NOW GO SUFFER THE DEMO'S ENDLESS CURSE (PCG applied)."* A purple flash teleports the mage into
-endless mode. It's the demo's proof of procedural content generation (PCG): every endless room is generated.
+button is now **Continue** (with **New run** beside it). Continue breaks the fourth wall with a small, deadpan
+notice, like a system message, while the mage glows purple with arms raised: *"There is no more content in this demo.
+NOW GO SUFFER THE DEMO'S ENDLESS CURSE. (PCG applied)"*. Its **OK** sets off a purple flash that teleports the mage
+into endless mode. It's the demo's proof of procedural content generation (PCG): every endless room is generated.
 
 - **Carried over:** everything (deck, Grimoire, "Hmmm...", rune notes and meanings) except HP, which is restored to
   full as the curse takes hold.
