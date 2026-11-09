@@ -203,7 +203,8 @@ direction, and cast. Used fragments go to the discard pile.
 - Pillars stop a Beam and each arm of a Cross. Spells never hurt the caster, except runes and Unstable Fire's Burn.
 - A status is applied only if the target survives the hit.
 - **Immunities:** a Page Ward is only affected by spells **containing** its element (merges included). The Redactor
-  ignores all spells while any Page Ward stands. An immune target takes no damage, no status and no push.
+  ignores all spells while any Page Ward stands. An immune target takes no damage, no status and no push, and
+  that includes Magma and Quicksand: the guarded Redactor walks onto them unharmed.
 
 | Element | Damage | Doubled | Effect on hit |
 |---|---|---|---|
@@ -619,7 +620,7 @@ section wins.
 | Fog check | Checked **every action**: a monster that wanders out of the fog acts normally for the rest of its turn. |
 | Fog on you | Standing in fog **hides you** from Archers and the Warden. |
 | Fog vs a marked line | A Warden line marked before the fog came **fires anyway**. |
-| Avoiding hazards | Monsters path around Magma and Quicksand **unless it's the only way**. |
+| Avoiding hazards | Monsters path around Magma and Quicksand **unless it's the only way**. An immune monster has nothing to fear: the Redactor walks straight over them while a Ward stands (team decision, Nov 9). |
 | Quicksand escape | Escape progress **carries over** between turns. While stuck you can still Meditate and Reroll. |
 | After CLEARED! | Hazards, statuses and Erasure Zones fade. |
 

@@ -616,6 +616,50 @@ describe('boss room', () => {
     expect(after.enemies[0].status.burn).toBe(2);
   });
 
+  it('the guarded Redactor steps onto Magma or Quicksand unharmed; once the Wards fall, Magma burns it', () => {
+    const redactorOn = (kind: 'magma' | 'quicksand', wards: boolean) => {
+      const s = board({
+        size: 8,
+        player: 'a1',
+        enemies: [...(wards ? [{ kind: 'ward' as const, at: 'h8', element: 'fire' as const }] : []), { kind: 'redactor', at: 'c1' }],
+      });
+      // Every tile next to the mage, so it has to step in (monsters path around hazards when they can).
+      for (const t of ['a2', 'b1', 'b2']) hazard(s, t, kind);
+      const after = runEnemyTurn(s);
+      return after.enemies.find((e) => e.kind === 'redactor')!;
+    };
+    const magma = redactorOn('magma', true);
+    expect(['a2', 'b1', 'b2']).toContain(coordLabel(magma.pos));
+    expect(magma.status.burn).toBe(0);
+    expect(redactorOn('quicksand', true).status.stuck).toBe(0);
+    expect(redactorOn('magma', false).status.burn).toBe(3);
+  });
+
+  it('the guarded Redactor walks straight through Magma; once the Wards fall, it goes around', () => {
+    const firstStep = (wards: boolean) => {
+      const s = board({
+        size: 8,
+        player: 'a1',
+        enemies: [...(wards ? [{ kind: 'ward' as const, at: 'h8', element: 'fire' as const }] : []), { kind: 'redactor', at: 'a5' }],
+      });
+      // Magma on a4 and a3, straight below it; b5 → b4 → b3 → b2 is a clean way around.
+      hazard(s, 'a4', 'magma');
+      hazard(s, 'a3', 'magma');
+      const plan = planEnemyTurn(toEnemyTurn(s));
+      const r = plan.final.enemies.find((e) => e.kind === 'redactor')!;
+      return { pos: coordLabel(r.pos), burn: r.status.burn };
+    };
+    expect(firstStep(true)).toEqual({ pos: 'a3', burn: 0 });
+    expect(firstStep(false).pos).not.toMatch(/^a[34]$/);
+  });
+
+  it('Quicksand cast under the guarded Redactor doesn’t catch it', () => {
+    const s = board({ size: 8, player: 'a1', enemies: [{ kind: 'ward', at: 'h8', element: 'fire' }, { kind: 'redactor', at: 'a3' }] });
+    const after = cast(s, ['water', 'earth', 'beam'], 'up');
+    expect(after.room.hazards.some((h) => h.kind === 'quicksand' && coordLabel(h.pos) === 'a3')).toBe(true);
+    expect(after.enemies.find((e) => e.kind === 'redactor')!.status.stuck).toBe(0);
+  });
+
   it('stun doesn’t stop a summon (it isn’t an attack)', () => {
     expect(scrapCount(runEnemyTurn(wardRoom({ stun: 1 }, 2)))).toBe(1);
   });
