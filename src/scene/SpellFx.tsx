@@ -82,7 +82,7 @@ const soft = { transparent: true, depthWrite: false, toneMapped: false } as cons
 // ---------------------------------------------------------------------------------------------------------------
 // Timing: when each tile erupts
 
-function lookOf(fx: CastFx): Look {
+export function lookOf(fx: CastFx): Look {
   const s = fx.spell!;
   if (s.kind === 'unstable') return 'fire';
   if (s.kind === 'merge') return mergeHazard(s.elements);
@@ -97,7 +97,7 @@ function colorOf(fx: CastFx): string {
 }
 
 /** Seconds after the pass starts that this tile erupts. */
-function tileDelay(fx: CastFx, p: Pos): number {
+export function tileDelay(fx: CastFx, p: Pos): number {
   const s = fx.spell!;
   const dx = p.x - fx.origin.x;
   const dy = p.y - fx.origin.y;
@@ -114,7 +114,7 @@ function tileDelay(fx: CastFx, p: Pos): number {
 }
 
 /** How long one pass takes, until its last tile has finished. */
-function passTime(fx: CastFx): number {
+export function passTime(fx: CastFx): number {
   if (!fx.area) return 0;
   const all = [...fx.area.tiles.map((t) => t.pos), ...fx.area.pillars];
   return Math.max(FX.lead, ...all.map((p) => tileDelay(fx, p))) + FX.tileTime;

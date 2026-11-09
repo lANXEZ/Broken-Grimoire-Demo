@@ -4,9 +4,8 @@ import { Billboard, Html, useTexture } from '@react-three/drei';
 import { Color, DoubleSide, SRGBColorSpace, Vector3, type Group, type Mesh, type MeshBasicMaterial, type Texture } from 'three';
 import type { Element, EnemyKind, Intent, Pos, RedactorMode, Statuses } from '../engine';
 import { ELEMENT_COLOR, MAGE_POSES, PLACEHOLDER_COLORS, STATUS_ART, UNIT_SPRITE, type MagePose } from '../config/art';
-import { BOARD_GEOMETRY } from '../config/camera';
 import { TIMING } from '../config/timing';
-import { IntentChips, describeIntents } from '../hud/intents';
+import { IntentChips } from '../hud/intents';
 import { ThoughtCloud } from '../hud/Thought';
 import { TILE_TOP, tileToWorld, type RoomSize } from './iso';
 import { sceneLight } from './Lighting';
@@ -35,7 +34,7 @@ export interface UnitView {
   /** How tall the figure stands, in tiles (config/art.ts UNIT_HEIGHT). */
   height: number;
   intents?: Intent[];
-  /** Plain-language behaviour for the hover card. */
+  /** Plain-language behaviour for its card (hud/BoardInfo.tsx). */
   behavior?: string;
   // Special badges
   marks?: number;
@@ -350,12 +349,6 @@ export function Unit({ unit, room, hovered, showIntents, runeTint = false, thoug
         </Html>
       )}
 
-      {/* Hover card */}
-      {hovered && !bare && !hidden && (
-        <Html position={[0.5, TILE_TOP + BOARD_GEOMETRY.unitHeight * 0.7, 0]} zIndexRange={[60, 50]} style={{ pointerEvents: 'none' }}>
-          <UnitCard unit={unit} />
-        </Html>
-      )}
     </group>
   );
 }
@@ -417,31 +410,6 @@ function UnitPlate({ unit }: { unit: UnitView }) {
             <span key={i} className={i < (unit.marks ?? 0) ? 'on' : ''} />
           ))}
         </div>
-      )}
-    </div>
-  );
-}
-
-/** Hover card: name, HP, what it does, and its plan for next turn in words. */
-function UnitCard({ unit }: { unit: UnitView }) {
-  const s = unit.status;
-  const statuses = [s.burn > 0 && `Burn ${s.burn}`, s.root > 0 && 'Rooted', s.stun > 0 && 'Stunned', s.stuck > 0 && `Stuck (${s.stuck})`].filter(Boolean).join(' · ');
-  return (
-    <div className="unit-card">
-      <div className="unit-card-title">
-        {unit.name}
-        {unit.tag && <span className="unit-tag">{unit.tag}</span>}
-      </div>
-      <div className="unit-card-stats">
-        HP {unit.hp}/{unit.maxHp}
-        {unit.isPlayer && unit.mana !== undefined && ` · Mana ${unit.mana}/${unit.maxMana}`}
-        {statuses && ` · ${statuses}`}
-      </div>
-      {unit.behavior && <p className="unit-card-text">{unit.behavior}</p>}
-      {!unit.isPlayer && (
-        <p className="unit-card-plan">
-          <b>Next turn:</b> {describeIntents(unit.intents)}
-        </p>
       )}
     </div>
   );

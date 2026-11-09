@@ -43,6 +43,8 @@ import { introSeen, markIntroSeen, tutorialCardIds } from './game/intro';
 import { INTRO, LECTERN_OUCH } from './config/introScript';
 import { GameScene } from './scene/GameScene';
 import { WorldMap } from './scene/WorldMap';
+import { unitViews } from './scene/GameScene';
+import { BoardInfo } from './hud/BoardInfo';
 import { EndlessCurse } from './hud/EndlessCurse';
 import './scene/worldmap.css';
 import type { BoardOverlays } from './scene/TileOverlay';
@@ -59,6 +61,8 @@ import { EnemyCaption, LogDrawer, PickupReveal, Toasts, TurnBanner, type Pickup,
 import { CraftingTable, TABLE_AREA_SELECTOR } from './hud/CraftingTable';
 import { TopBar } from './hud/TopBar';
 import { useCardDrag, type DragSource } from './hud/useCardDrag';
+import { play as playSound, setAmbience, soundGroup, type SoundGroup } from './audio/audio';
+import { castSounds, runeSounds, useButtonClicks, useGameSounds } from './audio/gameSounds';
 
 /** What the player is in the middle of, on top of the game state. */
 type UiMode =
@@ -83,6 +87,8 @@ interface CastPlay {
   manaGlow: boolean;
   timers: number[];
   fxIds: number[];
+  /** Its sounds, cut short with it. */
+  sounds: SoundGroup;
 }
 
 /**
@@ -192,7 +198,9 @@ export function App() {
     return () => window.clearTimeout(t);
   }, [meditating]);
   const meditate = () => {
-    if (game.run(playerMeditate)) setMeditating((n) => n + 1);
+    if (!game.run(playerMeditate)) return;
+    setMeditating((n) => n + 1);
+    playSound('meditate');
   };
 
   // Losing HP flashes the edge of the screen red.
@@ -215,6 +223,7 @@ export function App() {
   useEffect(() => {
     if (!reveal) return;
     const next = () => setReveal((r) => (r?.id !== reveal.id ? r : r.step === 'dark' ? { ...r, step: 'lighting' } : null));
+    if (reveal.step === 'lighting') playSound('torches');
     const t = window.setTimeout(next, reveal.step === 'dark' ? TIMING.roomDark : TIMING.roomLighting);
     return () => window.clearTimeout(t);
   }, [reveal]);
@@ -222,8 +231,12 @@ export function App() {
   // The opening cutscene and tutorial (first time on this computer).
   const cut = useIntro({
     game,
-    onHurt: () => setHurt((n) => n + 1),
-    onPuff: (at) =>
+    onHurt: () => {
+      setHurt((n) => n + 1);
+      playSound('hurt');
+    },
+    onPuff: (at) => {
+      playSound('fizzle');
       addFx({
         type: 'cast',
         id: nextId++,
@@ -231,7 +244,8 @@ export function App() {
         bumps: [],
         grey: true,
         fx: { kind: 'fizzle', runeSymbol: null, spell: null, rune: null, dir: null, origin: at, area: null, passes: 0, push: 0, hits: [] },
-      }),
+      });
+    },
     onDone: () => {
       setIntro('dozing');
       window.setTimeout(() => {
@@ -248,6 +262,28 @@ export function App() {
   const tutorial = cut.active && cut.view.tutorial;
   /** The cutscene is playing (not the tutorial), or the tutorial is waiting for the mage to finish talking. */
   const cutLocked = cut.active && (!cut.view.tutorial || cut.view.tutorialWait);
+
+  // ------------------------------------------------------------ sound (audio/)
+
+  /** States a cast made, with how long (ms) its effect still plays: their hits already sound with the effect. */
+  const castViews = useRef(new WeakMap<GameState, number>()).current;
+  useGameSounds(cutState ?? view, castViews);
+  useButtonClicks();
+  // The background: the night forest on the title screen; the dungeon everywhere else, with a crackle by a lit
+  // campfire (room 0, the camp); silence while the eyes are closed and on the black screen after a defeat.
+  const boardRoom = (cutState ?? view).room;
+  const fireLit = boardRoom.feature?.kind === 'campfire' && boardRoom.fireLit !== false && state.event?.step !== 'done';
+  const awake = intro === null || intro === 'leaving' || intro === 'cutscene' || intro === 'waking';
+  useEffect(() => {
+    setAmbience({ forest: intro === 'title', dungeon: awake, campfire: awake && fireLit });
+  }, [intro, awake, fireLit]);
+  // Eyes closing and opening.
+  useEffect(() => {
+    if (intro === 'closing') playSound('eyesClose', 0, { len: TIMING.eyesClose / 1000 });
+    else if (intro === 'resting') playSound('eyesClose', 0, { len: TIMING.restClose / 1000 });
+    else if (intro === 'dozing') playSound('eyesClose', 0, { len: TIMING.introDoze / 1000 });
+    else if (intro === 'waking') playSound('wake');
+  }, [intro]);
 
   const canAct = state.phase === 'player' && !enemyTurn.playing && !castPlaying && !dialogOpen && state.actionsLeft > 0 && !reveal && !cutLocked;
 
@@ -325,6 +361,7 @@ export function App() {
     resetCasting();
     setMenuOpen(false);
     setCurse('glow');
+    playSound('curse');
   };
   const curseTeleport = useCallback(() => {
     game.run(enterEndless);
@@ -521,6 +558,7 @@ export function App() {
           : { title: 'Your Turn', sub: `Turn ${state.turn}`, kind: 'player' as const };
     const id = nextId++;
     setBanner({ ...b, id });
+    playSound(b.kind === 'enemy' ? 'enemyTurn' : b.kind === 'player' ? 'playerTurn' : 'roomEnter');
     const t = window.setTimeout(() => setBanner((cur) => (cur?.id === id ? null : cur)), TIMING.banner);
     return () => window.clearTimeout(t);
   }, [bannerKey]);
@@ -560,6 +598,7 @@ export function App() {
     const play = castPlayRef.current;
     if (!play) return;
     play.timers.forEach((t) => window.clearTimeout(t));
+    play.sounds.stop();
     setFx((list) => list.filter((x) => !play.fxIds.includes(x.id)));
     castPlayRef.current = null;
     setCastPlay(null);
@@ -587,7 +626,10 @@ export function App() {
     if (cut.active) cut.afterCast(done);
 
     if (cast.runeSymbol === null || !cast.spell || !cast.rune) {
-      addFx({ ...castEvent(cast, done), grey: cast.runeSymbol !== null });
+      const event: CastEvent = { ...castEvent(cast, done), grey: cast.runeSymbol !== null };
+      addFx(event);
+      castViews.set(done, fxEventDuration(event));
+      castSounds(soundGroup(), event, done);
       return;
     }
 
@@ -595,7 +637,7 @@ export function App() {
     const fizzle = cast.rune === 'fizzle';
     const base = fizzle ? null : playerCast(before, ids, dir, { ignoreRune: true });
     const baseFx = fizzle ? null : castFx(before, ids, dir, { ignoreRune: true });
-    const play: CastPlay = { shown: base ?? done, runeTint: false, manaGlow: false, timers: [], fxIds: [] };
+    const play: CastPlay = { shown: base ?? done, runeTint: false, manaGlow: false, timers: [], fxIds: [], sounds: soundGroup() };
     castPlayRef.current = play;
     setCastPlay({ ...play });
     const show = (e: FxEvent) => {
@@ -608,9 +650,11 @@ export function App() {
     if (base && baseFx) {
       const spellPart = castEvent(baseFx, base);
       show(spellPart);
+      castSounds(play.sounds, spellPart, base);
       t += fxEventDuration(spellPart) * FX.rune.spellHold;
     }
     at(t, () => show({ type: 'sigil', id: nextId++, origin: cast.origin, symbol: cast.runeSymbol! }));
+    play.sounds.play('sigil', t);
     t += FX.rune.sigilTime * 1000;
 
     // What the rune acts on: the enemies the spell reached, where they stand after the spell part.
@@ -620,6 +664,7 @@ export function App() {
       .flatMap((h) => from.enemies.filter((e) => e.id === h.id).map((e) => e.pos));
     const broken = from.room.pillars.filter((p) => !done.room.pillars.some((q) => samePos(q.pos, p.pos))).map((p) => p.pos);
     const runePart: RuneEvent = { type: 'rune', id: nextId++, effect: cast.rune, fx: cast, base: baseFx, targets, broken };
+    runeSounds(play.sounds, runePart, from, done, t);
     at(t, () => {
       play.shown = null;
       play.runeTint = true;
@@ -628,6 +673,9 @@ export function App() {
       show(runePart);
     });
     t += fxEventDuration(runePart);
+    // The board shows the spell part until the rune's part starts, then the real result.
+    if (base) castViews.set(base, t);
+    castViews.set(done, base ? fxEventDuration(runePart) : t);
     at(t, () => {
       castPlayRef.current = null;
       setCastPlay(null);
@@ -704,7 +752,9 @@ export function App() {
   const confirmReroll = () => {
     if (mode.kind !== 'reroll' || mode.marked.length === 0) return;
     const ids = mode.marked;
-    if (game.run((s) => playerReroll(s, ids))) setMode({ kind: 'idle' });
+    if (!game.run((s) => playerReroll(s, ids))) return;
+    setMode({ kind: 'idle' });
+    playSound('reroll');
   };
 
   // ------------------------------------------------------------ drag & drop between hand and crafting table
@@ -728,6 +778,7 @@ export function App() {
   };
 
   const onDrop = (cardId: number, source: DragSource, target: string | null, point: { x: number; y: number }) => {
+    playSound(target === 'table' ? 'cardPlace' : 'cardReturn');
     if (target === 'table') {
       // The card stays exactly where it was dropped (moving a table card keeps its tilt) and lands on top.
       const spot = tableSpot(point);
@@ -745,6 +796,7 @@ export function App() {
   const onCardClick = (cardId: number, source: DragSource) => {
     if (mode.kind === 'reroll') {
       if (source.from !== 'hand') return;
+      playSound('cardMark');
       setMode((m) =>
         m.kind !== 'reroll' ? m : { kind: 'reroll', marked: m.marked.includes(cardId) ? m.marked.filter((x) => x !== cardId) : [...m.marked, cardId] },
       );
@@ -753,9 +805,11 @@ export function App() {
     if (mode.kind !== 'idle') return;
     // Click = shortcut for dragging: a hand card lands at a random spot on the table, a table card goes back to the hand.
     if (source.from === 'table') {
+      playSound('cardReturn');
       setTable((cur) => removeFromTable(cleanTable(hand, cur), cardId));
       return;
     }
+    if (!table.some((pl) => pl.id === cardId)) playSound('cardPlace');
     const spot = tableSpot();
     setTable((cur) => {
       const next = cleanTable(hand, cur);
@@ -885,6 +939,22 @@ export function App() {
 
   /** While "Ah! How???" is said, the lectern hasn't said its "my favorite" yet. */
   const lecternView = (s: GameState): GameState => (ouch && s.event ? { ...s, event: { ...s.event, said: null } } : s);
+
+  // ------------------------------------------------------------ the board as drawn, and what's under the pointer
+
+  const boardState = cutState ?? lecternView(view);
+  const boardIntents = cutState ? NO_INTENTS : intents;
+  const bare = cut.active && !tutorial;
+  const enemiesHidden = cutState ? cut.view.enemiesHidden : reveal?.step === 'dark';
+  const mageHidden = !!cutState && cut.view.mageHidden;
+  /** The unit and the hazard under the pointer, for the card top right (hud/BoardInfo.tsx). */
+  const hoveredUnit = useMemo(() => {
+    if (!hover || bare) return null;
+    const u = unitViews(boardState, boardIntents).find((x) => samePos(x.pos, hover));
+    if (!u || (u.isPlayer ? mageHidden : enemiesHidden)) return null;
+    return u;
+  }, [hover, bare, boardState, boardIntents, mageHidden, enemiesHidden]);
+  const hoveredHazard = (!bare && hover && boardState.room.hazards.find((h) => samePos(h.pos, hover))) || null;
   const chooseAtLectern = (c: EventChoice) => {
     let next: GameState | null = null;
     if (!game.run((st) => (next = eventChoice(st, c)))) return;
@@ -909,21 +979,21 @@ export function App() {
     >
       <ThoughtFilters />
       <GameScene
-        state={cutState ?? lecternView(view)}
+        state={boardState}
         runeTint={!!castPlay?.runeTint}
         playerThought={thought}
         playerSpeech={(cut.active ? cut.view.speech : null) ?? speech?.text ?? null}
         dark={cutState ? cut.view.dark : reveal?.step === 'dark' ? 1 : roomZeroDark}
         torchesLit={cutState ? cut.view.torchesLit : reveal?.step !== 'dark'}
-        enemiesHidden={cutState ? cut.view.enemiesHidden : reveal?.step === 'dark'}
-        mageHidden={!!cutState && cut.view.mageHidden}
+        enemiesHidden={enemiesHidden}
+        mageHidden={mageHidden}
         mageFlight={cutState ? cut.view.flight : null}
-        bare={cut.active && !tutorial}
+        bare={bare}
         restPrompt={restPrompt}
         meditating={meditating > 0}
         cursed={curse === 'glow'}
         onRest={rest}
-        intents={cutState ? NO_INTENTS : intents}
+        intents={boardIntents}
         overlays={cutState ? NO_OVERLAYS : overlays}
         fx={fx}
         hover={hover}
@@ -936,6 +1006,7 @@ export function App() {
         <TopBar state={view} onGrimoire={() => setBookOpen(true)} onDeck={() => setDeckOpen(true)} onToggleLog={() => setLogOpen((o) => !o)} onMenu={() => setMenuOpen(true)} />
         {dev && <DevBar game={game} hover={hover} onEndless={startEndless} />}
 
+        <BoardInfo unit={hoveredUnit} hazard={hoveredHazard} turn={boardState.turn} />
         {showNote && !tutorial && (
           <HmmmNote view={note} tableUsed={onTable.length > 0} interactive={noteInteractive} fresh={freshCombos} onHover={(l) => setNoteHover(l?.key ?? null)} onPick={pickNote} />
         )}

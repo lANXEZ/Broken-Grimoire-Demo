@@ -119,8 +119,9 @@ you pick, it's the next stop below. Your picks are kept for the whole run, so th
   and **attacks resolve immediately**.
 - **One attack per monster per turn:** a normal monster ends its turn after attacking. The Redactor is the only
   exception (up to 2 explosions).
-- **Labels:** units of the same type are lettered in deploy order (Brute `3a`, Brute `3b`). The hover card shows the
-  name ("Brute", with a small "a"/"b" when the room has more than one). The combat log keeps the number (`3a`).
+- **Labels:** units of the same type are lettered in deploy order (Brute `3a`, Brute `3b`). The unit's card (top
+  right, while you point at it) shows the name ("Brute", with a small "a"/"b" when the room has more than one). The
+  combat log keeps the number (`3a`).
 - **Blocking:** units never share a tile. No unit moves through or onto another unit, a pillar or a hole. An enemy
   that acts earlier claims a tile first, and later enemies path around it.
 - **Ties:** when several paths are equally good, one is picked at random. The random seed is saved with the run, so

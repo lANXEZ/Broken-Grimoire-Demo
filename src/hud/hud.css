@@ -1337,10 +1337,19 @@ button {
 .unit-card-plan {
   color: #f6e2b0;
 }
-/* A hazard's hover card: left of its tile (a unit's card sits right), edged in the hazard's colour. */
-.hazard-card {
-  transform: translate(calc(-100% - 2.5rem), -50%);
+/* What's under the pointer on the board (hud/BoardInfo.tsx): top right, where a hovered fragment's info card shows. */
+.board-info {
+  position: fixed;
+  right: var(--preview-right);
+  top: var(--preview-top);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  pointer-events: none;
+  animation: preview-in 0.12s ease-out;
 }
+/* A hazard's card is edged in the hazard's colour. */
 .hazard-card.is-fog { border-color: #d9dde6; }
 .hazard-card.is-magma { border-color: #ff5a1f; }
 .hazard-card.is-quicksand { border-color: #c9a25a; }
@@ -2460,6 +2469,33 @@ button {
 .toggle:checked::after {
   transform: translateX(1.3rem);
   background: #fff;
+}
+/* Menu → Settings: volume (audio/audio.ts). */
+.settings .toggle-row + .toggle-row,
+.volume-row + .toggle-row {
+  margin-top: 0.5rem;
+}
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+}
+.volume-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: #9a6ad0;
+  cursor: pointer;
+}
+.volume-slider:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.volume-value {
+  width: 2.6rem;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  text-align: right;
 }
 .toggle:focus-visible {
   outline: 0.15rem solid var(--gold);

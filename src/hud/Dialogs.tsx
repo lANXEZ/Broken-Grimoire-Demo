@@ -18,6 +18,7 @@ import { FragmentCard } from './Hand';
 import { RuneText } from './RuneLetter';
 import { LECTERN_MESSAGE } from '../config/runeMessages';
 import { recordEndlessBest } from '../game/endlessBest';
+import { play, setSoundSettings, useSoundSettings } from '../audio/audio';
 
 /** The bridge the Electron app exposes (electron/preload.cjs). Undefined when running in a browser. */
 declare global {
@@ -452,6 +453,7 @@ export function MenuDialog({ onResume, onNewRun, devMode, onDevMode }: {
       )}
       <div className="settings">
         <div className="settings-title">Settings</div>
+        <SoundSettingsRows />
         <label className="toggle-row" title="Dev toolbar (cheats), undo/redo with Ctrl+Z / Ctrl+Y, K kills the enemy under the pointer">
           <span className="toggle-label">
             Dev mode
@@ -462,5 +464,36 @@ export function MenuDialog({ onResume, onNewRun, devMode, onDevMode }: {
       </div>
       <p className="muted">Your run is saved automatically.</p>
     </Modal>
+  );
+}
+
+/** Menu → Settings: the volume slider and the mute switch (audio/audio.ts; kept on this computer). */
+function SoundSettingsRows() {
+  const { volume, muted } = useSoundSettings();
+  return (
+    <>
+      <label className="volume-row">
+        <span className="toggle-label">Volume</span>
+        <input
+          type="range"
+          className="volume-slider"
+          min={0}
+          max={100}
+          step={5}
+          value={Math.round(volume * 100)}
+          disabled={muted}
+          onChange={(e) => setSoundSettings({ volume: Number(e.target.value) / 100 })}
+          // A sample at the new volume once the slider is let go.
+          onPointerUp={() => play('cardPlace')}
+          onKeyUp={() => play('cardPlace')}
+          aria-label="Volume"
+        />
+        <span className="volume-value">{muted ? 'Off' : `${Math.round(volume * 100)}%`}</span>
+      </label>
+      <label className="toggle-row">
+        <span className="toggle-label">Sound</span>
+        <input type="checkbox" className="toggle" checked={!muted} onChange={(e) => setSoundSettings({ muted: !e.target.checked })} />
+      </label>
+    </>
   );
 }

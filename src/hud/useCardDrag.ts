@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { play } from '../audio/audio';
 
 /**
  * Drag-and-drop for fragment cards, built on pointer events (works the same with mouse, pen and touch).
@@ -45,6 +46,7 @@ export function useCardDrag(handlers: {
     const p = pending.current;
     if (!p) return;
     if (!p.active && Math.hypot(e.clientX - p.startX, e.clientY - p.startY) < DRAG_THRESHOLD_PX) return;
+    if (!p.active) play('cardPick');
     p.active = true;
     setDrag({ cardId: p.cardId, source: p.source, x: e.clientX, y: e.clientY, over: dropTargetAt(e.clientX, e.clientY) });
   }, []);
