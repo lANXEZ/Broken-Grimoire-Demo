@@ -43,7 +43,7 @@ hardness = same room.
       fight <-> camp; Redactor kill in endless is a normal kill; endless camp choices (70% rest, tear 4); saving
 - [x] 3. Screens: top bar (Endless · Room N · Hardness H · Seed XXXX), clear panel labels with no door walk, camp
       panel (70% rest + pick-4 picker), death screen with best score (`broken-grimoire/endless-best/v1`)
-- [ ] 4. The curse transition: `src/hud/EndlessCurse.tsx`, timings in `config/timing.ts`, Victory -> Continue
+- [x] 4. The curse transition: `src/hud/EndlessCurse.tsx`, timings in `config/timing.ts`, Victory -> Continue
 - [ ] 5. Dev: Endless button (anywhere), in endless Reroll and Hardness -3/+3; scripted playthrough; docs
       (GAME_RULES.md "Endless mode", README.md tuning + dev buttons)
 
@@ -83,5 +83,10 @@ hardness = same room.
   endless) + New run. App: no map in endless; camp auto-walk keyed on stage + roomIndex. Dev buttons (part of
   step 5) are in too: Endless (outside endless), Reroll / Hard -3 / Hard +3 (in endless). Checked in Electron:
   dev Endless -> room 1 (12) -> clear -> camp -> tear 3 -> room 2 (15) -> 7x7 (21) -> 8x8 with the Redactor (30).
-- NEXT: step 4, the curse transition. Victory's Continue and the dev Endless button both call `startEndless` in
-  App.tsx, which today just runs `enterEndless`; the curse goes in front of it.
+- Step 4 done (the curse): `src/hud/EndlessCurse.tsx` (purple veil, glitchy typed words on a dark band, then a
+  flash; endless starts at the flash's peak; Space / Enter / click skip once the words are out; keys are captured
+  so nothing fires underneath), `src/scene/CurseGlow.tsx` (pulsing purple aura, floor glow and light on the mage,
+  who raises their arms in the casting pose), timings `curse*` in config/timing.ts. App: `curse` state 'glow' /
+  'after'; the game-over dialog no longer renders behind the title screen (it could be clicked through).
+  Checked in Electron from a real Victory (dev Clear room in the Redactor's room) and with Space to skip.
+- NEXT: step 5 (rest of it): docs (GAME_RULES.md "Endless mode", README.md), a final playthrough.

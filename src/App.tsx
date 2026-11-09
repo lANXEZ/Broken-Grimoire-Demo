@@ -43,6 +43,7 @@ import { introSeen, markIntroSeen, tutorialCardIds } from './game/intro';
 import { INTRO, LECTERN_OUCH } from './config/introScript';
 import { GameScene } from './scene/GameScene';
 import { WorldMap } from './scene/WorldMap';
+import { EndlessCurse } from './hud/EndlessCurse';
 import './scene/worldmap.css';
 import type { BoardOverlays } from './scene/TileOverlay';
 import { fxEventDuration, type CastEvent, type FxEvent, type RuneEvent } from './scene/SpellFx';
@@ -311,11 +312,22 @@ export function App() {
     setIntro('resting');
     window.setTimeout(() => setIntro('title'), TIMING.restClose);
   };
-  /** Victory's Continue (and the dev Endless button): the curse, then endless mode (engine/game.ts enterEndless). */
+  /**
+   * Victory's Continue (and the dev Endless button): the curse (hud/EndlessCurse.tsx), then endless mode
+   * (engine/game.ts enterEndless). 'glow' = the curse is taking hold (the mage glows); 'after' = endless has started
+   * underneath and the flash is fading.
+   */
+  const [curse, setCurse] = useState<'glow' | 'after' | null>(null);
   const startEndless = () => {
     resetCasting();
-    game.run(enterEndless);
+    setMenuOpen(false);
+    setCurse('glow');
   };
+  const curseTeleport = useCallback(() => {
+    game.run(enterEndless);
+    setCurse('after');
+  }, [game]);
+  const curseDone = useCallback(() => setCurse(null), []);
   /** After the rune message on the black screen (a defeat): a new run, waking up in room 0 like at the start. */
   const afterFate = () => {
     resetCasting();
@@ -906,6 +918,7 @@ export function App() {
         bare={cut.active && !tutorial}
         restPrompt={restPrompt}
         meditating={meditating > 0}
+        cursed={curse === 'glow'}
         onRest={rest}
         intents={cutState ? NO_INTENTS : intents}
         overlays={cutState ? NO_OVERLAYS : overlays}
@@ -1018,7 +1031,8 @@ export function App() {
           }}
         />
       )}
-      {finished && !castPlaying && intro !== 'fate' && (
+      {curse && <EndlessCurse onTeleport={curseTeleport} onDone={curseDone} />}
+      {finished && !castPlaying && !intro && !curse && (
         <GameOverDialog
           state={state}
           onEndless={startEndless}
