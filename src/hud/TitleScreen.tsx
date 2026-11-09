@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { TITLE_ART } from '../config/art';
+import { CREDITS } from '../config/credits';
 import { TIMING } from '../config/timing';
 import { FATE_MESSAGE } from '../config/runeMessages';
 import { inRunes } from '../game/runeMap';
@@ -8,7 +9,7 @@ import { inRunes } from '../game/runeMap';
  * [UI-PLACEMENT] The title screen, shown when the game opens: a night forest under the moon (see
  * config/art.ts TITLE_ART), the game's name big across the top, and the buttons on the left. With a run saved
  * from last time: Continue, or New game (which asks once, since it drops that run). Otherwise just Start. A run
- * still in room 0 doesn't count as saved (App.tsx). Quit closes the game. In a browser, a page usually isn't allowed to
+ * still in room 0 doesn't count as saved (App.tsx). Credits shows the team (config/credits.ts). Quit closes the game. In a browser, a page usually isn't allowed to
  * close its own tab: then Quit puts up a goodbye screen instead (close the tab, or go back to the title).
  */
 export function TitleScreen({ canContinue, leaving, fading = false, onContinue, onNewGame }: {
@@ -22,6 +23,7 @@ export function TitleScreen({ canContinue, leaving, fading = false, onContinue, 
 }) {
   const [confirm, setConfirm] = useState(false);
   const [goodbye, setGoodbye] = useState(false);
+  const [credits, setCredits] = useState(false);
   const quit = () => {
     if (window.grimoire) return window.grimoire.quit();
     window.close();
@@ -79,10 +81,56 @@ export function TitleScreen({ canContinue, leaving, fading = false, onContinue, 
           </div>
         )}
         {!confirm && (
-          <button className="title-button is-secondary" onClick={quit} disabled={leaving}>
-            Quit
-          </button>
+          <>
+            <button className="title-button is-secondary" onClick={() => setCredits(true)} disabled={leaving}>
+              Credits
+            </button>
+            <button className="title-button is-secondary" onClick={quit} disabled={leaving}>
+              Quit
+            </button>
+          </>
         )}
+      </div>
+      {credits && <CreditsPanel onClose={() => setCredits(false)} />}
+    </div>
+  );
+}
+
+/** The title screen's Credits: the team (config/credits.ts). Back, Esc or a click outside closes it. */
+function CreditsPanel({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    // Captured first, so Esc only closes the credits (not the game's own menu underneath).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  const group = CREDITS.groupNumber === null ? `Group ${CREDITS.group}` : `Group ${CREDITS.groupNumber} · ${CREDITS.group}`;
+  return (
+    <div className="title-credits" role="dialog" aria-label="Credits" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="title-credits-panel">
+        <h2>Credits</h2>
+        <div className="title-credits-group">{group}</div>
+        <ul className="title-credits-members">
+          {CREDITS.members.map((m) => (
+            <li key={m.id}>
+              <span className="title-credits-id">{m.id}</span>
+              <span>{m.name}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="title-credits-course">
+          {CREDITS.course}
+          <br />
+          {CREDITS.section} · {CREDITS.term}
+        </div>
+        <button className="title-button is-secondary" onClick={onClose} autoFocus>
+          Back
+        </button>
       </div>
     </div>
   );

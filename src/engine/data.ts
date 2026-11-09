@@ -123,8 +123,6 @@ export const PROLOGUE_ROOM = {
    */
   mat: ['a1', 'b1'],
   exit: 'c4',
-  /** What the mage thinks on waking (shown in a thought cloud). */
-  wakeThought: 'Dream of outside again… How long have I been stuck here…',
 } as const;
 
 /**
