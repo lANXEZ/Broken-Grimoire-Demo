@@ -2645,19 +2645,19 @@ button {
   animation: title-in 0.6s ease-out;
   background-color: #04070a;
   background-size: cover;
-  /* The moon sits left of centre, leaving the right side for the buttons. */
+  /* Where the picture sits; the buttons are on the left. */
   background-position: 62% 55%;
   font-family: 'Kreon', Georgia, serif;
   color: var(--ink);
   transition: opacity 0.5s;
 }
 .title-screen::after {
-  /* Darken the edges and the right side a little so the title and buttons read. */
+  /* Darken the edges and the left side a little so the title and buttons read. */
   content: '';
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, transparent 45%, #000a 100%),
+    linear-gradient(270deg, transparent 45%, #000a 100%),
     radial-gradient(ellipse at 40% 55%, transparent 35%, #0009 100%);
   pointer-events: none;
 }
@@ -2711,7 +2711,8 @@ button {
 }
 .title-name {
   position: absolute;
-  top: 9vh;
+  /* Low enough to clear the moon, high enough to leave the castle in view. */
+  top: 14vh;
   left: 0;
   right: 0;
   z-index: 1;
@@ -2729,7 +2730,7 @@ button {
 }
 .title-menu {
   position: absolute;
-  right: 9vw;
+  left: 9vw;
   top: 50%;
   z-index: 1;
   display: flex;
@@ -2755,7 +2756,7 @@ button {
 }
 .title-button:hover:not(:disabled),
 .title-button:focus-visible {
-  transform: translateX(-0.3rem);
+  transform: translateX(0.3rem);
   border-color: #ffe2a0;
   box-shadow: 0 0 1.8rem #ffd9a055, inset 0 0 1rem #d9b76844;
   outline: none;
@@ -2799,14 +2800,6 @@ button {
   font-family: 'Kreon', serif;
   font-size: 1.1rem;
   color: #f3e6c8aa;
-}
-.title-credit {
-  position: absolute;
-  left: 1rem;
-  bottom: 0.7rem;
-  z-index: 1;
-  font-size: 0.75rem;
-  color: #ffffff66;
 }
 
 /* ------------------------------------------------------------------ waking up (hud/TitleScreen.tsx Blink) */

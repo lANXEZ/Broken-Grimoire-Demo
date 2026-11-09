@@ -10,11 +10,8 @@ import type { Card, Element, EnemyKind, FragmentKind, HazardKind } from '../engi
  */
 export const artUrl = (path: string) => `${import.meta.env.BASE_URL}art/${path}`;
 
-/**
- * The title screen's background. PLACEHOLDER photo: "Full moon behind tree silhouettes" by Aron Visuals, from
- * Unsplash (https://unsplash.com/photos/4zxSWESyZio), free to use under the Unsplash License.
- */
-export const TITLE_ART = artUrl('title/moon-forest.jpg');
+/** The title screen's background: a pixel-art night forest under the moon. */
+export const TITLE_ART = artUrl('title/moon-forest.png');
 
 // ---------------------------------------------------------------- units
 

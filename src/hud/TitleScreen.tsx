@@ -5,8 +5,8 @@ import { FATE_MESSAGE } from '../config/runeMessages';
 import { inRunes } from '../game/runeMap';
 
 /**
- * [UI-PLACEMENT] The title screen, shown when the game opens: a night forest under the moon (PLACEHOLDER photo, see
- * config/art.ts TITLE_ART), the game's name big across the top, and the buttons on the right. With a run saved
+ * [UI-PLACEMENT] The title screen, shown when the game opens: a night forest under the moon (see
+ * config/art.ts TITLE_ART), the game's name big across the top, and the buttons on the left. With a run saved
  * from last time: Continue, or New game (which asks once, since it drops that run). Otherwise just Start. A run
  * still in room 0 doesn't count as saved (App.tsx). Quit closes the game. In a browser, a page usually isn't allowed to
  * close its own tab: then Quit puts up a goodbye screen instead (close the tab, or go back to the title).
@@ -84,7 +84,6 @@ export function TitleScreen({ canContinue, leaving, fading = false, onContinue, 
           </button>
         )}
       </div>
-      <div className="title-credit">Placeholder photo: Aron Visuals / Unsplash</div>
     </div>
   );
 }

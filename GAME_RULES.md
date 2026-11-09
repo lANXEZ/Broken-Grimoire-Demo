@@ -38,7 +38,7 @@ you pick, it's the next stop below. Your picks are kept for the whole run, so th
    you fall (see [Endless mode](#endless-mode-the-demos-endless-curse))
 
 - **Title screen and room 0 (team decision, Nov 5):** the game opens on a title screen (a night forest under the
-  moon, the game's name, Start on the right; with a saved run, Continue or New game; and Quit under them, which
+  moon, the game's name, Start on the left; with a saved run, Continue or New game; and Quit under them, which
   closes the game; in a browser, which usually won't let a page close its tab, it shows a goodbye screen instead,
   with a button back to the title). A new run opens its eyes (a
   first-person blink) in **room 0, The Waking Room**: 3×4, a campfire (b2) with a rock to sit on (a2), a big
