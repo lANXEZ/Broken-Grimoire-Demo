@@ -16,7 +16,6 @@ import {
   freeWalkPath,
   isPrologue,
   LECTERN_ROOM,
-  PROLOGUE_ROOM,
   RUN,
   moveTarget,
   playerCast,
@@ -34,6 +33,7 @@ import {
 import { setDevMode, useDevMode } from './config/dev';
 import { LAYOUT, layoutCssVars, uiScale } from './config/layout';
 import { TIMING } from './config/timing';
+import { pickWakeThought } from './config/wakeThoughts';
 import { DIRS, aimDirection, cleanTable, placeOnTable, previewCast, removeFromTable, tableCards, type Table } from './game/casting';
 import { useEnemyTurn } from './game/useEnemyTurn';
 import { noteView, type NoteLine } from './game/notes';
@@ -239,7 +239,7 @@ export function App() {
         cut.stop();
         resetCasting();
         game.newRun();
-        wakeUp();
+        wakeUp(true);
       }, TIMING.introDoze);
     },
   });
@@ -281,12 +281,15 @@ export function App() {
 
   // ------------------------------------------------------------ the opening: title screen, waking up in room 0
 
-  /** Open your eyes in room 0 (a new run): blink awake, then the mage thinks out loud. */
-  const wakeUp = useCallback(() => {
+  /**
+   * Open your eyes in room 0 (a new run): blink awake, then the mage thinks out loud (config/wakeThoughts.ts). `first`:
+   * the first waking, right after the opening cutscene and tutorial.
+   */
+  const wakeUp = useCallback((first = false) => {
     setIntro('waking');
     window.setTimeout(() => {
       setIntro(null);
-      setThought(PROLOGUE_ROOM.wakeThought);
+      setThought(pickWakeThought(first));
     }, TIMING.wakeBlink);
   }, []);
   const startNewGame = () => {

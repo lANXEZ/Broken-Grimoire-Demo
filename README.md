@@ -81,7 +81,8 @@ pages, and the "Hmmm..." note's card combinations.
 | Camera angle, tilt, board size on screen | `src/config/camera.ts` (`elevationDeg` must match the artist's isometric angle, see the note there) |
 | How obstacles fade (unit behind them, mouse nearby) | `OBSTACLE_FADE` in `src/config/camera.ts`. New obstacle types go inside `<Obstacle>` (`src/scene/Obstacle.tsx`) to get the same behaviour |
 | Art (fragments, info cards, units, room art) | `src/config/art.ts`: fragments in hand `fragmentArt`, the hover card `infoCardArt`, the mage's poses `MAGE_ART`, monsters `unitArt`, each unit's size `UNIT_HEIGHT`. Placeholders are listed there. The title screen's picture is `public/art/title/moon-forest.png` |
-| Room 0's layout and the mage's waking thought | `PROLOGUE_ROOM` in `src/engine/data.ts` |
+| Room 0's layout | `PROLOGUE_ROOM` in `src/engine/data.ts` |
+| The mage's waking thoughts (the first one after the tutorial, then a random one each time) | `src/config/wakeThoughts.ts` |
 | The opening cutscene and tutorial | Words and places: `src/config/introScript.ts`. What happens in what order: `play` in `src/game/useIntro.ts`. Its scenes and the tutorial's set-up: `src/game/intro.ts`. Timing: `speechGap`, `speechMinShow`, `shoutPuff` and `intro*` in `src/config/timing.ts`. To see it again, delete `broken-grimoire/intro/v1` from local storage |
 | The mage's speech bubble, the red flash when hurt, the tutorial tips | "spoken lines, hurt, the opening cutscene" styles at the end of `src/hud/hud.css` |
 | Pillar torches and dark rooms | The torch: `src/scene/Torch.tsx` (colours `torch*` in `src/config/art.ts`). How dark a dark room is: `src/scene/Lighting.tsx`. How long it stays dark: `roomDark` / `roomLighting` in `src/config/timing.ts` |
