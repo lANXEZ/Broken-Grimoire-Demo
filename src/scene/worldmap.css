@@ -199,6 +199,9 @@
   position: relative;
   padding: 0.6rem 1rem 1.6rem;
 }
-.map-foot .hud-button {
-  min-width: 16rem;
+.map-hint {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: #e7dcc1cc;
+  text-shadow: 0 0.1rem 0.2rem #0009;
 }

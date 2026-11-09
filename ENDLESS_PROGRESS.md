@@ -1,0 +1,100 @@
+# Endless mode: plan and progress
+
+Working notes for the "Demo's Endless Curse" (branch `endless-mode`, made from `map-choice-fix`). If work stops
+part-way, this file says what's done and what's next. Tick boxes as steps land; add a line under **Log** each
+session.
+
+## How it plays
+
+1. Killing the Redactor shows **Victory** as now, but its button says **Continue** (with a smaller **New run**).
+2. **The curse:** the screen darkens to purple, the mage glows purple, and purple glitchy text types out:
+   "There is no more content in this demo. NOW GO SUFFER THE DEMO'S ENDLESS CURSE (PCG applied)."
+   A purple flash teleports the mage to endless room 1. Space or a click skips once the text has finished.
+3. **Entering endless:** HP restored to full. Deck, Grimoire, notes and rune meanings carry over.
+4. **Fight room**, generated from the current hardness. No door, no map. Kill every monster, CLEARED! shows, walk
+   around to pick up drops, then the Continue button reads **"Next: Camp"** and fades you to the camp.
+5. **Camp:** Rest (heal 70% of missing HP, rounded up) or Tear out 4 pages (pick 4 fragments to remove for good;
+   fewer if 4 can't be spared without breaking the grimoire). Then **"Next room"**; hardness +3.
+6. **Death:** "The curse claims you. Rooms cleared: N (best: M)", then the usual rune message and room 0.
+
+## Settings (one `ENDLESS` block next to `RULES` in engine/data.ts)
+
+| Setting | Value |
+|---|---|
+| Costs | Hole 1, Leech 2, Rat 2, Brute 4, Archer 4, Warden 7, Redactor + 3 Wards 20, pillars 0 |
+| Hardness | Starts at 12, +3 per room cleared |
+| Unlocks | Archers from 12; Warden from 15 (max 1 until 25); Redactor team from 24 (max 1 per room) |
+| Room size | 6x6 up to 17, 7x7 up to 26, 8x8 after |
+| Holes | ~20% of the budget, at least 1, at most 5 |
+| Monster limit | 7 on 6x6, 9 on 7x7, 12 on 8x8 |
+| Pillars | 2-4, more in bigger rooms |
+| Start safety | No monster within 2 tiles of the mage, no hole next to the mage |
+
+Generator rules: holes first (up to the cap), then weighted-random monsters favouring kinds not yet in the room
+(prefer expensive ones near the monster limit), a leftover 1 becomes a hole, so the total always equals the
+hardness exactly. Holes never cut off part of the floor (loot must be reachable). Enemies need NOT be reachable on
+foot (spells and breaking pillars handle that). Wards are fire, water, earth (the 3 ward drawings). Same seed +
+hardness = same room.
+
+## Steps
+
+- [x] 1. Generator: `src/engine/generate.ts` (`generateRoom(seed, hardness)` -> RoomDef), `ENDLESS` settings, tests
+- [x] 2. Engine flow: `endless: { seed, hardness, cleared } | null` on GameState; `enterEndless`; Continue alternates
+      fight <-> camp; Redactor kill in endless is a normal kill; endless camp choices (70% rest, tear 4); saving
+- [x] 3. Screens: top bar (Endless · Room N · Hardness H · Seed XXXX), clear panel labels with no door walk, camp
+      panel (70% rest + pick-4 picker), death screen with best score (`broken-grimoire/endless-best/v1`)
+- [x] 4. The curse transition: `src/hud/EndlessCurse.tsx`, timings in `config/timing.ts`, Victory -> Continue
+- [x] 5. Dev: Endless button (anywhere), in endless Reroll and Hardness -3/+3; scripted playthrough; docs
+      (GAME_RULES.md "Endless mode", README.md tuning + dev buttons)
+
+## Risks to check
+
+- 7x7 rooms: no hand-made room is 7x7; check the camera and walls fit.
+- The Redactor in a random room: its fight assumes the boss room's layout.
+- Balance: costs are a first guess; all in one settings block.
+
+## Decisions (Nov 9, before the user went to sleep)
+
+- Commit AND push `endless-mode` after each finished step. Never merge into main.
+- Curse text: "There is no more content in this demo. NOW GO SUFFER THE DEMO'S ENDLESS CURSE. (PCG applied)".
+  Nov 10: toned down from a dramatic glitch effect to a small deadpan notice with an OK button (user: "just a
+  notice that's a little bit funny"). The mage's purple glow and the flash stay.
+- Camp "Tear out pages": the player picks UP TO 4 (1 to 4), then confirms.
+- Don't restore the deleted remote `map-choice-fix`: its commit is inside `endless-mode`.
+- Victory shows first (not evil), then Continue starts the curse.
+- Entering endless: HP restored to full; everything else carries over.
+- Dev: an Endless button; in endless, Reroll and Hardness -3/+3. Show the room's seed and hardness in endless.
+
+## Log
+
+- Nov 9: plan agreed; branch `endless-mode` created from `map-choice-fix` (not yet merged to main).
+- Step 1 done: `src/engine/generate.ts` + `ENDLESS` in data.ts + `generate.test.ts` (2,550 rooms checked: exact
+  budget, size/limits/unlocks, fair start, floor never cut). Hand-made rooms price at 12 / 19 / 22. A pick is only
+  allowed if the rest of the budget still fits the places left, so the budget always lands exactly (up to ~60).
+- Step 2 done (engine): `GameState.endless` (seed, roomSeed, hardness, cleared); `enterEndless`, `continueRun` ->
+  `continueEndless` (cleared fight -> camp -> next fight, hardness +3), `devEndlessRoom` (reroll / hardness +-),
+  `seedLabel`, `campRestHeal` / `campTearMax`; `CampChoice` tear is now `{ cardIds: number[] }` (1 normally, up to
+  4 in endless). The Redactor is a normal kill in endless (core.ts). Endless rooms get roomIndex
+  ROOMS.length + cleared*2 (+1 for the camp), so each has its own log. `stage` is set to the last stop, so the
+  App's map effect must ignore endless. Tests: `src/engine/endless.test.ts`.
+- Note for step 3: App's camp auto-walk (`autoWalked`) is keyed on `state.stage`; in endless the stage never
+  changes, so key it on roomIndex too. Leaving the endless camp still auto-walks to its door, then continueRun.
+- Step 3 done (screens): top bar in endless (Endless · Room N, the room, Hardness · Seed), clear panel "Next: Camp"
+  with no door, camp Rest shows the 70% heal and Tear out pages picks up to 4 then confirms, the endless death
+  dialog ("The curse claims you", rooms cleared + best, `src/game/endlessBest.ts`), Victory has Continue (->
+  endless) + New run. App: no map in endless; camp auto-walk keyed on stage + roomIndex. Dev buttons (part of
+  step 5) are in too: Endless (outside endless), Reroll / Hard -3 / Hard +3 (in endless). Checked in Electron:
+  dev Endless -> room 1 (12) -> clear -> camp -> tear 3 -> room 2 (15) -> 7x7 (21) -> 8x8 with the Redactor (30).
+- Step 4 done (the curse): `src/hud/EndlessCurse.tsx` (purple veil, glitchy typed words on a dark band, then a
+  flash; endless starts at the flash's peak; Space / Enter / click skip once the words are out; keys are captured
+  so nothing fires underneath), `src/scene/CurseGlow.tsx` (pulsing purple aura, floor glow and light on the mage,
+  who raises their arms in the casting pose), timings `curse*` in config/timing.ts. App: `curse` state 'glow' /
+  'after'; the game-over dialog no longer renders behind the title screen (it could be clicked through).
+  Checked in Electron from a real Victory (dev Clear room in the Redactor's room) and with Space to skip.
+- Step 5 done: docs (GAME_RULES.md "Endless mode" section + a line in "The run"; README.md dev buttons, where to
+  tune endless, project layout). Final Electron run: two camp visits in a row both walk to the fire by themselves
+  (hardness 12 -> 15 -> 18), and dying in endless shows "The curse claims you", rooms cleared 2, best 2 (saved).
+  Type check clean, 165 tests pass, production build OK.
+- ALL STEPS DONE. Not done (needs the user): merge `endless-mode` into main, rebuild the .exe, playtest balance.
+- Small deviations from the plan: leaving the endless camp still walks the mage to the camp's door (as at the
+  normal camp) instead of a "Next room" button; the camp's top bar keeps showing the last fight's hardness and seed.

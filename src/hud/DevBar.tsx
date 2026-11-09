@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ROOMS, devEdit, enemyAt, killEnemy, loadRoom, type GameState, type Pos } from '../engine';
+import { RUN, devEdit, devEndlessRoom, enemyAt, enterNextStop, killEnemy, stageName, type GameState, type Pos } from '../engine';
 import type { GameApi } from '../game/useGame';
 import { newAccount } from '../game/account';
 
@@ -9,7 +9,7 @@ import { newAccount } from '../game/account';
  * the Grimoire and the "Hmmm..." note, and "New account" to play as a brand-new player (game/account.ts). The last two
  * ask once more first: click again within a few seconds.
  */
-export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
+export function DevBar({ game, hover, onEndless }: { game: GameApi; hover: Pos | null; onEndless: () => void }) {
   const s = game.state;
   const hovered = hover ? enemyAt(s, hover) : undefined;
   const cheat = (note: string, edit: (d: GameState) => void) => game.run((st) => devEdit(st, note, edit));
@@ -49,12 +49,44 @@ export function DevBar({ game, hover }: { game: GameApi; hover: Pos | null }) {
       >
         Clear room
       </button>
+      {/* One stop at a time, like going through the door, so the run map shows and steps one layer. */}
       <button
-        disabled={s.roomIndex + 1 >= ROOMS.length || s.phase !== 'player'}
-        onClick={() => cheat(`skip to room ${s.roomIndex + 2}`, (d) => loadRoom(d, d.roomIndex + 1))}
+        disabled={s.stage + 1 >= RUN.length || !['player', 'cleared', 'event', 'camp'].includes(s.phase)}
+        title={`Go on to ${stageName(s.stage + 1)} as if through the door (the map shows)`}
+        onClick={() => cheat(`skipped to ${stageName(s.stage + 1)}`, enterNextStop)}
       >
-        Next room
+        Next stop
       </button>
+      {/* Endless mode: jump in from anywhere (the curse plays); once in, a new room or a harder / easier one. */}
+      {s.endless ? (
+        <>
+          <button
+            disabled={s.phase !== 'player'}
+            title="A new room at this hardness (new seed)"
+            onClick={() => cheat('rerolled the endless room', (d) => devEndlessRoom(d, 0, true))}
+          >
+            Reroll
+          </button>
+          <button
+            disabled={s.phase !== 'player' || s.endless.hardness <= 3}
+            title="This room again, 3 hardness easier"
+            onClick={() => cheat('endless hardness -3', (d) => devEndlessRoom(d, -3, false))}
+          >
+            Hard −3
+          </button>
+          <button
+            disabled={s.phase !== 'player'}
+            title="This room again, 3 hardness harder"
+            onClick={() => cheat('endless hardness +3', (d) => devEndlessRoom(d, 3, false))}
+          >
+            Hard +3
+          </button>
+        </>
+      ) : (
+        <button disabled={s.phase === 'enemy'} title="Skip to endless mode (the curse plays first). HP is restored." onClick={onEndless}>
+          Endless
+        </button>
+      )}
       <button
         className={confirmForget ? 'is-danger' : ''}
         disabled={known === 0}

@@ -76,6 +76,14 @@ export const TIMING = {
   introCampBlack: 1000,
   introAfterCast: 1100,
   introDoze: 1100,
+  /**
+   * Endless mode's notice (hud/EndlessCurse.tsx): the screen dimming before the notice pops up (it then waits for
+   * OK), the flash rising to white-purple (endless mode starts underneath at its brightest), and the flash fading on
+   * the first endless room.
+   */
+  curseDim: 700,
+  curseFlash: 900,
+  curseFade: 900,
   /** Toasts (loot, errors) auto-dismiss after this. */
   toast: 3400,
 } as const;

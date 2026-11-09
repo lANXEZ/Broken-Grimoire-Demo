@@ -19,7 +19,7 @@ const glow = { transparent: true, depthWrite: false, blending: AdditiveBlending,
 
 /** A white spot fading out to its edge: the rune drop's pool of light on the floor (tinted by the material). */
 let softSpot: CanvasTexture | null = null;
-function softSpotTexture(): CanvasTexture {
+export function softSpotTexture(): CanvasTexture {
   if (softSpot) return softSpot;
   const c = document.createElement('canvas');
   c.width = c.height = 128;

@@ -9,6 +9,8 @@
 :root {
   color-scheme: dark;
   --gold: #d9b768;
+  /* Endless mode's curse purple (the same as a dropped rune's glow, RUNE_DROP_GLOW). */
+  --endless-purple: #b866ff;
   --gold-dim: #8f7444;
   --ink: #f1e6cf;
   --ink-dim: #b5a68b;
@@ -196,6 +198,102 @@ button {
   font-weight: 700;
   font-size: 1.45rem;
   color: var(--ink);
+}
+/* ---- Endless mode's notice (hud/EndlessCurse.tsx): a deadpan system-style notice, then a purple flash ---- */
+.curse {
+  position: fixed;
+  inset: 0;
+  z-index: 900; /* over the HUD and the dialogs, under drag ghosts */
+  display: grid;
+  place-items: center;
+  user-select: none;
+}
+.curse-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Just a dim, so the glowing mage stays in view. */
+  background: #0a0612a0;
+  animation: curse-veil-in ease-out forwards;
+}
+@keyframes curse-veil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.curse.is-fade .curse-veil {
+  display: none;
+}
+.curse-notice {
+  position: relative;
+  top: 16vh;
+  width: min(26rem, 90vw);
+  padding: 1rem 1.4rem 1.1rem;
+  text-align: center;
+  background: var(--panel, #1d1712);
+  border: 0.12rem solid var(--endless-purple);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.6rem 1.6rem #000a, 0 0 1.2rem #b866ff44;
+  animation: curse-notice-in 0.25s ease-out;
+}
+@keyframes curse-notice-in {
+  from { opacity: 0; transform: translateY(0.6rem); }
+  to { opacity: 1; transform: none; }
+}
+.curse-notice-head {
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--endless-purple);
+}
+.curse-notice p {
+  margin: 0.15rem 0;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+.curse-notice .curse-notice-aside {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink-dim);
+}
+.curse-notice .hud-button {
+  display: block;
+  margin: 0.8rem auto 0;
+  min-width: 6rem;
+}
+.curse-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 45%, #ffffff 0%, #e6c8ff 35%, #b866ff 75%, #6a1fbf 100%);
+  opacity: 0;
+  animation: curse-flash linear forwards;
+}
+/* Rises to its brightest at the moment endless mode starts (curseFlash of curseFlash + curseFade), then fades. */
+@keyframes curse-flash {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Endless mode: the room, its hardness and its seed (the generator at work, for anyone watching). */
+.top-center.is-endless .room-index {
+  color: var(--endless-purple);
+}
+.endless-info {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  color: #cfa8ff;
+  font-variant-numeric: tabular-nums;
+}
+.endless-score {
+  font-size: 1.15rem;
+}
+.endless-score b {
+  color: var(--endless-purple);
+  font-size: 1.5rem;
 }
 .turn-counter {
   font-size: 1.15rem;
@@ -1722,6 +1820,21 @@ button {
 .camp-card:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+/* Endless camp: the pages picked to tear out (up to 4). */
+.camp-card.is-picked {
+  transform: translateY(-0.4rem);
+  outline: 0.18rem solid var(--endless-purple);
+  outline-offset: 0.15rem;
+  border-radius: 0.3rem;
+  box-shadow: 0 0 1rem #b866ff88;
+}
+.camp-confirm {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.6rem;
 }
 .grimoire-button {
   font-size: 0.95rem;

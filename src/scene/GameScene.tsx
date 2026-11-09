@@ -16,6 +16,7 @@ import { Mat } from './Mat';
 import { Lectern } from './Lectern';
 import { Campfire } from './Campfire';
 import { TILE_TOP, tileToWorld } from './iso';
+import { CurseGlow } from './CurseGlow';
 
 interface Props {
   /** The state to draw (during the enemy turn, the snapshot of the step being shown). */
@@ -46,6 +47,8 @@ interface Props {
   restPrompt?: boolean;
   /** The mage just meditated: they show their meditating pose for a moment. */
   meditating?: boolean;
+  /** Endless mode's curse is taking hold: the mage glows purple, arms raised (scene/CurseGlow.tsx). */
+  cursed?: boolean;
   onRest?: () => void;
   hover: Pos | null;
   pointer: TilePointer;
@@ -120,6 +123,7 @@ export function GameScene({
   bare = false,
   restPrompt = false,
   meditating = false,
+  cursed = false,
   onRest = () => {},
   hover,
   pointer,
@@ -137,7 +141,7 @@ export function GameScene({
   const castDir = [...fx].reverse().flatMap((e) => ('fx' in e && e.fx.dir ? [e.fx.dir] : []))[0] ?? null;
   const castFace = castDir ? (DIR_VECTORS[castDir].x - DIR_VECTORS[castDir].y >= 0 ? 1 : -1) : null;
   const onMat = (room.mat ?? []).some((p) => samePos(p, state.player.pos));
-  const magePose = casting ? 'casting' : meditating || onMat ? 'meditating' : null;
+  const magePose = casting || cursed ? 'casting' : meditating || onMat ? 'meditating' : null;
   // (After CLEARED! there are no enemies left, so no intents either.)
 
   return (
@@ -211,6 +215,7 @@ export function GameScene({
             />
           ))}
         </Suspense>
+        {cursed && <CurseGlow pos={state.player.pos} room={room} />}
         <SpellFxLayer events={fx} room={room} />
       </Canvas>
     </div>
