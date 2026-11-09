@@ -15,7 +15,7 @@ which replaced the paper-kit rules. If this file and the PDF disagree, this file
 [The mage](#the-mage-player) · [Spells](#spells) · [Merges](#element-merges) · [Statuses](#statuses) ·
 [Runes](#runes) · [The board](#the-board) · [Monsters](#monsters) · [Boss room](#boss-room) · [Rooms](#rooms) ·
 [Cards and drops](#cards-and-drops) · [Event and camp](#event-and-camp) ·
-[Build decisions](#build-decisions-nov-4) · [Changes](#changes-from-the-previous-rules)
+[Endless mode](#endless-mode-the-demos-endless-curse) · [Build decisions](#build-decisions-nov-4) · [Changes](#changes-from-the-previous-rules)
 
 ---
 
@@ -34,6 +34,8 @@ you pick, it's the next stop below. Your picks are kept for the whole run, so th
 4. **Room 2 · The Scriptorium** (6×6, the Warden)
 5. **Camp**
 6. **Boss · The Redactor** (8×8)
+7. **Then: endless mode** — beating the Redactor shows Victory, then the curse sends you into generated rooms until
+   you fall (see [Endless mode](#endless-mode-the-demos-endless-curse))
 
 - **Title screen and room 0 (team decision, Nov 5):** the game opens on a title screen (a night forest under the
   moon, the game's name, Start on the right; with a saved run, Continue or New game; and Quit under them, which
@@ -530,6 +532,65 @@ fire by themselves (to c2); the **door (e5) stays locked until the mage reaches 
 (heal to full, 20 HP) or **Tear out a page** (remove one fragment from your deck for good; never one that would break
 your grimoire). Then the mage walks out through the door by themselves. As in the lectern's room, the player never
 moves the mage here and combat controls are hidden.
+
+---
+
+## Endless mode (the Demo's Endless Curse)
+
+**Team decision (Nov 9):** the demo's content ends at the Redactor. Beating it shows **Victory** as before, but its
+button is now **Continue** (with **New run** beside it). Continue breaks the fourth wall: the screen darkens to
+purple, the mage glows purple with arms raised, and the curse types itself out in glitchy purple: *"There is no more
+content in this demo. NOW GO SUFFER THE DEMO'S ENDLESS CURSE (PCG applied)."* A purple flash teleports the mage into
+endless mode. It's the demo's proof of procedural content generation (PCG): every endless room is generated.
+
+- **Carried over:** everything (deck, Grimoire, "Hmmm...", rune notes and meanings) except HP, which is restored to
+  full as the curse takes hold.
+- **No map, no doors.** A room is won by killing **every** monster. After CLEARED! you can walk around to pick up
+  drops, then **Next: Camp** (the button that walks you to the door in a normal room) takes you to the camp.
+- **The camp, between every two fights:** **Rest** heals 70% of your missing HP (rounded up), or **Tear out pages**
+  removes 1 to 4 fragments of your choice for good (never so many that the grimoire can't make a spell). Then the mage
+  walks out to the next room, which is **3 hardness harder**.
+- **Death ends it:** *"The curse claims you"*, the rooms you cleared and your best on this computer, then the usual
+  rune message and a new run in room 0.
+- **On screen:** the top bar shows *Endless · Room N*, the room, and its **hardness and seed** (8 hex digits). The
+  same seed and hardness always give the same room.
+- **The Redactor in endless** is just another monster: killing it doesn't win (its Wards and Scraps work as in the
+  boss room).
+
+### How a room is generated (`src/engine/generate.ts`)
+
+Each room has a **hardness**: a budget. Holes and monsters cost points, and the generator adds them until they add
+up to the hardness **exactly**. Pillars are free cover. The first endless room is hardness **12**; each room cleared
+adds **3** (12, 15, 18, 21…).
+
+| Piece | Cost | Why |
+|---|---|---|
+| Hole | 1 | Blocks walking, and an Archer can push you in. It helps you too: push a monster in and it dies |
+| Pillar | 0 | Helps you: blocks Archer and Warden lines, and breaks after 2 hits |
+| Leech | 2 | 4 HP, but only drains mana |
+| Rat | 2 | 2 HP, 1 dmg, fast; cheap so it can come in packs |
+| Brute | 4 | 6 HP, 3 dmg |
+| Archer | 4 | 3 HP, but 2 dmg at any range and a push |
+| Warden | 7 | 8 HP, a 5 dmg line that hits every unit on it |
+| The Redactor and its 3 Page Wards | 20 | The Act 1 boss fight on its own (Scraps are summoned, so free) |
+
+Priced the same way, the hand-made rooms come to: the Cistern **12**, the Scriptorium **19**, the Redactor **22**.
+
+| Rule | Value |
+|---|---|
+| Unlocks | Rats, Leeches, Brutes always; Archers from 12; the Warden from 15 (at most 1 below 25, 2 from 25, 3 from 40); the Redactor's team from 24 (at most once a room) |
+| Room size | 6×6 up to 17, 7×7 up to 26, 8×8 after |
+| Monster limit | 7 on 6×6, 9 on 7×7, 12 on 8×8 (the Redactor's team counts as 4) |
+| Holes | About a fifth of the budget: at least 1, at most 5 (a leftover point or two can add one or two) |
+| Pillars | 2–3 on 6×6, 2–4 on 7×7, 3–4 on 8×8 |
+| Fair start | The mage starts in a corner; no monster within 2 tiles (diagonals count as 1), no hole or pillar right next to the mage |
+| Floor | Holes never cut the floor in two, so loot can always be picked up. Monsters don't have to be reachable on foot: spells reach over holes, and pillars break |
+
+**The order:** holes first, then monsters picked at random (weighted, with a bonus for kinds not in the room yet so
+rooms vary), then any leftover point becomes a hole. A monster is only picked if the rest of the budget still fits
+the places left, and as the room fills up the dearer monsters are favoured, so the budget always lands exactly.
+Every number above is in `ENDLESS` in `src/engine/data.ts`; `src/engine/generate.test.ts` checks every rule over
+2,550 generated rooms.
 
 ---
 

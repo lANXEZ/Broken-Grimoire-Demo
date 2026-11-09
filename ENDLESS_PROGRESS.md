@@ -44,7 +44,7 @@ hardness = same room.
 - [x] 3. Screens: top bar (Endless · Room N · Hardness H · Seed XXXX), clear panel labels with no door walk, camp
       panel (70% rest + pick-4 picker), death screen with best score (`broken-grimoire/endless-best/v1`)
 - [x] 4. The curse transition: `src/hud/EndlessCurse.tsx`, timings in `config/timing.ts`, Victory -> Continue
-- [ ] 5. Dev: Endless button (anywhere), in endless Reroll and Hardness -3/+3; scripted playthrough; docs
+- [x] 5. Dev: Endless button (anywhere), in endless Reroll and Hardness -3/+3; scripted playthrough; docs
       (GAME_RULES.md "Endless mode", README.md tuning + dev buttons)
 
 ## Risks to check
@@ -89,4 +89,10 @@ hardness = same room.
   who raises their arms in the casting pose), timings `curse*` in config/timing.ts. App: `curse` state 'glow' /
   'after'; the game-over dialog no longer renders behind the title screen (it could be clicked through).
   Checked in Electron from a real Victory (dev Clear room in the Redactor's room) and with Space to skip.
-- NEXT: step 5 (rest of it): docs (GAME_RULES.md "Endless mode", README.md), a final playthrough.
+- Step 5 done: docs (GAME_RULES.md "Endless mode" section + a line in "The run"; README.md dev buttons, where to
+  tune endless, project layout). Final Electron run: two camp visits in a row both walk to the fire by themselves
+  (hardness 12 -> 15 -> 18), and dying in endless shows "The curse claims you", rooms cleared 2, best 2 (saved).
+  Type check clean, 165 tests pass, production build OK.
+- ALL STEPS DONE. Not done (needs the user): merge `endless-mode` into main, rebuild the .exe, playtest balance.
+- Small deviations from the plan: leaving the endless camp still walks the mage to the camp's door (as at the
+  normal camp) instead of a "Next room" button; the camp's top bar keeps showing the last fight's hardness and seed.
