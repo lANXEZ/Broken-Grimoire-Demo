@@ -183,7 +183,21 @@ interface Layer {
   gain: GainNode;
   on: boolean;
   /** Its little events (a cricket, a drip): which, how often (seconds between, min-max), and when next. */
-  events: { name: SoundName; every: [number, number]; next: number; echo?: boolean }[];
+  events: LayerEvent[];
+  /** The layer's own echo (the cave), if it has one. */
+  echo?: AudioNode;
+}
+
+/**
+ * One of a layer's little events: which sound, how often (seconds between, min-max), when next, how loud, and how
+ * much of it goes into the layer's echo (`wet`; 0 = none, 1 = as much as the sound itself).
+ */
+interface LayerEvent {
+  name: SoundName;
+  every: [number, number];
+  next: number;
+  gain?: number;
+  wet?: number;
 }
 
 const layers: Partial<Record<AmbienceLayer, Layer>> = {};
@@ -240,7 +254,8 @@ function buildLayer(e: Engine, kind: AmbienceLayer): Layer {
   gain.connect(e.amb);
   const now = e.ac.currentTime;
   buildBeds(e, gain, kind);
-  const events: Layer['events'] =
+  const echo = kind === 'dungeon' ? caveEcho(e, gain) : undefined;
+  const events: LayerEvent[] =
     kind === 'forest'
       ? [
           { name: 'cricket', every: [0.35, 1.4], next: now + 1 },
@@ -248,14 +263,33 @@ function buildLayer(e: Engine, kind: AmbienceLayer): Layer {
         ]
       : kind === 'dungeon'
         ? [
-            { name: 'drip', every: [2.5, 8], next: now + 2, echo: true },
-            { name: 'rumble', every: [25, 55], next: now + 20 },
+            // Water dripping into pools nearby, and further off (quieter, mostly echo); a few pebbles falling now and
+            // then; something heavy shifting far away.
+            { name: 'drip', every: [1.5, 5], next: now + 1.5, wet: 1.2 },
+            { name: 'drip', every: [3, 9], next: now + 4, gain: 0.35, wet: 3 },
+            { name: 'pebbles', every: [14, 32], next: now + 9, wet: 1.5 },
+            { name: 'rumble', every: [25, 55], next: now + 20, wet: 0.6 },
           ]
         : [
             { name: 'pop', every: [0.04, 0.35], next: now },
             { name: 'snap', every: [2, 6], next: now + 1.5 },
           ];
-  return { gain, on: false, events };
+  return { gain, on: false, events, echo };
+}
+
+/**
+ * The cave's echo for the dungeon layer's events: long (SOUND.ambience.caveEcho seconds), a little dull, and a
+ * moment late, like sound coming back off far walls. Into the layer, so it fades with it.
+ */
+function caveEcho(e: Engine, dest: AudioNode): AudioNode {
+  const delay = e.ac.createDelay(1);
+  delay.delayTime.value = 0.07;
+  const conv = e.ac.createConvolver();
+  conv.buffer = makeImpulse(e.ac, SOUND.ambience.caveEcho);
+  const dull = e.ac.createBiquadFilter();
+  dull.frequency.value = 2400;
+  delay.connect(conv).connect(dull).connect(dest);
+  return delay;
 }
 
 /** A layer's steady sounds, into `dest` (exported to check how loud they are). */
@@ -268,11 +302,10 @@ export function buildBeds(e: Pick<Engine, 'ac' | 'noise'>, gain: AudioNode, kind
     return;
   }
   if (kind === 'dungeon') {
-    // A low drone and the air moving through the halls; water dripping somewhere, something heavy far away.
-    drone(e, gain, [[55, 'sine', 0.09], [55.35, 'sine', 0.07], [82.5, 'triangle', 0.03], [110, 'triangle', 0.025]], 300);
-    bed(e, gain, { filter: 'lowpass', freq: 170, gain: 0.3, sway: { rate: 0.05, gain: 0.12 } });
-    // Air through the halls, in a range small speakers can play.
-    bed(e, gain, { filter: 'bandpass', freq: 380, q: 1.2, gain: 0.08, sway: { rate: 0.035, gain: 0.04, freq: 80 } });
+    // A cave: still air (nothing swaying, which would sound like wind), a deep steady hum of the rock, and a faint
+    // low room tone. The life is in the events: drips, pebbles, a far rumble, all ringing in the cave's echo.
+    drone(e, gain, [[55, 'sine', 0.09], [55.12, 'sine', 0.06], [82.5, 'triangle', 0.025], [110, 'triangle', 0.02]], 260);
+    bed(e, gain, { filter: 'lowpass', freq: 140, gain: 0.12 });
     return;
   }
   // The campfire: a soft roar, pops and the odd snap.
@@ -289,20 +322,20 @@ function tick(): void {
     if (!layer?.on) continue;
     for (const ev of layer.events) {
       if (ev.next > now) continue;
-      play(ev.name, 0, { dest: ev.echo ? echoed(e, layer.gain) : layer.gain });
+      play(ev.name, 0, { gain: ev.gain, dest: ev.wet && layer.echo ? echoed(e, layer.gain, layer.echo, ev.wet) : layer.gain });
       const [lo, hi] = ev.every;
       ev.next = now + lo + Math.random() * (hi - lo);
     }
   }
 }
 
-/** A node into both the layer and the dungeon's echo (so a drip rings down the halls). */
-function echoed(e: Engine, layerGain: GainNode): AudioNode {
+/** A node into both the layer and its echo (so a drip rings through the cave). */
+function echoed(e: Engine, layerGain: GainNode, echo: AudioNode, amount: number): AudioNode {
   const split = e.ac.createGain();
   split.connect(layerGain);
   const wet = e.ac.createGain();
-  wet.gain.value = 2;
-  split.connect(wet).connect(e.send);
+  wet.gain.value = amount;
+  split.connect(wet).connect(echo);
   window.setTimeout(() => split.disconnect(), 4000);
   return split;
 }

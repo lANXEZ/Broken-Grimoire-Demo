@@ -401,9 +401,22 @@ export const RECIPES = {
     tone(o, t + 0.75, { freq: 360, to: 330, attack: 0.04, decay: 0.22, gain: 0.05 });
     tone(o, t + 1.05, { freq: 365, to: 320, attack: 0.05, decay: 0.5, gain: 0.06 });
   },
+  /** A drop falling into a pool: a quick upward "plip" and the faint ring of the water. */
   drip: (o, t) => {
-    const f = rand(800, 1300);
-    tone(o, t, { freq: f, to: f * 2.1, decay: 0.07, gain: 0.08 });
+    const f = rand(700, 1300);
+    tone(o, t, { freq: f, to: f * 2.2, glide: 0.05, decay: 0.07, gain: 0.08 });
+    tone(o, t + 0.01, { freq: f * 1.5, decay: 0.16, gain: 0.02 });
+  },
+  /** A few small stones skittering down somewhere in the cave. */
+  pebbles: (o, t) => {
+    const n = 3 + Math.floor(Math.random() * 4);
+    let at = t;
+    for (let i = 0; i < n; i++) {
+      const g = 0.16 * (1 - i / (n + 1));
+      noise(o, at, { filter: 'bandpass', freq: rand(1400, 3200), q: 4, decay: rand(0.015, 0.035), gain: g });
+      tone(o, at, { freq: rand(180, 320), decay: 0.04, gain: g * 0.4 });
+      at += rand(0.06, 0.22);
+    }
   },
   /** Something heavy shifting far away in the dungeon. */
   rumble: (o, t) => noise(o, t, { freq: 140, to: 90, attack: 1.0, decay: 2.2, gain: 0.25 }),
