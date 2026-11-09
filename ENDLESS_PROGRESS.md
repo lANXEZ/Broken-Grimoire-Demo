@@ -39,7 +39,7 @@ hardness = same room.
 ## Steps
 
 - [x] 1. Generator: `src/engine/generate.ts` (`generateRoom(seed, hardness)` -> RoomDef), `ENDLESS` settings, tests
-- [ ] 2. Engine flow: `endless: { seed, hardness, cleared } | null` on GameState; `enterEndless`; Continue alternates
+- [x] 2. Engine flow: `endless: { seed, hardness, cleared } | null` on GameState; `enterEndless`; Continue alternates
       fight <-> camp; Redactor kill in endless is a normal kill; endless camp choices (70% rest, tear 4); saving
 - [ ] 3. Screens: top bar (Endless · Room N · Hardness H · Seed XXXX), clear panel labels with no door walk, camp
       panel (70% rest + pick-4 picker), death screen with best score (`broken-grimoire/endless-best/v1`)
@@ -69,3 +69,11 @@ hardness = same room.
 - Step 1 done: `src/engine/generate.ts` + `ENDLESS` in data.ts + `generate.test.ts` (2,550 rooms checked: exact
   budget, size/limits/unlocks, fair start, floor never cut). Hand-made rooms price at 12 / 19 / 22. A pick is only
   allowed if the rest of the budget still fits the places left, so the budget always lands exactly (up to ~60).
+- Step 2 done (engine): `GameState.endless` (seed, roomSeed, hardness, cleared); `enterEndless`, `continueRun` ->
+  `continueEndless` (cleared fight -> camp -> next fight, hardness +3), `devEndlessRoom` (reroll / hardness +-),
+  `seedLabel`, `campRestHeal` / `campTearMax`; `CampChoice` tear is now `{ cardIds: number[] }` (1 normally, up to
+  4 in endless). The Redactor is a normal kill in endless (core.ts). Endless rooms get roomIndex
+  ROOMS.length + cleared*2 (+1 for the camp), so each has its own log. `stage` is set to the last stop, so the
+  App's map effect must ignore endless. Tests: `src/engine/endless.test.ts`.
+- Note for step 3: App's camp auto-walk (`autoWalked`) is keyed on `state.stage`; in endless the stage never
+  changes, so key it on roomIndex too. Leaving the endless camp still auto-walks to its door, then continueRun.

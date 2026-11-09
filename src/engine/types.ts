@@ -187,6 +187,21 @@ export interface EventState {
   said: string | null;
 }
 
+/**
+ * Endless mode (after the Redactor): generated rooms, each a fight then a camp. See engine/generate.ts and ENDLESS
+ * in data.ts.
+ */
+export interface EndlessState {
+  /** The run's endless seed: each room's seed comes from it and `cleared`. */
+  seed: number;
+  /** The current room's seed (shown on screen; the dev Reroll changes it). */
+  roomSeed: number;
+  /** The current room's hardness. */
+  hardness: number;
+  /** Rooms cleared so far in endless mode. */
+  cleared: number;
+}
+
 /** 'dev' = edits made with the dev-mode tools (see devtools.ts). */
 export type LogSide = 'player' | 'enemy' | 'system' | 'dev';
 
@@ -238,6 +253,8 @@ export interface GameState {
   event: EventState | null;
   /** The last two random fragment drops (no card drops three times in a row). */
   lastDrops: FragmentKind[];
+  /** Endless mode, once the run is in it (after the Redactor); null or missing before. */
+  endless?: EndlessState | null;
 }
 
 /**

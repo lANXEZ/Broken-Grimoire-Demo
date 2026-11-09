@@ -206,7 +206,7 @@ export function CampPanel({ state, onChoose }: { state: GameState; onChoose: (c:
           <p>Pick the fragment to remove from your deck for good.</p>
           <div className="camp-cards">
             {deck.map((c) => {
-              const err = campError(state, { kind: 'tear', cardId: c.id });
+              const err = campError(state, { kind: 'tear', cardIds: [c.id] });
               return (
                 <button
                   key={c.id}
@@ -215,7 +215,7 @@ export function CampPanel({ state, onChoose }: { state: GameState; onChoose: (c:
                   title={err ?? `Tear out ${cardName(c)}`}
                   onClick={() => {
                     setTearing(false);
-                    onChoose({ kind: 'tear', cardId: c.id });
+                    onChoose({ kind: 'tear', cardIds: [c.id] });
                   }}
                 >
                   <FragmentCard card={c} thought="show" />

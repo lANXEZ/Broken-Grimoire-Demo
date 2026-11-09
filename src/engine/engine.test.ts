@@ -978,8 +978,9 @@ describe('the run', () => {
       const s = walkTo(arrive({ player: 'a1', hand: ['fire', 'beam', 'water'] }), 'c2');
       s.cards.deck = [];
       s.cards.discard = [];
-      expect(campError(s, { kind: 'tear', cardId: s.cards.hand[1].id })).toMatch(/break/);
-      const torn = campChoice(s, { kind: 'tear', cardId: s.cards.hand[2].id });
+      expect(campError(s, { kind: 'tear', cardIds: [s.cards.hand[1].id] })).toMatch(/break/);
+      expect(campError(s, { kind: 'tear', cardIds: [s.cards.hand[2].id, s.cards.hand[0].id] })).toMatch(/one page/);
+      const torn = campChoice(s, { kind: 'tear', cardIds: [s.cards.hand[2].id] });
       expect(torn.cards.hand.map((c) => c.kind)).toEqual(['fire', 'beam']);
       expect(torn.event?.said).toMatch(/Water/);
     });

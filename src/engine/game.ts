@@ -1,5 +1,6 @@
 import { cardsLabel, drawCards, freshShuffle, grimoireBroken, newCardState, ownedCards, refillHand, takeFromHand, type DrawResult } from './cards';
-import { CAMP_ROOM, ENEMY_DEFS, LECTERN_ROOM, PROLOGUE_ROOM, ROOMS, RULES, RUN, coordLabel, parseCoord } from './data';
+import { CAMP_ROOM, ENDLESS, ENEMY_DEFS, LECTERN_ROOM, PROLOGUE_ROOM, ROOMS, RULES, RUN, coordLabel, parseCoord, type RoomDef } from './data';
+import { generateRoom } from './generate';
 import {
   RuleError,
   checkCleared,
@@ -81,6 +82,14 @@ export function loadRoom(state: GameState, index: number): void {
   const stage = RUN.findIndex((st) => st.kind === 'room' && st.room === index);
   if (stage >= 0) state.stage = stage;
   state.roomIndex = index;
+  setUpRoom(state, def);
+  log(state, 'system', `Room ${index + 1}: ${def.name}. Mana resets to ${RULES.roomStartMana}.`);
+  log(state, 'player', 'Your turn 1.');
+  logDraw(state, freshShuffle(state), 'Hand, deck and discard pile are shuffled together. You draw');
+}
+
+/** Build a combat room from its definition (hand-made or generated) and deploy its enemies. */
+function setUpRoom(state: GameState, def: RoomDef): void {
   state.room = {
     id: def.id,
     name: def.name,
@@ -109,10 +118,85 @@ export function loadRoom(state: GameState, index: number): void {
   state.actionsLeft = RULES.actionsPerTurn;
   state.erasureZone = [];
   for (const spawn of def.enemies) spawnEnemy(state, spawn.kind, parseCoord(spawn.at), spawn.element);
+}
 
-  log(state, 'system', `Room ${index + 1}: ${def.name}. Mana resets to ${RULES.roomStartMana}.`);
-  log(state, 'player', 'Your turn 1.');
-  logDraw(state, freshShuffle(state), 'Hand, deck and discard pile are shuffled together. You draw');
+// ---------------------------------------------------------------------------
+// Endless mode: after the Redactor, generated rooms (engine/generate.ts), each a fight then a camp
+// ---------------------------------------------------------------------------
+
+/** Each endless room's seed, from the run's endless seed and how many rooms are behind. */
+export function endlessRoomSeed(seed: number, cleared: number): number {
+  return (seed ^ Math.imul(cleared + 1, 0x9e3779b1)) >>> 0;
+}
+
+/** A seed as shown on screen: 8 hex digits. */
+export function seedLabel(seed: number): string {
+  return (seed >>> 0).toString(16).toUpperCase().padStart(8, '0');
+}
+
+/** Endless rooms get room numbers after the hand-made ones (fight, then camp), so each has its own log. */
+const endlessRoomIndex = (cleared: number, camp: boolean) => ROOMS.length + cleared * 2 + (camp ? 1 : 0);
+
+/** Generate and set up the current endless fight room. */
+function loadEndlessRoom(s: GameState): void {
+  const e = s.endless!;
+  const def = generateRoom(e.roomSeed, e.hardness, e.cleared + 1);
+  s.roomIndex = endlessRoomIndex(e.cleared, false);
+  setUpRoom(s, def);
+  log(s, 'system', `${def.name}: hardness ${e.hardness}, seed ${seedLabel(e.roomSeed)}. Mana resets to ${RULES.roomStartMana}.`);
+  log(s, 'player', 'Your turn 1.');
+  logDraw(s, freshShuffle(s), 'Hand, deck and discard pile are shuffled together. You draw');
+}
+
+/**
+ * The curse: start endless mode (after beating the Redactor; the dev toolbar can start it anywhere). HP is restored
+ * to full; the deck, the Grimoire and everything else carry over.
+ */
+export function enterEndless(state: GameState): GameState {
+  const s = cloneState(state);
+  const seed = Math.floor(random(s) * 2 ** 32) >>> 0;
+  s.endless = { seed, roomSeed: endlessRoomSeed(seed, 0), hardness: ENDLESS.startHardness, cleared: 0 };
+  s.stage = RUN.length - 1;
+  s.lostReason = undefined;
+  s.player.hp = s.player.maxHp;
+  log(s, 'system', 'The curse takes hold. Endless mode: kill every monster to go on. HP restored to full.');
+  loadEndlessRoom(s);
+  return s;
+}
+
+/** Endless mode's Continue: a cleared fight goes to the camp; the camp goes to the next, harder fight. */
+function continueEndless(state: GameState): GameState {
+  const e = state.endless!;
+  if (state.phase === 'cleared') {
+    const s = cloneState(state);
+    log(s, 'player', `You leave ${s.room.name}.`);
+    const left = s.room.drops.flatMap((d) => d.cards);
+    if (left.length) log(s, 'system', `Left behind: ${cardsLabel(left)}.`);
+    loadFeatureRoom(s, CAMP_ROOM, 'campfire', 'camp');
+    s.roomIndex = endlessRoomIndex(e.cleared, true);
+    return s;
+  }
+  if (state.phase === 'camp') {
+    if (!state.event || state.event.step === 'approach') throw new RuleError('Walk up to the fire first.');
+    const s = cloneState(state);
+    log(s, 'player', 'You leave the camp.');
+    const cleared = e.cleared + 1;
+    s.endless = { ...e, cleared, hardness: e.hardness + ENDLESS.hardnessStep, roomSeed: endlessRoomSeed(e.seed, cleared) };
+    loadEndlessRoom(s);
+    return s;
+  }
+  throw new RuleError('Kill every monster first.');
+}
+
+/** Dev: a new endless room at the hardness plus `delta`, with a new seed if `reroll`. */
+export function devEndlessRoom(s: GameState, delta: number, reroll: boolean): void {
+  if (!s.endless) throw new RuleError('Not in endless mode.');
+  s.endless = {
+    ...s.endless,
+    hardness: Math.max(1, s.endless.hardness + delta),
+    roomSeed: reroll ? Math.floor(random(s) * 2 ** 32) >>> 0 : s.endless.roomSeed,
+  };
+  loadEndlessRoom(s);
 }
 
 export function spawnEnemy(state: GameState, kind: EnemyKind, pos: Pos, element?: Element): Enemy {
@@ -340,6 +424,7 @@ export function freeStep(state: GameState, to: Pos): GameState {
  * alive keeps what it would have dropped.
  */
 export function continueRun(state: GameState): GameState {
+  if (state.endless) return continueEndless(state);
   const early = state.phase === 'player' && state.room.exitAlwaysOpen;
   const between = (state.phase === 'event' || state.phase === 'camp') && exitOpen(state);
   if (state.phase !== 'cleared' && !early && !between) throw new RuleError('The room isn’t cleared yet.');
@@ -423,6 +508,10 @@ function loadPrologue(s: GameState): void {
 /** Restart the stop the run is at (for saves made before a stop's rules changed). */
 export function restartStage(state: GameState): GameState {
   const s = cloneState(state);
+  if (s.endless) {
+    loadEndlessRoom(s);
+    return s;
+  }
   if (s.stage < 0) {
     loadPrologue(s);
     return s;
@@ -507,22 +596,40 @@ export function eventChoice(state: GameState, choice: EventChoice): GameState {
   return s;
 }
 
-export type CampChoice = { kind: 'rest' } | { kind: 'tear'; cardId: number };
+/** Rest, or tear out pages: one at a normal camp, up to ENDLESS.tearCount at an endless one. */
+export type CampChoice = { kind: 'rest' } | { kind: 'tear'; cardIds: number[] };
+
+/** How many pages a camp lets you tear out. */
+export function campTearMax(state: GameState): number {
+  return state.endless ? ENDLESS.tearCount : 1;
+}
+
+/** HP that resting gives back: all of it at a normal camp, ENDLESS.restShare of the missing HP (rounded up) in endless. */
+export function campRestHeal(state: GameState): number {
+  const missing = state.player.maxHp - state.player.hp;
+  return state.endless ? Math.ceil(missing * ENDLESS.restShare) : missing;
+}
 
 export function campError(state: GameState, choice: CampChoice): string | null {
   if (state.phase !== 'camp' || !state.event) return 'There is no camp here.';
   if (state.event.step === 'approach') return 'Walk up to the fire first.';
   if (state.event.step !== 'offer') return 'You’ve already made your choice.';
   if (choice.kind === 'rest') return null;
+  const ids = choice.cardIds;
+  if (!ids.length) return 'Pick a page to tear out.';
+  const max = campTearMax(state);
+  if (ids.length > max) return max === 1 ? 'You can only tear out one page.' : `You can tear out at most ${max} pages.`;
+  if (new Set(ids).size !== ids.length) return 'That page is already picked.';
   const all = ownedCards(state.cards);
-  if (!all.some((c) => c.id === choice.cardId)) return 'That fragment isn’t in your deck.';
+  if (!ids.every((id) => all.some((c) => c.id === id))) return 'That fragment isn’t in your deck.';
+  const keep = (c: { id: number }) => !ids.includes(c.id);
   const without = {
     ...state.cards,
-    hand: state.cards.hand.filter((c) => c.id !== choice.cardId),
-    deck: state.cards.deck.filter((c) => c.id !== choice.cardId),
-    discard: state.cards.discard.filter((c) => c.id !== choice.cardId),
+    hand: state.cards.hand.filter(keep),
+    deck: state.cards.deck.filter(keep),
+    discard: state.cards.discard.filter(keep),
   };
-  if (grimoireBroken(without)) return 'Tearing that page out would break your grimoire.';
+  if (grimoireBroken(without)) return ids.length === 1 ? 'Tearing that page out would break your grimoire.' : 'Tearing those pages out would break your grimoire.';
   return null;
 }
 
@@ -536,16 +643,18 @@ export function campChoice(state: GameState, choice: CampChoice): GameState {
   const s = cloneState(state);
   if (choice.kind === 'rest') {
     const before = s.player.hp;
-    s.player.hp = s.player.maxHp;
+    s.player.hp = Math.min(s.player.maxHp, s.player.hp + campRestHeal(s));
     log(s, 'system', `You rest by the fire: HP ${before} → ${s.player.hp}.`);
     s.event = { step: 'done', said: before < s.player.hp ? `You rest by the fire: HP ${before} → ${s.player.hp}.` : 'You rest by the fire.' };
   } else {
-    const card = ownedCards(s.cards).find((c) => c.id === choice.cardId)!;
-    s.cards.hand = s.cards.hand.filter((c) => c.id !== card.id);
-    s.cards.deck = s.cards.deck.filter((c) => c.id !== card.id);
-    s.cards.discard = s.cards.discard.filter((c) => c.id !== card.id);
-    log(s, 'system', `You tear out a page: ${cardsLabel([card])} leaves your deck for good.`);
-    s.event = { step: 'done', said: `You tear out a page: ${cardsLabel([card])} is gone for good.` };
+    const cards = ownedCards(s.cards).filter((c) => choice.cardIds.includes(c.id));
+    const keep = (c: { id: number }) => !choice.cardIds.includes(c.id);
+    s.cards.hand = s.cards.hand.filter(keep);
+    s.cards.deck = s.cards.deck.filter(keep);
+    s.cards.discard = s.cards.discard.filter(keep);
+    const what = cards.length === 1 ? 'a page' : `${cards.length} pages`;
+    log(s, 'system', `You tear out ${what}: ${cardsLabel(cards)} ${cards.length === 1 ? 'leaves' : 'leave'} your deck for good.`);
+    s.event = { step: 'done', said: `You tear out ${what}: ${cardsLabel(cards)} ${cards.length === 1 ? 'is' : 'are'} gone for good.` };
   }
   return s;
 }

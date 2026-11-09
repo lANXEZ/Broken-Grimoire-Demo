@@ -151,6 +151,11 @@ export function killEnemy(state: GameState, e: Enemy, inHole = false): void {
         }
         break;
       case 'redactor':
+        // In endless mode it's just another monster: the curse holds.
+        if (state.endless) {
+          log(state, 'system', 'The Redactor falls again. The curse holds.');
+          break;
+        }
         state.phase = 'won';
         log(state, 'system', 'The Redactor is destroyed. The grimoire is yours. You win the demo!');
         break;

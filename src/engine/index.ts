@@ -8,5 +8,6 @@ export * from './runes';
 export * from './cipher';
 export * from './cast';
 export * from './game';
+export * from './generate';
 export * from './enemies';
 export * from './devtools';
