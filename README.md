@@ -17,6 +17,19 @@ settled in GAME_RULES.md's *Build decisions*), and gives it a real game presenta
   Scriptorium → Camp → the Redactor. The branching map screen
   is still to come (a teammate is building it).
 
+## Team
+
+**Group AraiD** · CSS481 Special Topics in Computer Engineering Fundamentals I · Section 1 · Term 1/2026
+
+| Student ID | Name |
+|---|---|
+| 6622770707 | Mr. Pimpavee Punyoyai |
+| 6622780474 | Mr. Athit Phinyachok |
+| 6622780821 | Mr. Phurich Siangsoong |
+| 6622790226 | Mr. Natthaphak Suesakulchockchai |
+
+The game shows the same list under **Credits** on the title screen (`src/config/credits.ts`).
+
 ## Tech
 
 | Part | Tool |

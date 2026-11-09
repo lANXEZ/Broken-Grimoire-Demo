@@ -2795,6 +2795,71 @@ button {
 .title-goodbye p {
   margin: 0;
 }
+/* The Credits panel: the team, over a dimmed title screen. */
+.title-credits {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  background: #000a;
+  animation: title-in 0.25s ease-out;
+}
+.title-credits-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  width: min(36rem, 92vw);
+  padding: 1.8rem 2.2rem 1.6rem;
+  text-align: center;
+  color: #f3e6c8;
+  background: linear-gradient(#2a1e14f2, #140e0af2);
+  border: 0.15rem solid #d9b768;
+  border-radius: 0.8rem;
+  box-shadow: 0 0 2.4rem #000c, inset 0 0 1.2rem #d9b76822;
+}
+.title-credits-panel h2 {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 2.2rem;
+  letter-spacing: 0.08em;
+  color: #d9b768;
+}
+.title-credits-group {
+  /* Not Cinzel: it's all capitals, and the group's name is spelt "AraiD". */
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #e9dcc0;
+}
+.title-credits-members {
+  /* One grid for all rows, so the names line up. */
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.45rem 1.2rem;
+  margin: 0.2rem 0;
+  padding: 0;
+  list-style: none;
+  font-size: 1.15rem;
+  text-align: left;
+}
+.title-credits-members li {
+  display: contents;
+}
+.title-credits-id {
+  font-variant-numeric: tabular-nums;
+  color: #d9b768cc;
+}
+.title-credits-course {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #f3e6c8aa;
+}
+.title-credits-panel .title-button {
+  min-width: 10rem;
+  margin-top: 0.3rem;
+}
 .title-goodbye .title-goodbye-hint {
   margin-bottom: 1.2rem;
   font-family: 'Kreon', serif;
