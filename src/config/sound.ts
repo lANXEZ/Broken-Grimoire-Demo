@@ -71,6 +71,7 @@ export const SOUND = {
     whisper: 3,
     // the background's events
     drip: 1.2,
+    pebbles: 1.5,
     pop: 2,
   } as Partial<Record<SoundName, number>>,
 
@@ -79,8 +80,10 @@ export const SOUND = {
     fade: 1.6,
     /** The title screen: wind in the trees, crickets, now and then an owl. */
     forest: 0.55,
-    /** Every room: a low drone and water dripping somewhere. */
+    /** Every room: a cave. A deep steady hum, water dripping into pools, pebbles falling, a far rumble. */
     dungeon: 0.5,
+    /** How long the cave's echo on those rings, in seconds. */
+    caveEcho: 3.5,
     /** A lit campfire (room 0, the camp): crackling. */
     campfire: 0.7,
   },
